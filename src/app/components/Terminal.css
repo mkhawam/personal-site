@@ -6,23 +6,11 @@ input {
     display: inline;
     box-shadow: none;
     height: auto;
-    font-family: var(
-        --default-mono-font-family,
-        ui-monospace,
-        SFMono-Regular,
-        Menlo,
-        Monaco,
-        Consolas,
-        "Liberation Mono",
-        "Courier New",
-        monospace
-    );
+    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
     font-size: 1em;
     font-feature-settings: var(--default-mono-font-feature-settings, normal);
-    font-variation-settings: var(
-        --default-mono-font-variation-settings,
-        normal
-    );
+    font-variation-settings: var(--default-mono-font-variation-settings, normal);
+    caret-shape: block;
 }
 input:active {
     border: none;
