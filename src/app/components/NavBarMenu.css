@@ -1,0 +1,4 @@
+.active {
+    border-right: 2px solid var(--color-accent);
+    border-radius: 6px;
+}
