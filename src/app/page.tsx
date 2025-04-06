@@ -7,7 +7,7 @@ export default function Home() {
         <div className="text-2xl">Software Development and Deployment</div>
       </div>
       <div className="mt-10">
-        <div className="text-7xl mt-50 p-20 w-full text-center italic font-mono bg-base-200 rounded-lg shadow-lg select-none">
+        <div className="text-7xl mt-30 p-20 w-full text-center italic font-mono bg-base-200 rounded-lg shadow-lg select-none">
           &quot;You have light and peace inside of you. If you let it out, you can change the world around you.&quot; - Uncle Iroh
         </div>
       </div>
