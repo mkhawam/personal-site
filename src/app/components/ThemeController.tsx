@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 
 export default function ThemeController() {
-  const [theme, setTheme] = useState(
-    typeof window !== "undefined"
-      ? localStorage.getItem("theme") || "cupcake"
-      : "cupcake",
-  );
+  const [theme, setTheme] = useState("cupcake");
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem("theme") || "cupcake";
+    setTheme(storedTheme);
+  }, []);
 
 
   useEffect(() => {
