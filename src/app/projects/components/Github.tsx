@@ -28,7 +28,12 @@ export function Github({ username, repo }: Props) {
     useEffect(() => {
         setLoading(true);
         fetch(`https://api.github.com/repos/${username}/${repo}`)
-            .then((response) => response.json())
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Network response was not ok");
+                }
+                return response.json();
+            })
             .then((data) => {
 
                 if (data.message === "Not Found") {
@@ -41,6 +46,7 @@ export function Github({ username, repo }: Props) {
             })
             .catch((error) => {
                 console.error("Error fetching GitHub data:", error);
+                setData(null);
                 setLoading(false);
             });
     }
