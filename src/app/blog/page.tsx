@@ -14,7 +14,7 @@ export default function BlogPage() {
                     {posts.map((post) => (
                         <div key={post.slug} className="card card-side bg-base-200 shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out">
                             <figure >
-                                <img src={post.image} alt={post.title} className="rounded-lg" />
+                                <img src={post.image} alt={post.title} />
                             </figure>
 
                             <div className="card-body">
