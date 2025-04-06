@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import ping from "ping";
+
 export async function POST(request: NextRequest) {
     const { ip } = await request.json();
 

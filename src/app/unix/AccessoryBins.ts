@@ -33,7 +33,6 @@ export const commands: commandList = {
         description: "Send ICMP ECHO_REQUEST to network hosts.",
         executable: async (args: string[]) => {
             const parsedArgs = parseArgs(args);
-            const options = parsedArgs.options;
 
             // check if valid ip address
             const ipRegex =
@@ -45,7 +44,7 @@ export const commands: commandList = {
                 return `ping: only one host is allowed.`;
             }
             // would like to use node to ping the ip address, maybe using webcontainers
-            var result = `PING ${parsedArgs.args[0]} (${parsedArgs.args[0]}) 56(84) bytes of data.`;
+            const result = `PING ${parsedArgs.args[0]} (${parsedArgs.args[0]}) 56(84) bytes of data.`;
 
             const response = await fetch("/api/ping", {
                 method: "POST",

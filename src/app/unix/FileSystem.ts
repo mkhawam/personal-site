@@ -474,7 +474,7 @@ export class FileSystem {
                     return "No such file or directory";
                 }
 
-                let userDir = homeDirectory.getLink(GetUserNameFromID(this.UID));
+                const userDir = homeDirectory.getLink(GetUserNameFromID(this.UID));
                 if (!userDir) {
                     return "No such file or directory";
                 }

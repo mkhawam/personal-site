@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { headers } from "next/headers";
 import Terminal from "./components/Terminal";
 

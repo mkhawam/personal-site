@@ -2,7 +2,6 @@
 
 import { FormEvent, useRef, useState } from "react";
 import styles from "./Terminal.module.css";
-import { FileSystem } from "../unix/FileSystem";
 import { Bash } from "../unix/Bash";
 type Props = {
   history: string;

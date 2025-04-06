@@ -1,4 +1,4 @@
-import { getPost } from "@/app/api/post/route";
+import { getPost } from "@/app/api/post/getPost";
 import { format } from "date-fns";
 import { redirect } from 'next/navigation';
 import { remark } from "remark";

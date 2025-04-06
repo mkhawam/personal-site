@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { Projects } from "./components/Projects";
 
 export default function ProjectsPage() {

@@ -1,4 +1,4 @@
-import { getPosts } from "../api/posts/route";
+import { getPosts } from "../api/posts/getPosts";
 
 export default function BlogPage() {
     const posts = getPosts();

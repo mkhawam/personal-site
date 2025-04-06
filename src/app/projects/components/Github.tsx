@@ -9,7 +9,20 @@ type Props = {
 }
 
 export function Github({ username, repo }: Props) {
-    const [data, setData] = React.useState<any>(null);
+    const [data, setData] = React.useState<{
+        name: string;
+        description: string;
+        created_at: string;
+        updated_at: string;
+        stargazers_count: number;
+        forks_count: number;
+        open_issues_count: number;
+        owner: {
+            login: string;
+            avatar_url: string;
+            html_url: string;
+        };
+    } | null>(null);
     const [loading, setLoading] = React.useState(false);
 
     useEffect(() => {
