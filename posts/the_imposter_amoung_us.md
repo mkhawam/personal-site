@@ -5,7 +5,7 @@ date: 2025-04-06 12:00:00
 tags: ["AI", "Game", "Turing Test"]
 author: Mohamad Khawam
 author_image: https://avatars.githubusercontent.com/dominusmars
-image: /img/xz_backdoor.png
+image: /img/the_imposter_amoung_us.png
 ---
 
 Alan Turing's is a inspriation of mine and I have always been fascinated by the ability to tell wether something is human or not. The Turing Test is an experiment proposed by Alan Turing in 1950 to determine whether or not a machine can exhibit intelligent behavior which is indistinguishable from that of a human. The test involves a human interrogator who interacts with both a human and a machine through a computer interface such as a console (A. M. Turing, 1950). The interrogator must then determine which of the two entities is the machine and which one is the human based solely on their responses to questions. If the interrogator is unable to reliably distinguish between the two, the machine is said to have passed the Turing Test.
