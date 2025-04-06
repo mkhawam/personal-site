@@ -29,7 +29,7 @@ GitHub had taken down the repo, but I found the xz lib on https://git.tukaani.or
 ### Step one - The files
 
 After catting the bad-3-corrupt_lzma2.xz file, the resulting bunch of data contained the string Hello World in the middle, a little message from the attacker. Then, after decompressing the file, the data was malformed, meaning decompressing it will not work.
-![Picture of corrupted data](corrupt_xz.png)
+![Picture of corrupted data](/img/corrupt_xz.png)
 
 There were three separate headers, _7zXZ_, inside the file. This file has three separate compression streams. The first stream is located from 0-72 bytes in and contains the following
 
@@ -400,7 +400,7 @@ This CVE is a story of breaking the trust in our external libraries. I think it'
 
 One thing that shocked me when I first got into programming on GitHub was the idea that I could effectively upload anything into releases. Suppose someone depends on my repo's releases or tags. I could, in theory, upload an entirely different program binary, and no one would know unless they decompiled the program. I think the maintainers' trust throughout the repos lifespan plays a role in more exploits not happening. It's still something that could occur. I wish there were a way to have GitHub or the repo hoster compile the code instead. That way, there's an assurance that the release is genuinely built from the code in one of the git commits, maintaining the integrity we all count on. But, this sadly also comes with a host of problems itself.
 
-![The Worlds Infrastructure](dependency.png)
+![The Worlds Infrastructure](/img/dependency.png)
 
 ## Sources
 
