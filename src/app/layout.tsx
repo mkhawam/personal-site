@@ -36,7 +36,7 @@ export default async function RootLayout({
       >
 
         <NavBar />
-        <div className="flex-1 max-h-screen overflow-y-auto">
+        <div className="flex-1 max-h-screen md:overflow-y-auto">
           {children}
         </div>
       </body>

@@ -22,7 +22,7 @@ export default function NavBar() {
         </div>
       </div>
       <NavBarMenu />
-      <div className="fixed bottom-0 left-0 p-8 md:w-sm sm:w-full flex">
+      <div className="fixed bottom-0 left-0 p-8 md:w-sm sm:w-full flex z-10">
         <Socials />
         <ThemeController />
       </div>
