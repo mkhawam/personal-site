@@ -15,6 +15,7 @@ export default async function NotFound() {
           `cat: ${pathname.toLowerCase()}: No such file or directory`
         }
       />
+      <div>API calls are sys calls now?</div>
     </div>
   );
 }

@@ -1,0 +1,72 @@
+/* post.css */
+/* Light theme */
+html[data-theme="cupcake"],
+html[data-theme="cupcake"] {
+    /* Paste contents of prism-light.css here */
+    @import "prismjs/themes/prism.css"; /* or any other theme */
+    /* @import url("https://unpkg.com/prismjs@1.30.0/themes/prism.css"); */
+}
+
+/* Dark theme */
+html[data-theme="forest"],
+html[data-theme="forest"] {
+    /* Paste contents of prism-dark.css here */
+    /* @import url("https://unpkg.com/prismjs@1.30.0/themes/prism-twilight.css"); */
+    @import "prismjs/themes/prism-twilight.css";
+}
+.blog pre {
+    background-color: var(--color-base-100);
+    padding: 1em;
+}
+.blog p:has(strong) {
+    padding-top: 2em;
+    padding-bottom: 1em;
+    font-weight: 600;
+}
+.blog p:not(:has(strong)) {
+    padding-top: 0.2em;
+    padding-bottom: 0.5em;
+}
+.blog h6 {
+    font-size: 0.875em;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+.blog h1 {
+    font-size: 2.5em;
+    margin-top: 2em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+.blog h2 {
+    font-size: 1.5em;
+    margin-top: 2em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+.blog h3 {
+    font-size: 1.25em;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+.blog h4 {
+    font-size: 1.125em;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+.blog h5 {
+    font-size: 1em;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+/* code {
+    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+    font-size: 1em;
+    font-feature-settings: var(--default-mono-font-feature-settings, normal);
+    font-variation-settings: var(--default-mono-font-variation-settings, normal);
+    caret-shape: block;
+} */

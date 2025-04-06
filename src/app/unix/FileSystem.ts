@@ -1,4 +1,5 @@
 import { GetUserNameFromID } from "./UserSystem";
+import { parseArgs } from "./Utils";
 
 function mapUnixPermissions(n: number): string {
     const permissionList = [];
@@ -44,7 +45,7 @@ class Inode {
         this.permissions = permissions;
         this.ownerId = ownerId;
         this.groupId = groupId;
-        this.size = size;
+        this.size = this.filetype === "d" ? 4096 : size; // default size for directories
         this.lastAccessed = lastAccessed;
         this.lastModified = lastModified;
         this.links = this.filetype === "d" ? {} : null;
@@ -415,14 +416,14 @@ export class FileSystem {
         return currentNode;
     }
     ls(args: string[]): string | void {
-        const path = args[0] || ".";
-        const mode = args[1] || "";
+        const parsedArgs = parseArgs(args);
+        const path = parsedArgs.args[0] || ".";
 
         function getInfo(targetInode: Inode): string {
             if (!targetInode) return "";
             if (!targetInode.links) return targetInode.getInfo();
 
-            if (mode == "-l") {
+            if (parsedArgs.options["l"]) {
                 return Object.keys(targetInode.links)
                     .map((link) => {
                         const inode = targetInode.links![link];
@@ -452,8 +453,9 @@ export class FileSystem {
             const pathList = path.split("/");
             pathList.shift();
             const new_path = oldPath + "/" + pathList.join("/");
+            const options = Object.keys(parsedArgs.options).map((key) => `-${key}`);
 
-            return this.ls([new_path, mode]);
+            return this.ls([new_path, ...options]);
         }
         return "No such file or directory";
     }
@@ -756,7 +758,6 @@ export class FileSystem {
         return "No such file or directory";
     }
     write(path: string, content: string): void | string {
-        console.log(path, content);
         if (path == "") return "No such file or directory";
         if (path.indexOf("/") === -1) {
             const targetFile = this.cwd.getLink(path);

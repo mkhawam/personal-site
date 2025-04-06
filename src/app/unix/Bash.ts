@@ -1,4 +1,6 @@
+import { commands } from "./AccessoryBins";
 import { FileSystem } from "./FileSystem";
+import { parseArgs } from "./Utils";
 
 export class Bash {
     name: string;
@@ -33,15 +35,18 @@ export class Bash {
         return `${this.user.name}@${this.hostname}:${this.fs.pwd()}$ `;
     }
 
-    executeCommand(command: string): string | void | null {
+    async executeCommand(command: string): Promise<string | void | null> {
         // Simulate command execution
         this.history.push(command);
-        console.log(`Executing: ${command}`);
-
         const commandParts = command.split(" ");
         const commandName = commandParts[0];
         const args = commandParts.slice(1);
-        console.log(`Command: ${commandName}, Args: ${args}`);
+        if (process.env.NODE_ENV === "development") {
+            console.log(`Executing command: ${command} with args: ${args}`);
+            console.log(parseArgs(args));
+        }
+
+        // To-do: change this to a map
         switch (commandName) {
             case "ls":
                 return this.fs.ls(args);
@@ -87,7 +92,16 @@ export class Bash {
                 return this.hostname;
             case "history":
                 return this.history.join("\n");
+            case "id":
+                return `uid=${this.user.id}(${this.user.name}) gid=${this.group.id}(${this.group.name})`;
+
             default:
+                // Check if the command is a valid executable in the file system
+                if (commands[commandName]) {
+                    const commandObj = commands[commandName];
+                    return await commandObj.executable(args);
+                }
+
                 return `bash: ${commandName}: command not found`;
         }
     }
