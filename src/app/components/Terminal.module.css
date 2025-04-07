@@ -11,6 +11,7 @@
     font-feature-settings: var(--default-mono-font-feature-settings, normal);
     font-variation-settings: var(--default-mono-font-variation-settings, normal);
     caret-shape: block;
+    width: 100%;
 }
 .input:active {
     border: none;

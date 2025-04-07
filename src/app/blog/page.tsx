@@ -6,10 +6,10 @@ export default function BlogPage() {
     return (
         <div className="grow bg-base-300 text-base-content min-h-screen p-8 pb-20 select-none">
             <div className="">
-                <div className="text-5xl">Blog</div>
+                <div className="md:text-5xl text-xl">Blog</div>
             </div>
             <div className="mt-4">
-                <div className="text-3xl">Latest Posts</div>
+                <div className="md:text-3xl text-xl">Latest Posts</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 mt-5">
                     {posts.map((post) => (
                         <div key={post.slug} className="card card-side bg-base-200 shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out">

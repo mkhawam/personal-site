@@ -19,28 +19,28 @@ export function NavBarMenu() {
     <ul className="menu grow shrink menu-md overflow-y-auto flex flex-col w-full text-base-content">
       <li className={getClassName("", "Home")}>
         <Link href={"/"}>
-          <div className={"py-3 text-xl"}>Home()</div>
+          <div className={"py-3 md:text-xl text-md"}>Home()</div>
         </Link>
       </li>
       <li className={getClassName("", "Projects")}>
         <Link href={"/projects"}>
-          <div className={"py-3 text-xl"}>Projects()</div>
+          <div className={"py-3 md:text-xl text-md"}>Projects()</div>
         </Link>
       </li>
 
       <li className={getClassName("", "Blog")}>
         <Link href={"/blog"}>
-          <div className={"py-3 text-xl"}>Blog()</div>
+          <div className={"py-3 md:text-xl text-md"}>Blog()</div>
         </Link>
       </li>
       <li className={getClassName("", "cv")}>
         <Link href={"/cv"}>
-          <div className={"py-3 text-xl"}>CV()</div>
+          <div className={"py-3 md:text-xl text-md"}>CV()</div>
         </Link>
       </li>
       <li>
         <Link href={"mailto:khawammohamad99@gmail.com"}>
-          <div className={"py-3 text-xl"}>Contact()</div>
+          <div className={"py-3 md:text-xl text-md"}>Contact()</div>
         </Link>
       </li>
     </ul>

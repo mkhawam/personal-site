@@ -50,7 +50,7 @@ export default function Terminal({ history }: Props) {
             id="command"
             type="text"
             placeholder=""
-            className={`${styles.input} `}
+            className={`${styles.input}`}
             onChange={(e) => SetCurrentCommand(e.target.value)}
             tabIndex={0}
             autoFocus={true}
