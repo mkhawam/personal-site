@@ -13,6 +13,13 @@ type project = {
 
 const projects: project[] = [
     {
+        name: "Job Application Tracker",
+        description: "A node js application that allows a user to track their job application using their incoming emails. The application uses discord to send notifications to the user when a new job update is found and uses an LLM to parse the email extracting the relevant information.",
+        url: "https://github.com/dominusmars/AppTracker",
+        embed: <Github username="dominusmars" repo="AppTracker" />,
+        tags: ["NodeJS", "LLM", "Bayesian", "Discord", "Automation", "Email", "NLP"],
+    },
+    {
         name: "Windows Cloud-Init Script",
         description: "A OpenStack cloud-init script for windows. The script is used to automate the configuration of windows instances in OpenStack or Proxmox.",
         url: "https://github.com/dominusmars/cloud-init",
