@@ -17,7 +17,7 @@ export default function BlogPage() {
               className="card card-side bg-base-200 shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out"
             >
               <figure>
-                <img src={post.image} alt={post.title} />
+                <img className="w-48 h-full object-cover" src={post.image} alt={post.title} />
               </figure>
 
               <div className="card-body">

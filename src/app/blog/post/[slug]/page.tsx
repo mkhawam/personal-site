@@ -58,8 +58,8 @@ export default async function Post({
         <div className="text-xl mt-5">
           Authored by {post.author} - {format(post.date, "MMMM dd, yyyy")}
         </div>
-        <div className="mt-4">
-          <img src={post.image} alt={post.title} className="rounded-lg" />
+        <div className="mt-4 overflow-hidden h-96">
+          <img src={post.image} alt={post.title} className="rounded-lg w-full h-full object-cover" />
         </div>
         <div className="mt-4">
           <div className="text-2xl">Tags:</div>
