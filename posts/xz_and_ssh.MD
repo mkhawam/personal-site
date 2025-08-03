@@ -4,7 +4,7 @@ description: A backdoor was found in the xz compression library which allowed an
 date: 2024-04-02 12:00:00
 tags: [CVE-2024-3094, xz, openssh, backdoor, exploit]
 author: Mohamad Khawam
-author_image: https://avatars.githubusercontent.com/dominusmars
+author_image: https://avatars.githubusercontent.com/mkhawam
 image: /img/xz_backdoor.png
 ---
 

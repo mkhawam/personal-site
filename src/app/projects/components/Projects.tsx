@@ -15,30 +15,30 @@ const projects: project[] = [
     {
         name: "Job Application Tracker",
         description: "A node js application that allows a user to track their job application using their incoming emails. The application uses discord to send notifications to the user when a new job update is found and uses an LLM to parse the email extracting the relevant information.",
-        url: "https://github.com/dominusmars/AppTracker",
-        embed: <Github username="dominusmars" repo="AppTracker" />,
+        url: "https://github.com/mkhawam/AppTracker",
+        embed: <Github username="mkhawam" repo="AppTracker" />,
         tags: ["NodeJS", "LLM", "Bayesian", "Discord", "Automation", "Email", "NLP"],
     },
     {
         name: "Windows Cloud-Init Script",
         description: "A OpenStack cloud-init script for windows. The script is used to automate the configuration of windows instances in OpenStack or Proxmox.",
-        url: "https://github.com/dominusmars/cloud-init",
-        embed: <Github username="dominusmars" repo="cloud-init" />,
+        url: "https://github.com/mkhawam/cloud-init",
+        embed: <Github username="mkhawam" repo="cloud-init" />,
         tags: ["Windows", "Cloud-Init", "OpenStack", "Proxmox", "Automation", "PowerShell"],
     },
     {
         name: "Pfsense-Api",
         description: "A simple API for Pfsense. The API is used to automate the configuration of Pfsense instances. The API is used to create, read, update and delete firewall rules. after the work of jaredhendrickson13.",
-        url: "https://github.com/dominusmars/pfsense-api",
-        embed: <Github username="dominusmars" repo="pfsense-api" />,
+        url: "https://github.com/mkhawam/pfsense-api",
+        embed: <Github username="mkhawam" repo="pfsense-api" />,
         tags: ["Pfsense", "API", "Automation", "Network Security", "Firewall"],
 
     },
     {
         name: "Proxmox Discord Bot",
         description: " Discord bot provides sysadmins a way to provide discord connective to their Proxmox node. Utilizing one node in a cluster. Sysadmins can provide their Discord users with an easy way to create and edit VMs.",
-        url: "https://github.com/dominusmars/Discord_Proxmox",
-        embed: <Github username="dominusmars" repo="Discord_Proxmox" />,
+        url: "https://github.com/mkhawam/Discord_Proxmox",
+        embed: <Github username="mkhawam" repo="Discord_Proxmox" />,
         tags: ["NodeJS", "Discord", "Proxmox", "Automation", "Network Security", "Web Application"],
     },
 
@@ -46,8 +46,8 @@ const projects: project[] = [
         name: "Jackal",
         description: "Network Behavior Analysis application that uses suricata to analyze network traffic and detect anomalies. By generated alerts by suricata, the application can detect and analyze network attacks. The application uses a web interface to display the alerts and provide a user-friendly way to analyze the data.",
 
-        url: "https://github.com/dominusmars/Jackal",
-        embed: <Github username="dominusmars" repo="Jackal" />,
+        url: "https://github.com/mkhawam/Jackal",
+        embed: <Github username="mkhawam" repo="Jackal" />,
         tags: ["Python", "Flask", "Suricata", "Network Security", "Web Application", "Data Analysis", "Machine Learning", "React", "MongoDB", "Docker"],
 
     },
@@ -69,8 +69,8 @@ const projects: project[] = [
     {
         name: "JobApps",
         description: "JobApps is a web application that allows users to track their job applications. The application uses a web interface to display the job applications and provide a user-friendly way to manage the data. Before Simplify was created.",
-        url: "https://github.com/dominusmars/JobApps",
-        embed: <Github username="dominusmars" repo="JobApps" />,
+        url: "https://github.com/mkhawam/JobApps",
+        embed: <Github username="mkhawam" repo="JobApps" />,
         tags: ["Typescript", "React", "NodeJS", "Express", "LevelDB", "Web Application",],
     }
 

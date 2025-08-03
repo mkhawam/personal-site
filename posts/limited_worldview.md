@@ -4,7 +4,7 @@ description: "How to create a limited worldview to create easier to manage and m
 date: 2024-04-12 12:00:00
 tags: [clean-code, security, software-engineering, software-design, software-architecture]
 author: Mohamad Khawam
-author_image: https://avatars.githubusercontent.com/dominusmars
+author_image: https://avatars.githubusercontent.com/mkhawam
 image: /img/coding.png
 ---
 

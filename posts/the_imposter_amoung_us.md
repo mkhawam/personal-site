@@ -4,7 +4,7 @@ description: A Description of a game and extension of the Turing Test
 date: 2025-04-06 12:00:00
 tags: ["AI", "Game", "Turing Test"]
 author: Mohamad Khawam
-author_image: https://avatars.githubusercontent.com/dominusmars
+author_image: https://avatars.githubusercontent.com/mkhawam
 image: /img/the_imposter_amoung_us.png
 ---
 

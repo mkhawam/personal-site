@@ -4,7 +4,7 @@ description: "How improerly configured endpoints can lead to data leaks."
 date: 2024-04-09 12:00:00
 tags: [exploit, react, golang, jersey_ctf, leaky_endpoints, vulnerability, 2025]
 author: Mohamad Khawam
-author_image: https://avatars.githubusercontent.com/dominusmars
+author_image: https://avatars.githubusercontent.com/mkhawam
 image: /img/smoke_and_mirrors.png
 ---
 
@@ -25,7 +25,6 @@ Throughout this write up I'll be going over both from a challenger side and also
 `A client wanted me to create a website for their restaurant. I wouldn't worry too much about giving your order details, but clients are weird, right? Unfortunately, the admin keeps using their personal information as passwords. I keep telling them that I'll set a good flag, but they never listen.`
 
 The challenge had a few different goals, I wanted it to be hard but also reasonable enough for attacks who are knowlegable in web to understand. Firstly, the name gives a big hint to what it might be. Leaky Endpoints is a term used to describe endpoints which are improperly configured allowing users to access data that they aren't suppose to. This means that without proper authication users can extract data from the server that they shouldn't be able to see. Lets take a look at the code to see how this was done.
-
 
 ```go
 
@@ -97,23 +96,22 @@ The challege descripion gave us our next hint, "Unfortunately, the admin keeps u
 
 ```json
 {
-	"Name":         "Admin User",
-	"Full_address": "123 Main St",
-	"State":        "NJ",
-	"Country":      "USA",
-	"Postal_code":  "12345",
-	"Phone":        "5511111111",
-	"Card":         "1234567890123456",
-	"Cvv":          "123",
-	"Expiry":       "12/25",
+    "Name": "Admin User",
+    "Full_address": "123 Main St",
+    "State": "NJ",
+    "Country": "USA",
+    "Postal_code": "12345",
+    "Phone": "5511111111",
+    "Card": "1234567890123456",
+    "Cvv": "123",
+    "Expiry": "12/25"
 }
 ```
-
 
 Next, there were a few different ways to go about solving this depending on which ones an attacker find first. One thing I like to do is take a look at the network in the devtools tab first to see what requests are being made. to see what requests and responses are being made. Prehaps there are some requests that were preveiously unauthorized but now are. Some websites will have a developer version enabled when an admin is logged in. In this case its a react application so theres a easier way to see this in action. A little bit about how react applications work, more specifically single page react applications. Its a bunch of javascript in a single file. This bundle of javascript holds all the applications infomation about how to navigate the site. The infomation holds all the endpoints. You can find it by looking at the inital request made to the page. If it like something of the following, you know your dealing with a single page Javascript application
 
 ```html
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
@@ -122,8 +120,8 @@ Next, there were a few different ways to go about solving this depending on whic
         <script src="/static/bundle.js" defer></script>
         <link rel="icon" href="/static/favicon.ico" />
     </head>
-    <body >
-        <div id="root" ></div>
+    <body>
+        <div id="root"></div>
     </body>
 </html>
 ```
@@ -132,25 +130,37 @@ Taking a look at the html take you'll see `/static/bundle.js`. Thats the entry p
 
 ```javascript
 function App() {
-    return (react_1.default.createElement("div", { className: "App" },
-        react_1.default.createElement("header", { className: "App-header" },
-            react_1.default.createElement(NavMenu_1.default, null)),
-        react_1.default.createElement("div", { className: "App-body" },
-            react_1.default.createElement(react_router_1.Routes, null,
+    return react_1.default.createElement(
+        "div",
+        { className: "App" },
+        react_1.default.createElement("header", { className: "App-header" }, react_1.default.createElement(NavMenu_1.default, null)),
+        react_1.default.createElement(
+            "div",
+            { className: "App-body" },
+            react_1.default.createElement(
+                react_router_1.Routes,
+                null,
                 react_1.default.createElement(react_router_1.Route, { path: "/", Component: Home_1.default }),
                 react_1.default.createElement(react_router_1.Route, { path: "/Menu", Component: Menu_1.default }),
                 react_1.default.createElement(react_router_1.Route, { path: "/Order", Component: OrderSummary_1.default }),
                 react_1.default.createElement(react_router_1.Route, { path: "/Checkout", Component: Checkout_1.default }),
                 react_1.default.createElement(react_router_1.Route, { path: "/@dMiN", Component: Admin_1.default }),
-                react_1.default.createElement(react_router_1.Route, { path: "/Orders/:user_id/:id", Component: Orders_1.default }))),
-        react_1.default.createElement("footer", { className: "footer sm:footer-horizontal footer-center bg-base-300 text-base-content p-4" },
-            react_1.default.createElement("aside", null,
-                react_1.default.createElement("p", null,
-                    "Copyright \u00A9 ",
-                    new Date().getFullYear(),
-                    " - All right reserved by S&M Industries Ltd")))));
+                react_1.default.createElement(react_router_1.Route, { path: "/Orders/:user_id/:id", Component: Orders_1.default })
+            )
+        ),
+        react_1.default.createElement(
+            "footer",
+            { className: "footer sm:footer-horizontal footer-center bg-base-300 text-base-content p-4" },
+            react_1.default.createElement(
+                "aside",
+                null,
+                react_1.default.createElement("p", null, "Copyright \u00A9 ", new Date().getFullYear(), " - All right reserved by S&M Industries Ltd")
+            )
+        )
+    );
 }
 ```
+
 These are all the different web views for the application. The important one to note is the `/@dMiN` endpoint. This is the admin page for the application. And going to it on the browser will give an admin dashboard. The dashboard is a simple page which showed some statstics. Either going to the page or looking more in depth in the bundle you'll find the admin api endpoints, 3 in total.
 
 ```txt
@@ -229,7 +239,6 @@ After getting the table names, selecting the table flog3 and selecting the name 
 curl http://leaky-endpoints.aws.jerseyctf.com/api/admin/dev/user/1%20UNION%20SELECT%20group_concat(name)%20FROM%20flog3
 ```
 
-
 ## Conclusion
 
 Many times these vulnerabilities are coding into code bases on accident. Either rushing to get something working or not thinging about the consequences. This challenge was meant to demonstrate how even if a vulnerability is behide a login, a malicious users can still get access to it and exploit it. Thats why its important to take the time to secure critical users such as Admins and Root users. Ensuring that these users are protected. Its a recurring story of system adminstrators believing something is secure only to find out that one exploit on the front-end gives an attacker admin permissions. If an attack is available an attack will exploit it. Its not uncommon for vulnerabilities to be dismissed simply because there are behide a firewall or dashboard.
@@ -238,10 +247,9 @@ In all, Making this challege was a ton of fun and I hope to make many more in th
 
 ## Sources
 
-- https://youtu.be/JA4Vii3tyUk
-- https://owasp.org/www-community/attacks/SQL_Injection
-- https://owasp.org/Top10/A01_2021-Broken_Access_Control/
-
+-   https://youtu.be/JA4Vii3tyUk
+-   https://owasp.org/www-community/attacks/SQL_Injection
+-   https://owasp.org/Top10/A01_2021-Broken_Access_Control/
 
 ## Future reading
 

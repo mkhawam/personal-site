@@ -4,7 +4,7 @@ const socials = [
     {
         name: 'GitHub',
         icon: <FaGithub size={35} />,
-        href: 'https://github.com/dominusmars',
+        href: 'https://github.com/mkhawam',
         color: 'btn-neutral',
     },
     {

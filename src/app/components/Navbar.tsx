@@ -10,7 +10,7 @@ export default function NavBar() {
           <div className="rounded-full w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-36">
             <Image
               alt="Tailwind CSS Navbar component"
-              src="https://avatars.githubusercontent.com/dominusmars"
+              src="https://avatars.githubusercontent.com/mkhawam"
               width={100}
               height={100}
               sizes="(max-width: 768px) 25vw, 20vw"
