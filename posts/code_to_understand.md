@@ -1,7 +1,7 @@
 ---
 title: "Code To Understand"
 description: "Clean code doesn't just mean the fastest code."
-date: 2025-08-01 T00:00:00Z
+date: 2025-08-03 12:00:00
 tags: [2025, Code, Clean Code, Software Development]
 author: Mohamad Khawam
 author_image: https://avatars.githubusercontent.com/mkhawam
