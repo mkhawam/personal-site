@@ -8,7 +8,7 @@ import {
   Maximize2, Minimize2, Settings, Archive, RotateCw, Flag, Paperclip, ExternalLink,
   File, Globe, Image as ImageIcon, Video, FileCode, Github, Youtube, Twitter, Instagram, 
   Linkedin, Figma, Codepen, Trello, Slack, Disc, Download, Upload, Eye, EyeOff, Keyboard,
-  BarChart, ChevronDown, FolderPlus, Target, Calendar, Flame, Repeat, Headphones, Volume2, VolumeX, Move, Search, Tag
+  BarChart, ChevronDown, FolderPlus, Target, Calendar, Flame, Repeat, Headphones, Volume2, VolumeX, Move, Search, Tag, Lock, Cloud, RefreshCw
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import clsx from 'clsx';
@@ -546,7 +546,7 @@ export default function TasksPage() {
       setTasks(tasks.map(t => t.id === id ? { ...t, archived: false } : t));
   };
 
-  const openModal = (taskId: string | null, type: 'SUBTASK' | 'NOTE' | 'BRAINSTORM' | 'SETTINGS' | 'ARCHIVE' | 'ATTACHMENT') => {
+  const openModal = (taskId: string | null, type: 'SUBTASK' | 'NOTE' | 'BRAINSTORM' | 'SETTINGS' | 'ARCHIVE' | 'ATTACHMENT' | 'SHORTCUTS' | 'STATS' | 'NEW_LIST' | 'DUE_DATE' | 'ESTIMATE' | 'MOVE_TO_LIST' | 'SYNC') => {
       setActiveTaskID(taskId);
       setModalType(type);
       
@@ -1668,7 +1668,7 @@ export default function TasksPage() {
            <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={{ duration: 0.5, ease: "easeOut" as const }}
             className="rounded-3xl bg-zinc-900/50 border border-white/5 p-6 md:p-8 min-h-[500px] shadow-xl flex flex-col opacity-0"
            >
               {/* Search Input */}
@@ -1719,7 +1719,7 @@ export default function TasksPage() {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0, transition: { duration: 0.3 } }}
                             exit={{ opacity: 0, height: 0, marginBottom: 0, transition: { duration: 0.2 } }}
-                            layoutTransition={{ duration: 0.2, ease: "easeInOut" }}
+                            transition={{ duration: 0.2, ease: "easeInOut" as const }}
                             whileHover={{ scale: 1.01, backgroundColor: "rgba(255,255,255,0.05)" }}
                             className={clsx(
                                 "relative flex flex-col p-4 rounded-xl border transition-colors bg-white/5",

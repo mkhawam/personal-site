@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 
-export async function middleware(request: Request) {
+export async function proxy(request: Request) {
     const url = new URL(request.url);
     const origin = url.origin;
     const pathname = url.pathname;
