@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import NavBar from "./components/Navbar";
+// import NavBar from "./components/Navbar"; // Now handled by Shell
+import Shell from "./components/Shell";
 import { headers } from "next/headers";
 
 const geistSans = Geist({
@@ -30,15 +31,29 @@ export default async function RootLayout({
 
   return (
     <html lang="en" data-theme={theme}>
-
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#09090b" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased flex h-full flex-col md:flex-row  bg-base-300 text-base-content`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased h-full`}
       >
-
-        <NavBar />
-        <div className="flex-1 max-h-screen md:overflow-y-auto">
+        <Shell>
           {children}
-        </div>
+        </Shell>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );

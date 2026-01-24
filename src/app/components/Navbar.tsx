@@ -1,30 +1,36 @@
 import Image from "next/image";
 import { NavBarMenu } from "./NavBarMenu";
-import ThemeController from "./ThemeController";
-import Socials from "./Socials";
+import Socials from "./Socials"; 
+// Note: ThemeController removed as we are enforcing a specific dark aesthetic.
+
 export default function NavBar() {
   return (
-    <div className="bg-base-100 shadow-sm md:w-xs sm:w-full relative h-100vh">
-      <div className="flex items-center justify-center h-1/5">
-        <div tabIndex={0} role="button" className="avatar">
-          <div className="rounded-full w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-36">
+    <div className="flex flex-col h-full bg-transparent">
+      
+      {/* Profile Header */}
+      <div className="p-8 flex flex-col items-center border-b border-white/5">
+        <div className="relative w-24 h-24 mb-4 rounded-full overflow-hidden border-2 border-white/10 shadow-xl">
             <Image
-              alt="Tailwind CSS Navbar component"
+              alt="Mohamad Khawam"
               src="https://avatars.githubusercontent.com/mkhawam"
-              width={100}
-              height={100}
-              sizes="(max-width: 768px) 25vw, 20vw"
-              quality={100}
-              priority={true}
-              className="object-contain"
+              fill
+              className="object-cover"
+              sizes="96px"
+              priority
             />
-          </div>
         </div>
+        <h2 className="text-lg font-bold text-zinc-100">Mohamad Khawam</h2>
+        <p className="text-xs text-zinc-500 font-mono mt-1">Full Stack Developer</p>
       </div>
-      <NavBarMenu />
-      <div className="fixed bottom-0 left-0 p-8 w-full md:w-xs sm:w-full flex z-10">
+
+      {/* Navigation */}
+      <div className="flex-1 overflow-y-auto py-4">
+        <NavBarMenu />
+      </div>
+
+      {/* Footer / Socials */}
+      <div className="p-6 border-t border-white/5 bg-black/20">
         <Socials />
-        <ThemeController />
       </div>
     </div>
   );

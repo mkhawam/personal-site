@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
-import { PostResponse } from "@/types/blog";
+import { PostResponse } from "../../../types/blog";
 
 const postsDir = path.join(process.cwd(), "posts");
 

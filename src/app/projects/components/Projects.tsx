@@ -1,11 +1,13 @@
+'use client';
+
 import { JSX } from "react";
 import { Github } from "./Github";
-
+import { motion } from "framer-motion";
+import clsx from "clsx";
 
 type project = {
     name: string;
     description: string;
-
     url: string;
     embed: JSX.Element;
     tags: string[];
@@ -73,39 +75,81 @@ const projects: project[] = [
         embed: <Github username="mkhawam" repo="JobApps" />,
         tags: ["Typescript", "React", "NodeJS", "Express", "LevelDB", "Web Application",],
     }
+];
 
-]
+const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.1
+        }
+    }
+};
 
+const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    show: { 
+        opacity: 1, 
+        y: 0,
+        transition: { duration: 0.4, ease: "easeOut" }
+    }
+};
 
 export function Projects() {
-
     return (
-        <div className="flex flex-col items-center justify-center h-full">
-            <h1 className="text-3xl font-bold mb-4"></h1>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-                {projects.map((project) => (
-                    <div key={project.name} className="card bg-base-100 shadow-xl p-4">
-                        <div className="card-body">
-                            <h2 className="card-title">{project.name}</h2>
-                            <p>{project.description}</p>
-                            <div className="justify-start items-center">
+        <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full pb-20 opacity-0"
+        >
+            {projects.map((project, idx) => (
+                <motion.div 
+                    key={project.name}
+                    variants={itemVariants}
+                    whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                    viewport={{ once: true }}
+                    className="group relative flex flex-col h-full overflow-hidden rounded-3xl bg-zinc-900/50 border border-white/5 hover:border-white/20 hover:shadow-2xl hover:shadow-white/5"
+                >
+                    <div className="p-6 flex flex-col flex-1">
+                        <div className="flex justify-between items-start mb-4">
+                            <h2 className="text-2xl font-bold text-zinc-100 group-hover:text-white transition-colors duration-300">
+                                {project.name}
+                            </h2>
+                            <div className="text-zinc-500 group-hover:text-zinc-300 transition-colors">
                                 {project.embed}
-
                             </div>
-                            <div className="tags mt-2 flex flex-wrap gap-2">
-                                {project.tags.map((tag) => (
-                                    <span key={tag} className="badge badge-outline">{tag}</span>
-                                ))}
-                            </div>
-                            <div className="card-actions justify-end">
-                                <a href={project.url} target="_blank" rel="noopener noreferrer" className="btn btn-primary">View Project</a>
-                            </div>
+                        </div>
 
+                        <p className="text-zinc-400 leading-relaxed mb-6 flex-1">
+                            {project.description}
+                        </p>
 
+                        <div className="flex flex-wrap gap-2 mt-auto">
+                            {project.tags.map((tag) => (
+                                <span 
+                                    key={tag} 
+                                    className="px-3 py-1 text-xs font-semibold rounded-full bg-white/5 border border-white/10 text-zinc-500 group-hover:border-white/20 group-hover:text-zinc-300 transition-colors"
+                                >
+                                    {tag}
+                                </span>
+                            ))}
                         </div>
                     </div>
-                ))}
-            </div>
-        </div>
+
+                    <div className="p-4 bg-black/20 border-t border-white/5 flex justify-end">
+                        <a 
+                            href={project.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="btn btn-sm btn-ghost hover:bg-white hover:text-zinc-900 transition-all"
+                        >
+                            View Project
+                        </a>
+                    </div>
+                </motion.div>
+            ))}
+        </motion.div>
     );
 }

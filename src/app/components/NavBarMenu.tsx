@@ -1,48 +1,55 @@
-"use client";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import "./NavBarMenu.css";
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Home, Briefcase, BookOpen, CheckSquare, FileText, Mail } from 'lucide-react';
+import { motion } from 'framer-motion';
+import clsx from 'clsx';
+
+const navItems = [
+  { name: 'Home', path: '/', icon: Home },
+  { name: 'Projects', path: '/projects', icon: Briefcase },
+  { name: 'Blog', path: '/blog', icon: BookOpen },
+  { name: 'CV', path: '/cv', icon: FileText },
+  { name: 'Tasks', path: '/tasks', icon: CheckSquare },
+  { name: 'Contact', path: 'mailto:khawammohamad99@gmail.com', icon: Mail },
+];
 
 export function NavBarMenu() {
-  const path = usePathname();
-  function getClassName(baseClasses: string, targetName: string) {
-    const loweredTarget = targetName.toLowerCase();
-
-    if (loweredTarget == "home" && path == "/") return `${baseClasses} active`;
-
-    if (path.toLowerCase().includes(loweredTarget.toLowerCase()))
-      return `${baseClasses} active`;
-    else return baseClasses;
-  }
+  const pathname = usePathname();
 
   return (
-    <ul className="menu grow shrink menu-md overflow-y-auto flex flex-col w-full text-base-content">
-      <li className={getClassName("", "Home")}>
-        <Link href={"/"}>
-          <div className={"py-3 md:text-xl text-md"}>Home()</div>
-        </Link>
-      </li>
-      <li className={getClassName("", "Projects")}>
-        <Link href={"/projects"}>
-          <div className={"py-3 md:text-xl text-md"}>Projects()</div>
-        </Link>
-      </li>
+    <ul className="flex flex-col gap-2 p-4 w-full">
+      {navItems.map((item) => {
+        const isActive = 
+          item.path === '/' 
+            ? pathname === '/'
+            : pathname.startsWith(item.path) && item.path !== '/';
 
-      <li className={getClassName("", "Blog")}>
-        <Link href={"/blog"}>
-          <div className={"py-3 md:text-xl text-md"}>Blog()</div>
-        </Link>
-      </li>
-      <li className={getClassName("", "cv")}>
-        <Link href={"/cv"}>
-          <div className={"py-3 md:text-xl text-md"}>CV()</div>
-        </Link>
-      </li>
-      <li>
-        <Link href={"mailto:khawammohamad99@gmail.com"}>
-          <div className={"py-3 md:text-xl text-md"}>Contact()</div>
-        </Link>
-      </li>
+        return (
+          <li key={item.name}>
+            <Link href={item.path} className="relative block group">
+              {isActive && (
+                <motion.div
+                  layoutId="activeNav"
+                  className="absolute inset-0 bg-primary/10 rounded-xl"
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                />
+              )}
+              
+              <div className={clsx(
+                "relative z-10 flex items-center gap-3 px-4 py-3 rounded-xl transition-colors duration-200",
+                isActive 
+                  ? "text-primary font-semibold" 
+                  : "text-zinc-400 hover:text-zinc-100 hover:bg-white/5"
+              )}>
+                <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="text-base">{item.name}</span>
+              </div>
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }

@@ -1,9 +1,22 @@
 import { NextResponse } from "next/server";
+import { verifyToken } from "@/lib/auth";
 
-export function middleware(request: Request) {
+export async function middleware(request: Request) {
     const url = new URL(request.url);
     const origin = url.origin;
     const pathname = url.pathname;
+    
+    // Auth Middleware for /tasks
+    if (pathname.startsWith("/tasks")) {
+        const cookies = request.headers.get("cookie") || "";
+        // Parse cookies for auth_token
+        const token = cookies.split('; ').find(row => row.startsWith('auth_token='))?.split('=')[1];
+        
+        if (!token || !(await verifyToken(token))) {
+             return NextResponse.redirect(new URL("/login", request.url));
+        }
+    }
+
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-url", request.url);
     requestHeaders.set("x-origin", origin);
