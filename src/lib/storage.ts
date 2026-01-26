@@ -37,7 +37,8 @@ class VercelBlobStorage implements SyncStorage {
     // We overwrite by using the same path and addRandomSuffix: false
     await put(blobName, JSON.stringify(data), {
       access: 'public',
-      addRandomSuffix: false // Ensure we overwrite the file at this path
+      addRandomSuffix: false, // Ensure we overwrite the file at this path
+      allowOverwrite: true
     });
   }
 }
