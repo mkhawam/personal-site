@@ -706,7 +706,7 @@ export default function TasksPage() {
           if (task.id === taskId) {
               return {
                   ...task,
-                  subtasks: task.subtasks.map(st => 
+                  subtasks: (task.subtasks || []).map((st: any) => 
                     st.id === subTaskId ? { ...st, completed: !st.completed } : st
                   )
               };
@@ -720,7 +720,7 @@ export default function TasksPage() {
           if (task.id === taskId) {
               return {
                   ...task,
-                  subtasks: task.subtasks.filter(st => st.id !== subTaskId)
+                  subtasks: (task.subtasks || []).filter((st: any) => st.id !== subTaskId)
               };
           }
           return task;
@@ -2545,7 +2545,7 @@ export default function TasksPage() {
                                           {/* Subtasks Rendering */}
                                           {task.subtasks && task.subtasks.length > 0 && (
                                               <div className="mt-2 space-y-1">
-                                                  {task.subtasks.map(st => (
+                                                  {(task.subtasks || []).map((st: any) => (
                                                       <div 
                                                           key={st.id} 
                                                           onClick={(e) => {
@@ -2685,7 +2685,7 @@ export default function TasksPage() {
                        <div className="relative w-72 h-72 flex items-center justify-center">
                             <svg className="absolute w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                                 <circle cx="50" cy="50" r="45" className="stroke-zinc-800 fill-none" strokeWidth="4" />
-                                <circle cx="50" cy="50" r="45" className="stroke-zinc-100 fill-none" strokeWidth="4" strokeDasharray={283} strokeDashoffset={283 * (1 - timeLeft / (pomoSettings[mode] * 60))} strokeLinecap="round" />
+                                <circle cx="50" cy="50" r="45" className="stroke-zinc-100 fill-none" strokeWidth="4" strokeDasharray={283} strokeDashoffset={283 * (1 - timeLeft / ((mode === 'work' ? pomoSettings.work : mode === 'break' ? pomoSettings.shortBreak : pomoSettings.longBreak) * 60))} strokeLinecap="round" />
                             </svg>
                             <div className="flex flex-col items-center">
                                 <div className="text-6xl font-bold text-zinc-100 tabular-nums">{formatTime(timeLeft)}</div>
@@ -3186,7 +3186,7 @@ export default function TasksPage() {
                                                         <button 
                                                             onClick={() => {
                                                                 const toAdd = latestMsgWithTasks.tasks?.filter(t => t.selected) || [];
-                                                                toAdd.forEach(t => addTask(t.text, t.subtasks));
+                                                                toAdd.forEach((t: any) => addTask(t.text, (t.subtasks || []) as string[]));
                                                                 toast.success(`Populated ${toAdd.length} tasks`);
                                                                 setModalOpen(false);
                                                             }}
@@ -3197,7 +3197,7 @@ export default function TasksPage() {
                                                     </div>
                                                     
                                                     <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                                                        {latestMsgWithTasks.tasks.map((task) => (
+                                                        {(latestMsgWithTasks.tasks || []).map((task: any) => (
                                                             <div 
                                                                 key={task.id}
                                                                 onClick={() => {
@@ -3238,7 +3238,7 @@ export default function TasksPage() {
                                                                 {/* Render Subtasks Preview in Sidebar */}
                                                                 {task.subtasks && task.subtasks.length > 0 && (
                                                                     <div className="pl-8 w-full space-y-1">
-                                                                        {task.subtasks.map((sub, i) => (
+                                                                        {(task.subtasks || []).map((sub: any, i: number) => (
                                                                             <div key={i} className="flex items-center gap-2 text-xs text-zinc-500">
                                                                                  <div className="w-1 h-1 rounded-full bg-zinc-700" />
                                                                                  <span>{sub}</span>
