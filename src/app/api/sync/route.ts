@@ -13,7 +13,7 @@ async function getUser(request: Request) {
 
 export async function GET(request: Request) {
   const user = await getUser(request);
-  if (!user || typeof user !== 'object' || !user.id) {
+  if (!user || typeof user !== 'object' || typeof user.id !== 'string') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const user = await getUser(request);
-  if (!user || typeof user !== 'object' || !user.id) {
+  if (!user || typeof user !== 'object' || typeof user.id !== 'string') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
