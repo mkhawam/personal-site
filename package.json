@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --turbopack --port 3001 --experimental-https",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -11,7 +11,9 @@
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
     "@types/canvas-confetti": "^1.9.0",
+    "@vercel/blob": "^2.0.1",
     "@webcontainer/api": "^1.5.3",
+    "ai": "^6.0.49",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

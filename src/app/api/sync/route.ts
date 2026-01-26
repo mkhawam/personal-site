@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
-import fs from 'fs/promises';
-import path from 'path';
+import { getStorage } from '@/lib/storage';
 
 // Helper to get user from request
 async function getUser(request: Request) {
@@ -12,17 +11,6 @@ async function getUser(request: Request) {
   return verifyToken(token);
 }
 
-// Data Directory
-const DATA_DIR = path.join(process.cwd(), 'data', 'users');
-
-async function ensureDataDir() {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-  } catch (e) {
-    // Ignore error if exists
-  }
-}
-
 export async function GET(request: Request) {
   const user = await getUser(request);
   if (!user || typeof user !== 'object' || !user.id) {
@@ -30,14 +18,16 @@ export async function GET(request: Request) {
   }
 
   try {
-    await ensureDataDir();
-    const filePath = path.join(DATA_DIR, `${user.id}.json`);
-    const data = await fs.readFile(filePath, 'utf-8');
-    return NextResponse.json(JSON.parse(data));
-  } catch (err: any) {
-    if (err.code === 'ENOENT') {
+    const storage = getStorage();
+    const data = await storage.get(user.id);
+    
+    if (!data) {
         return NextResponse.json({ empty: true }); // No data found
     }
+    
+    return NextResponse.json(data);
+  } catch (err: any) {
+    console.error("Sync GET Error:", err);
     return NextResponse.json({ error: 'Failed to read data' }, { status: 500 });
   }
 }
@@ -50,26 +40,51 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { encryptedData, salt, iv, version } = body;
+    const { encryptedData, salt, iv, version, lastUpdated } = body;
 
     if (!encryptedData || !salt || !iv) {
         return NextResponse.json({ error: 'Invalid data format' }, { status: 400 });
     }
 
-    await ensureDataDir();
-    const filePath = path.join(DATA_DIR, `${user.id}.json`);
+    const storage = getStorage();
+
+    // Optimistic Concurrency Control
+    // If client sends 'lastUpdated', check if server has newer data
+    // ALSO: If client sends NO 'lastUpdated' (null/undefined) but server HAS data, this is a blind overwrite. Reject it.
+    const currentData = await storage.get(user.id);
     
-    // Save blob
-    await fs.writeFile(filePath, JSON.stringify({ 
+    if (currentData && currentData.updatedAt) {
+        if (!lastUpdated) {
+             // Client is new/ignorant, but server has data. Do not overwrite.
+             return NextResponse.json({ 
+                 error: 'Conflict: Server has initialized data. Pull required.', 
+                 serverUpdatedAt: currentData.updatedAt 
+             }, { status: 409 });
+        }
+
+        const serverTime = new Date(currentData.updatedAt).getTime();
+        const clientTime = new Date(lastUpdated).getTime();
+        
+        // Allow 1s clock skew, but if server is significantly ahead, reject
+        if (serverTime > clientTime + 1000) {
+             return NextResponse.json({ 
+                 error: 'Conflict: Server has newer data', 
+                 serverUpdatedAt: currentData.updatedAt 
+             }, { status: 409 });
+        }
+    }
+
+    await storage.set(user.id, { 
         encryptedData, 
         salt, 
         iv, 
         version, 
         updatedAt: new Date().toISOString() 
-    }), 'utf-8');
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    console.error("Sync POST Error:", err);
     return NextResponse.json({ error: 'Failed to save data' }, { status: 500 });
   }
 }

@@ -8,13 +8,16 @@ import {
   Maximize2, Minimize2, Settings, Archive, RotateCw, Flag, Paperclip, ExternalLink,
   File, Globe, Image as ImageIcon, Video, FileCode, Github, Youtube, Twitter, Instagram, 
   Linkedin, Figma, Codepen, Trello, Slack, Disc, Download, Upload, Eye, EyeOff, Keyboard,
-  BarChart, ChevronDown, FolderPlus, Target, Calendar, Flame, Repeat, Headphones, Volume2, VolumeX, Move, Search, Tag, Lock, Cloud, RefreshCw
+  BarChart, ChevronDown, FolderPlus, Target, Calendar, Flame, Repeat, Headphones, Volume2, VolumeX, Move, Search, Tag, Lock, Cloud, RefreshCw,
+  Home, Clock, Menu, Timer, MoreHorizontal, ArrowUpCircle, BarChart3, FolderInput
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import clsx from 'clsx';
 import ReactMarkdown from 'react-markdown';
 import confetti from 'canvas-confetti';
-import { deriveKey, encryptData, decryptData } from '@/lib/client-crypto';
+import { deriveKey, encryptData, decryptData, exportKey, importJWK } from '@/lib/client-crypto';
+import { useRouter } from 'next/navigation';
+import { chatWithAI, generateSummary, type ChatMessage } from '@/lib/ai';
 
 type SubTask = {
     id: string;
@@ -84,6 +87,7 @@ const DEFAULT_SETTINGS = {
 };
 
 export default function TasksPage() {
+  const router = useRouter();
   // --- State ---
   const [tasks, setTasks] = useState<Task[]>([]);
   const [lists, setLists] = useState<TaskList[]>([{ id: 'default', name: 'My Tasks' }]);
@@ -94,9 +98,13 @@ export default function TasksPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [activeTaskID, setActiveTaskID] = useState<string | null>(null);
 
-  const [modalType, setModalType] = useState<'SUBTASK' | 'NOTE' | 'BRAINSTORM' | 'SETTINGS' | 'ARCHIVE' | 'ATTACHMENT' | 'SHORTCUTS' | 'STATS' | 'NEW_LIST' | 'DUE_DATE' | 'ESTIMATE' | 'MOVE_TO_LIST' | 'SYNC'>('SUBTASK');
+  const [modalType, setModalType] = useState<'SUBTASK' | 'NOTE' | 'BRAINSTORM' | 'SETTINGS' | 'ARCHIVE' | 'ATTACHMENT' | 'SHORTCUTS' | 'STATS' | 'NEW_LIST' | 'DUE_DATE' | 'ESTIMATE' | 'MOVE_TO_LIST' | 'SYNC' | 'EDIT_TASK'>('SUBTASK');
   const [modalInput, setModalInput] = useState('');
   const [attachmentName, setAttachmentName] = useState(''); // Separate state for attachment name
+
+  // AI Brainstorm State (Chat Mode)
+  const [chatMessages, setChatMessages] = useState<(ChatMessage & { tasks?: {id:string, text:string, selected:boolean}[] })[]>([]);
+  const [isChatTyping, setIsChatTyping] = useState(false);
   
   // Sync State
   const [syncKey, setSyncKey] = useState<CryptoKey | null>(null);
@@ -107,6 +115,9 @@ export default function TasksPage() {
   // User State
   const [user, setUser] = useState<{ username: string; avatar: string | null } | null>(null);
 
+  // Mobile State
+  const [mobileTab, setMobileTab] = useState<'tasks' | 'focus' | 'notes' | 'menu'>('tasks');
+
   useEffect(() => {
       fetch('/api/auth/me')
           .then(res => res.ok ? res.json() : null)
@@ -114,6 +125,25 @@ export default function TasksPage() {
               if (data) setUser(data);
           })
           .catch(err => console.error('Failed to fetch user', err));
+  }, []);
+
+  // Load persistent sync state on mount
+  useEffect(() => {
+    const savedSalt = localStorage.getItem('workflow-sync-salt');
+    if (savedSalt) setSyncSalt(savedSalt);
+
+    const savedKeyJWK = localStorage.getItem('workflow-sync-key');
+    if (savedKeyJWK) {
+        try {
+            const jwk = JSON.parse(savedKeyJWK);
+            importJWK(jwk).then(key => {
+                setSyncKey(key);
+                toast.success('Sync unlocked automatically');
+            }).catch(e => console.error("Failed to import key", e));
+        } catch (e) {
+            console.error("Invalid JWK in storage");
+        }
+    }
   }, []);
 
   // Pomodoro
@@ -141,6 +171,10 @@ export default function TasksPage() {
   const [customStreamUrl, setCustomStreamUrl] = useState('');
   const [streamType, setStreamType] = useState<'youtube' | 'twitch'>('youtube');
   
+  // AI State
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState('');
+  
   // Notes & Links Module State
   const [activeTab, setActiveTab] = useState<'tasks' | 'notes' | 'links'>('tasks');
   const [notePages, setNotePages] = useState<{ id: string; title: string; content: string }[]>([
@@ -148,6 +182,10 @@ export default function TasksPage() {
   ]);
   const [activeNoteId, setActiveNoteId] = useState('default');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  
+  // Mobile Quick Add Subtask State
+  const [addingSubtaskId, setAddingSubtaskId] = useState<string | null>(null);
+  const [newSubtaskText, setNewSubtaskText] = useState('');
   const [savedLinks, setSavedLinks] = useState<{ id: string; title: string; url: string; createdAt: string }[]>([]);
   const [newLinkTitle, setNewLinkTitle] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
@@ -424,23 +462,29 @@ export default function TasksPage() {
     else if (m === 'longBreak') setTimeLeft(pomoSettings.longBreak * 60);
   };
 
-  const addTask = (text: string) => {
-    if (!text.trim()) return;
-    const id = Date.now().toString(36) + Math.random().toString(36).substr(2);
-    setTasks((prev) => [
-      { 
-          id, 
-          text: text.trim(), 
-          completed: false, 
-          subtasks: [], 
-          priority: 'medium', 
-          attachments: [],
-          listId: activeListId // Tag with active list
-      }, 
-      ...prev
-    ]);
-    toast.success('Task Added');
-  };
+  const addTask = (text: string, initialSubtasks: string[] = []) => {
+  if (!text.trim()) return;
+  const id = Date.now().toString(36) + Math.random().toString(36).substr(2);
+  const subtasksObjs = initialSubtasks.map(t => ({
+      id: Math.random().toString(36),
+      text: t,
+      completed: false
+  }));
+
+  setTasks((prev) => [
+    { 
+        id, 
+        text: text.trim(), 
+        completed: false, 
+        subtasks: subtasksObjs, 
+        priority: 'medium', 
+        attachments: [],
+        listId: activeListId // Tag with active list
+    }, 
+    ...prev
+  ]);
+  toast.success('Task Added');
+};
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -546,15 +590,23 @@ export default function TasksPage() {
       setTasks(tasks.map(t => t.id === id ? { ...t, archived: false } : t));
   };
 
-  const openModal = (taskId: string | null, type: 'SUBTASK' | 'NOTE' | 'BRAINSTORM' | 'SETTINGS' | 'ARCHIVE' | 'ATTACHMENT' | 'SHORTCUTS' | 'STATS' | 'NEW_LIST' | 'DUE_DATE' | 'ESTIMATE' | 'MOVE_TO_LIST' | 'SYNC') => {
+  const openModal = (taskId: string | null, type: 'SUBTASK' | 'NOTE' | 'BRAINSTORM' | 'SETTINGS' | 'ARCHIVE' | 'ATTACHMENT' | 'SHORTCUTS' | 'STATS' | 'NEW_LIST' | 'DUE_DATE' | 'ESTIMATE' | 'MOVE_TO_LIST' | 'SYNC' | 'EDIT_TASK') => {
       setActiveTaskID(taskId);
       setModalType(type);
       
-      if (type === 'NOTE' && taskId) {
+
+
+      if (type === 'BRAINSTORM') {
+          setChatMessages([{ role: 'assistant', content: "Hi! I'm here to help you plan. What's on your mind?" }]);
+          setModalInput('');
+      } else if (type === 'NOTE' && taskId) {
           const task = tasks.find(t => t.id === taskId);
           setModalInput(task?.notes || '');
       } else if (type === 'SETTINGS') {
           setSettingsForm(pomoSettings);
+      } else if (type === 'EDIT_TASK' && taskId) {
+          const task = tasks.find(t => t.id === taskId);
+          setModalInput(task?.text || '');
       } else {
           setModalInput('');
           setAttachmentName('');
@@ -592,6 +644,8 @@ export default function TasksPage() {
           setModalOpen(false);
           return;
       }
+      
+
 
       if (!activeTaskID && modalType !== 'ARCHIVE') return;
 
@@ -637,6 +691,12 @@ export default function TasksPage() {
               return task;
           }));
           toast.success('Link Attached');
+      } else if (modalType === 'EDIT_TASK') {
+          if (!modalInput.trim()) return;
+          setTasks(tasks.map(task => 
+              task.id === activeTaskID ? { ...task, text: modalInput.trim() } : task
+          ));
+          toast.success('Task Updated');
       }
       setModalOpen(false);
   };
@@ -873,19 +933,34 @@ export default function TasksPage() {
           
           // 1. Check if server has data
           const res = await fetch('/api/sync');
+          
+          if (res.status === 401) {
+              toast.error('Please login to enable sync', {
+                  action: {
+                      label: 'Login',
+                      onClick: () => router.push('/api/auth/discord/login')
+                  }
+              });
+              setIsSyncing(false);
+              return;
+          }
+
           const serverData = await res.json();
           
           let key: CryptoKey;
           let salt = serverData.salt;
+
+          // If we have a local salt but no key (Unlock mode), we MUST use the local salt if server matches or is empty?
+          // Actually, if server has data, we trust server salt. 
+          // If server is empty, we use existing local salt if available, or generate new.
+          if (!salt && syncSalt) salt = syncSalt;
 
           if (serverData.encryptedData && salt) {
               // Case A: Verify Password & Download
               key = await deriveKey(password, salt);
               try {
                   const decrypted = await decryptData(serverData.encryptedData, serverData.iv, key);
-                  // Merge logic (Simple overwrite from server for now, or smarter merge later)
-                  // For MVP: Server wins if it exists, to avoid overwriting remote data with empty local state on new device.
-                  // But we should prompt? For now, let's assume if you are logging in, you want the server data.
+                  // Merge logic: Server wins
                   if (decrypted) {
                       if (decrypted.tasks) setTasks(decrypted.tasks);
                       if (decrypted.lists) setLists(decrypted.lists);
@@ -910,7 +985,16 @@ export default function TasksPage() {
               }
           } else {
               // Case B: First time setup / Upload
-              salt = window.crypto.randomUUID(); // Simple salt
+              if (!salt) {
+                  // Fallback for browsers without randomUUID (e.g. non-secure contexts)
+                  if ('randomUUID' in window.crypto) {
+                       salt = window.crypto.randomUUID();
+                  } else {
+                       salt = ([1e7] as any + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c: any) =>
+                          (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+                       );
+                  }
+              }
               key = await deriveKey(password, salt);
               
               // Initial upload
@@ -918,14 +1002,101 @@ export default function TasksPage() {
               toast.success('Sync enabled & data uploaded!');
           }
           
+          // Persist
           setSyncKey(key);
           setSyncSalt(salt);
+          localStorage.setItem('workflow-sync-salt', salt);
+          
+          const jwk = await exportKey(key);
+          localStorage.setItem('workflow-sync-key', JSON.stringify(jwk));
+
           setModalOpen(false);
-      } catch (e) {
-          console.error(e);
-          toast.error('Sync setup failed');
+      } catch (e: any) {
+          console.error("Sync Setup Error:", e);
+          toast.error(`Sync setup failed: ${e.message || e}`);
       } finally {
           setIsSyncing(false);
+      }
+  };
+
+  // Fix stale closure for polling
+  const lastSyncTimeRef = useRef(lastSyncTime);
+  useEffect(() => { lastSyncTimeRef.current = lastSyncTime; }, [lastSyncTime]);
+
+  const syncInitialized = useRef(false);
+  const ignoreSync = useRef(false);
+
+  const pullSync = async (key: CryptoKey, saltStr: string, force = false) => {
+      console.log("Initiating Pull Sync...", { force });
+      try {
+          // Add timestamp to prevent Next.js/Browser caching
+          const res = await fetch(`/api/sync?t=${Date.now()}`, { cache: 'no-store' });
+          console.log("Pull Sync Response Status:", res.status);
+          
+          if (!res.ok) {
+              console.error("Pull Sync Error Response", res.status, res.statusText);
+              return;
+          }
+
+          const data = await res.json();
+
+          // If no data on server, mark as initialized so we can push our local data
+          if (data.empty) {
+              console.log("Server data empty. Marking initialized.");
+              syncInitialized.current = true;
+              return;
+          }
+          
+          if (!data.encryptedData || !data.iv) {
+              console.error("Invalid sync data format received");
+              return;
+          }
+
+          // Check version/concurrency (simple timestamp check)
+          const remoteTime = new Date(data.updatedAt);
+          // Use ref to get latest time inside interval
+          // Bypass check if forced (Conflict Resolution)
+          if (!force && lastSyncTimeRef.current && remoteTime <= lastSyncTimeRef.current) {
+              console.log("Local data matches or is newer than remote. Skipping apply.");
+              syncInitialized.current = true; // We are up to date
+              return;
+          }
+
+          console.log("Decrypting remote data...");
+          const decrypted = await decryptData(data.encryptedData, data.iv, key);
+          
+          // Validate structure
+          if (!decrypted.tasks || !decrypted.lists) {
+              console.error("Decrypted data invalid structure");
+              return;
+          }
+
+          console.log("Applying remote sync changes...", decrypted);
+
+          // Apply updates (Last Write Wins) - SET FLAG TO IGNORE ECHO PUSH
+          ignoreSync.current = true;
+          
+          setTasks(decrypted.tasks);
+          setLists(decrypted.lists);
+          if (decrypted.activeListId) setActiveListId(decrypted.activeListId);
+          if (decrypted.savedLinks) setSavedLinks(decrypted.savedLinks);
+          if (decrypted.notePages) setNotePages(decrypted.notePages);
+          if (decrypted.settings?.pomoSettings) setPomoSettings(decrypted.settings.pomoSettings);
+          
+          setLastSyncTime(remoteTime);
+          syncInitialized.current = true; // Mark as initialized after successful sync
+          
+          // Reset the ignore flag after a short delay to allow all effects to fire and be ignored
+          setTimeout(() => {
+              ignoreSync.current = false;
+              console.log("Echo prevention lock released.");
+          }, 1000);
+          
+          toast.success("Sync updated from cloud");
+
+      } catch (e) {
+          console.error("Pull Sync Exception", e);
+          toast.error("Debug: Pull Exception " + e);
       }
   };
 
@@ -944,32 +1115,84 @@ export default function TasksPage() {
       
       const { cipherText, iv } = await encryptData(dataToEncrypt, key);
       
-      await fetch('/api/sync', {
+      const res = await fetch('/api/sync', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
               encryptedData: cipherText,
               salt: saltStr,
               iv,
-              version: 1
+              version: 1,
+              // Send the last time we synced (or null if new) to allow server to check for conflicts
+              // If we have never synced (lastSyncTime is null), server allows it unless we want strict init
+              lastUpdated: lastSyncTime ? lastSyncTime.toISOString() : null
           })
       });
+
+      console.log("Sync Push Status:", res.status);
+      
+      if (res.status === 409) {
+          console.warn("Sync Conflict Detected: Server has newer data.");
+          toast.warning("Remote Changes Detected", {
+              description: "Merging updates from other devices...",
+              duration: 3000,
+          });
+          
+          // Automatically trigger pull to resolve
+          // We await this to ensure we don't try to push again immediately
+          // Force pull to ignore local timestamp checks
+          await pullSync(key, saltStr, true);
+          return;
+      }
+
+      if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          console.error("Sync Push Error:", err);
+          // Don't throw, just toast
+          toast.error(`Sync Failed: ${res.status}`);
+          return;
+      }
+      
+      // Only update lastSyncTime if push was successful and NO CONFLICT
       setLastSyncTime(new Date());
   };
 
-  // Auto-Sync Effect
-  /*
+  // Auto-Sync Effect (Push)
   useEffect(() => {
       if (!syncKey || isSyncing || !syncSalt) return;
+
+      // Prevent echo: If this update was caused by pullSync, don't push it back
+      if (ignoreSync.current) {
+          return;
+      }
+
+      // Only allow push if we have successfully synced with server at least once
+      // This prevents overwriting server data with stale local data on initial load
+      if (!syncInitialized.current) {
+          return;
+      }
       
       const timeoutId = setTimeout(() => {
+          // toast.info("Sync: Auto-Saving..."); // Debug Toast
           performSync(syncKey, syncSalt);
       }, 5000); // Debounce 5s
       
-      
-  return () => clearTimeout(timeoutId);
-  }, [tasks, lists, savedLinks, notePages, pomoSettings, syncKey, syncSalt]);
-  */
+      return () => clearTimeout(timeoutId);
+  }, [tasks, lists, activeListId, savedLinks, notePages, pomoSettings, syncKey, syncSalt]);
+
+  // Polling Effect (Pull)
+  useEffect(() => {
+      if (!syncKey || !syncSalt) return;
+
+      // Initial Pull
+      pullSync(syncKey, syncSalt);
+
+      const interval = setInterval(() => {
+          pullSync(syncKey, syncSalt);
+      }, 30000); // Poll every 30s
+
+      return () => clearInterval(interval);
+  }, [syncKey, syncSalt]);
 
   if (!isLoaded) {
     return <div className="min-h-full w-full bg-zinc-950" />;
@@ -977,8 +1200,8 @@ export default function TasksPage() {
 
   
   return (
-    <div className="min-h-full w-full p-8 md:p-12 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 relative">
-      <Toaster position="bottom-right" theme="dark" />
+    <div className="min-h-full w-full p-4 md:p-12 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 relative">
+      <Toaster position="top-center" theme="dark" />
       <input 
           type="file" 
           ref={fileInputRef} 
@@ -987,11 +1210,13 @@ export default function TasksPage() {
           className="hidden" 
       />
       
+      {/* Desktop Layout */}
+      <div className="hidden md:block space-y-8">
       {/* Header */}
       {!isZenMode && (
       <motion.div 
         layout
-        className="mb-12 flex justify-between items-center"
+        className="mb-8 md:mb-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0"
       >
         <div className="flex items-center gap-6">
             <div className="relative">
@@ -999,7 +1224,7 @@ export default function TasksPage() {
                     onClick={() => setIsListDropdownOpen(!isListDropdownOpen)}
                     className="flex items-center gap-2 group"
                 >
-                    <h1 className="text-4xl md:text-5xl font-extrabold text-zinc-100 tracking-tight">
+                    <h1 className="text-3xl md:text-5xl font-extrabold text-zinc-100 tracking-tight">
                         {lists.find(l => l.id === activeListId)?.name || 'My Tasks'}
                     </h1>
                     <ChevronDown 
@@ -1113,6 +1338,23 @@ export default function TasksPage() {
                   <Bell size={24} />
                 </button>
             )}
+
+            {/* Sync Status Overlay Indicator */}
+            <div className="relative group">
+                <button 
+                  onClick={() => openModal(null, 'SYNC')}
+                  className={clsx(
+                      "btn btn-circle btn-ghost hover:bg-white/10 relative",
+                      isSyncing ? "text-violet-400 animate-pulse" : (syncKey ? "text-green-500" : "text-zinc-600")
+                  )}
+                  title={isSyncing ? "Syncing..." : (syncKey ? "Encrypted Sync Active" : "Sync Disabled")}
+                >
+                  <Cloud size={24} />
+                  {syncKey && (
+                      <span className="absolute bottom-2 right-2 w-2 h-2 rounded-full border border-black bg-current"></span>
+                  )}
+                </button>
+            </div>
 
             {/* Music Player Toggle */}
             <div className="relative">
@@ -1445,7 +1687,7 @@ export default function TasksPage() {
                   initial={{ opacity: 0, x: 300 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 300 }}
-                  className="fixed top-0 right-0 w-[500px] h-full bg-zinc-900 border-l border-white/10 z-40 shadow-2xl flex flex-col"
+                  className="fixed top-0 right-0 w-full md:w-[60%] h-full bg-zinc-900 border-l border-white/10 z-40 shadow-2xl flex flex-col"
               >
                   <div className="flex items-center justify-between p-4 border-b border-white/10">
                       <h3 className="text-lg font-bold text-zinc-100">📝 Notes</h3>
@@ -1553,7 +1795,7 @@ export default function TasksPage() {
           )}
       </AnimatePresence>
 
-      <div className={clsx("grid gap-8", isZenMode ? "grid-cols-1 max-w-2xl mx-auto" : "lg:grid-cols-3")}>
+      <div className={clsx("grid gap-8", isZenMode ? "grid-cols-1 max-w-5xl mx-auto" : "lg:grid-cols-3")}>
         
         {/* Left Col: Timer & Stats (Unchanged) */}
         <AnimatePresence>
@@ -1669,45 +1911,51 @@ export default function TasksPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" as const }}
-            className="rounded-3xl bg-zinc-900/50 border border-white/5 p-6 md:p-8 min-h-[500px] shadow-xl flex flex-col opacity-0"
+            className="rounded-3xl bg-zinc-900/50 border border-white/5 p-4 md:p-8 h-[calc(100vh-6rem)] shadow-xl flex flex-col overflow-hidden"
            >
-              {/* Search Input */}
-              <div className="relative mb-4">
-                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                  <input
+              {/* Header / Search / Input Section - FIXED */}
+              <div className="flex-shrink-0">
+                  {/* Search Input */}
+                  <div className="relative mb-4">
+                      <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                      <input
+                          type="text"
+                          placeholder="Search tasks..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full bg-white/5 text-zinc-200 pl-10 pr-4 py-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-zinc-500 text-sm"
+                      />
+                      {searchQuery && (
+                          <button 
+                              onClick={() => setSearchQuery('')}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                          >
+                              <X size={16} />
+                          </button>
+                      )}
+                  </div>
+
+
+
+                  <form onSubmit={handleAddTask} className="relative mb-6 group">
+                    <input
                       type="text"
-                      placeholder="Search tasks..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-white/5 text-zinc-200 pl-10 pr-4 py-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-zinc-500 text-sm"
-                  />
-                  {searchQuery && (
-                      <button 
-                          onClick={() => setSearchQuery('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
-                      >
-                          <X size={16} />
-                      </button>
-                  )}
+                      placeholder="What's your focus today?"
+                      className="w-full bg-transparent text-xl md:text-2xl font-medium text-zinc-100 placeholder:text-zinc-600 border-b-2 border-white/5 py-4 focus:outline-none focus:border-zinc-100 transition-colors pl-2"
+                      value={newTaskText}
+                      onChange={(e) => setNewTaskText(e.target.value)}
+                    />
+                    <button type="submit" className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity btn btn-circle btn-sm btn-ghost text-zinc-100">
+                      <Plus size={24} />
+                    </button>
+                  </form>
+                  
+                  <h2 className="text-xl font-bold text-zinc-100 mb-4 px-2">Active Tasks</h2>
               </div>
 
-              <form onSubmit={handleAddTask} className="relative mb-8 group">
-                <input
-                  type="text"
-                  placeholder="What's your focus today?"
-                  className="w-full bg-transparent text-xl md:text-2xl font-medium text-zinc-100 placeholder:text-zinc-600 border-b-2 border-white/5 py-4 focus:outline-none focus:border-zinc-100 transition-colors pl-2"
-                  value={newTaskText}
-                  onChange={(e) => setNewTaskText(e.target.value)}
-                />
-                <button type="submit" className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity btn btn-circle btn-sm btn-ghost text-zinc-100">
-                  <Plus size={24} />
-                </button>
-              </form>
-
-              {/* Active Tasks */}
-              <div className="mb-8">
-                  <h2 className="text-xl font-bold text-zinc-100 mb-4 px-2">Active Tasks</h2>
-                  <Reorder.Group axis="y" values={activeTasks} onReorder={handleReorder} className="space-y-3">
+              {/* Scrollable Task List */}
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-0">
+                  <Reorder.Group axis="y" values={activeTasks} onReorder={handleReorder} className="space-y-3 pb-8">
                       <AnimatePresence initial={false}>
                         {activeTasks.map((task) => {
                             const prog = getSubtaskProgress(task);
@@ -2133,6 +2381,473 @@ export default function TasksPage() {
         </motion.div>
       </div>
 
+
+
+
+      {/* Floating Video Player */}
+      <AnimatePresence>
+          {showYouTubePlayer && (
+              <motion.div
+                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 20, scale: 0.9 }}
+                  className="fixed bottom-8 right-8 z-50 bg-zinc-900 rounded-2xl shadow-2xl border border-white/10 overflow-hidden"
+              >
+                  <div className="flex items-center justify-between px-4 py-2 bg-black/30">
+                      <span className="text-sm font-bold text-zinc-300">
+                          {streamType === 'youtube' ? '🎵 YouTube' : '🎮 Twitch'}
+                      </span>
+                      <button 
+                          onClick={() => setShowYouTubePlayer(false)}
+                          className="text-zinc-500 hover:text-white"
+                      >
+                          <X size={18} />
+                      </button>
+                  </div>
+                  {streamType === 'youtube' ? (
+                      <iframe
+                          width="320"
+                          height="180"
+                          src={`https://www.youtube.com/embed/${customStreamUrl || 'jfKfPfyJRdk'}?autoplay=1`}
+                          title="YouTube Player"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          className="border-0"
+                      />
+                  ) : (
+                      <div className="flex flex-col">
+                          <iframe
+                              src={`https://player.twitch.tv/?channel=${customStreamUrl || 'lofiradio'}&parent=localhost&parent=mkhawam.com&parent=www.mkhawam.com`}
+                              width="320"
+                              height="180"
+                              allowFullScreen
+                              className="border-0"
+                          />
+                          <a
+                              href={`https://www.twitch.tv/${customStreamUrl || 'lofiradio'}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-center text-purple-400 hover:text-purple-300 py-2 bg-black/30"
+                          >
+                              Open in new tab if embed fails →
+                          </a>
+                      </div>
+                  )}
+              </motion.div>
+          )}
+      </AnimatePresence>
+
+      </div>
+
+      {/* Mobile Layout */}
+      <div className="md:hidden fixed inset-0 z-40 bg-zinc-950 flex flex-col h-[100dvh] supports-[height:100svh]:h-[100svh] overflow-hidden">
+          {/* Mobile Header */}
+          <div className="p-4 flex items-center justify-between shrink-0">
+              <h1 className="text-2xl font-bold text-zinc-100">
+                  {mobileTab === 'tasks' && 'My Tasks'}
+                  {mobileTab === 'focus' && 'Focus Timer'}
+                  {mobileTab === 'notes' && 'Notes'}
+                  {mobileTab === 'menu' && 'Menu'}
+              </h1>
+              <div className="flex items-center gap-2">
+                 {/* Mobile Header Actions */}
+                 <button onClick={() => openModal(null, 'SETTINGS')} className="btn btn-ghost btn-circle btn-sm">
+                    <Settings size={20} />
+                 </button>
+              </div>
+          </div>
+
+          {/* Mobile Content */}
+          <div className="flex-1 flex flex-col overflow-hidden relative">
+              {mobileTab === 'tasks' && (
+                  <>
+                      {/* Fixed Top Controls (List Selector + Input) */}
+                      <div className="px-4 pb-2 bg-zinc-950 z-20 shrink-0 border-b border-white/5 pt-2">
+                          <div className="space-y-4">
+                              {/* Mobile List Selector */}
+                              <div className="flex gap-2 bg-white/5 p-1 rounded-xl overflow-x-auto scrollbar-hide">
+                                  {lists.map(list => (
+                                      <button
+                                          key={list.id}
+                                          onClick={() => setActiveListId(list.id)}
+                                          className={clsx(
+                                              "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
+                                              activeListId === list.id 
+                                                  ? "bg-zinc-100 text-zinc-900" 
+                                                  : "text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
+                                          )}
+                                      >
+                                          {list.name}
+                                      </button>
+                                  ))}
+                                  <button 
+                                      onClick={() => openModal(null, 'NEW_LIST')}
+                                      className="px-3 py-2 rounded-lg text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
+                                  >
+                                      <Plus size={16} />
+                                  </button>
+                              </div>
+
+                              {/* Task Input */}
+                              <form onSubmit={handleAddTask} className="flex gap-2">
+                                  <input 
+                                      type="text" 
+                                      value={newTaskText} 
+                                      onChange={(e) => setNewTaskText(e.target.value)}
+                                      placeholder="Add a task..."
+                                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-zinc-500"
+                                  />
+                                  <button type="submit" className="bg-zinc-100 text-zinc-900 rounded-xl px-4 font-bold">
+                                      <Plus />
+                                  </button>
+                              </form>
+                          </div>
+                      </div>
+                      
+                      {/* Scrollable Task List */}
+                      <div className="flex-1 overflow-y-auto p-4 pt-4 scrollbar-hide overscroll-none pb-24">
+                          <div className="space-y-3">
+                          <AnimatePresence>
+                          {activeTasks.map(task => (
+                              <motion.div 
+                                key={task.id} 
+                                layout
+                                initial={{opacity: 0, y: 10}}
+                                animate={{opacity: 1, y: 0, x: 0}} // Reset x to 0
+                                exit={{opacity: 0, height: 0, marginTop: 0, marginBottom: 0}}
+                                className="relative group"
+                              >
+                                  {/* Trash Background Layer */}
+                                  <div className="absolute inset-0 bg-red-500/20 rounded-2xl flex items-center justify-end px-6 z-0">
+                                      <Trash2 className="text-red-500" />
+                                  </div>
+
+                                  {/* Swipeable Task Card */}
+                                  <motion.div
+                                      drag="x"
+                                      dragConstraints={{ left: -100, right: 0 }}
+                                      onDragEnd={(e, info) => {
+                                          if (info.offset.x < -80) {
+                                              deleteTask(task.id);
+                                          } 
+                                      }}
+                                      whileDrag={{ scale: 1.02 }}
+                                      onClick={() => toggleTask(task.id)} 
+                                      className="relative p-4 bg-zinc-900 border border-white/5 rounded-2xl flex items-start gap-4 active:bg-zinc-800 transition-all z-10"
+                                      style={{ touchAction: 'pan-y' }} // Important for scrolling while dragging
+                                  >
+                                      <div className={clsx("w-6 h-6 mt-0.5 rounded-full border-2 flex items-center justify-center flex-shrink-0", task.completed ? "bg-green-500 border-green-500" : "border-zinc-500")}>
+                                          {task.completed && <Check size={14} className="text-black" />}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                          <span className={clsx("text-lg block truncate", task.completed ? "text-zinc-500 line-through" : "text-zinc-100")}>{task.text}</span>
+                                          
+                                          {/* Subtasks Rendering */}
+                                          {task.subtasks && task.subtasks.length > 0 && (
+                                              <div className="mt-2 space-y-1">
+                                                  {task.subtasks.map(st => (
+                                                      <div 
+                                                          key={st.id} 
+                                                          onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              setTasks(prev => prev.map(t => {
+                                                                  if (t.id !== task.id) return t;
+                                                                  return {
+                                                                      ...t,
+                                                                      subtasks: t.subtasks?.map(s => 
+                                                                          s.id === st.id ? { ...s, completed: !s.completed } : s
+                                                                      )
+                                                                  };
+                                                              }));
+                                                          }}
+                                                          className="flex items-center gap-2 text-sm text-zinc-400 py-1 cursor-pointer active:opacity-70"
+                                                      >
+                                                          <div className={clsx("w-3 h-3 rounded-full border flex items-center justify-center transition-colors", st.completed ? "bg-zinc-600 border-zinc-600" : "border-zinc-600")}>
+                                                              {st.completed && <Check size={8} className="text-zinc-950" />}
+                                                          </div>
+                                                          <span className={clsx("transition-opacity", st.completed && "line-through opacity-50")}>{st.text}</span>
+                                                      </div>
+                                                  ))}
+                                              </div>
+                                          )}
+                                          
+                                          {/* Quick Add Subtask Button */}
+                                          {addingSubtaskId === task.id ? (
+                                              <form 
+                                                  onSubmit={(e) => {
+                                                      e.preventDefault();
+                                                      e.stopPropagation();
+                                                      if (newSubtaskText.trim()) {
+                                                          setTasks(prev => prev.map(t => {
+                                                              if (t.id !== task.id) return t;
+                                                              return {
+                                                                  ...t,
+                                                                  subtasks: [...(t.subtasks || []), { id: Date.now().toString(36), text: newSubtaskText.trim(), completed: false }]
+                                                              };
+                                                          }));
+                                                          setNewSubtaskText('');
+                                                          // Keep adding mode open for multiple entry? Or close? User preference 'better' usually means fast entry. Let's keep it open.
+                                                          // setAddingSubtaskId(null); 
+                                                      } else {
+                                                          setAddingSubtaskId(null);
+                                                      }
+                                                  }}
+                                                  className="mt-2 flex items-center gap-2"
+                                              >
+                                                  <div className="w-3 h-3 rounded-full border border-zinc-600 flex-shrink-0" />
+                                                  <input
+                                                      type="text"
+                                                      autoFocus
+                                                      value={newSubtaskText}
+                                                      onChange={(e) => setNewSubtaskText(e.target.value)}
+                                                      onBlur={() => {
+                                                          // Delay slightly to allow Submit click
+                                                          setTimeout(() => {
+                                                              if (!newSubtaskText.trim()) setAddingSubtaskId(null);
+                                                          }, 100);
+                                                      }}
+                                                      placeholder="New subtask..."
+                                                      className="bg-transparent text-sm text-zinc-200 focus:outline-none flex-1 placeholder:text-zinc-600"
+                                                  />
+                                                  <button type="submit" className="text-zinc-400 p-1">
+                                                      <ArrowUpCircle size={20} />
+                                                  </button>
+                                              </form>
+                                          ) : (
+                                              <button 
+                                                  onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setAddingSubtaskId(task.id);
+                                                      setNewSubtaskText('');
+                                                  }}
+                                                  className="mt-2 flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-300 py-1"
+                                              >
+                                                  <Plus size={12} className="text-zinc-500" />
+                                                  Add subtask
+                                              </button>
+                                          )}
+
+                                          {task.estimatedPomos && (
+                                              <div className="flex items-center gap-1 mt-1 text-xs text-zinc-500">
+                                                  <Flame size={12} className="text-amber-500" />
+                                                  <span>{task.actualPomos || 0}/{task.estimatedPomos}</span>
+                                              </div>
+                                          )}
+                                      </div>
+                                      <button onClick={(e) => { e.stopPropagation(); openModal(task.id, 'EDIT_TASK'); }} className="p-2 text-zinc-500 hover:text-zinc-300">
+                                          <MoreHorizontal size={20} />
+                                      </button>
+                                  </motion.div>
+                              </motion.div>
+                          ))}
+                          </AnimatePresence>
+                          {activeTasks.length === 0 && (
+                              <div className="text-center py-20 text-zinc-500">
+                                  No active tasks
+                              </div>
+                          )}
+                          
+                          {/* Completed Tasks (Mobile) */}
+                          {completedTasks.length > 0 && (
+                              <div className="mt-8 pt-4 border-t border-white/5 opacity-60">
+                                  <h3 className="text-sm font-bold text-zinc-500 mb-3 px-2">Completed ({completedTasks.length})</h3>
+                                  <div className="space-y-3">
+                                      {completedTasks.map(task => (
+                                          <div 
+                                              key={task.id}
+                                              onClick={() => toggleTask(task.id)}
+                                              className="relative p-4 bg-zinc-900/50 border border-white/5 rounded-2xl flex items-start gap-4 active:bg-zinc-800 transition-colors"
+                                          >
+                                              <div className="w-6 h-6 mt-0.5 rounded-full border-2 border-green-500 bg-green-500 flex items-center justify-center flex-shrink-0">
+                                                  <Check size={14} className="text-black" />
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                  <span className="text-lg block truncate text-zinc-500 line-through">{task.text}</span>
+                                              </div>
+                                              <button 
+                                                  onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
+                                                  className="p-2 text-zinc-600 hover:text-red-400"
+                                              >
+                                                  <Trash2 size={18} />
+                                              </button>
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+                  </div>
+                  </>
+              )}
+              
+              {mobileTab === 'focus' && (
+                  <div className="flex flex-col items-center justify-center h-full gap-8">
+                       <div className="relative w-72 h-72 flex items-center justify-center">
+                            <svg className="absolute w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="45" className="stroke-zinc-800 fill-none" strokeWidth="4" />
+                                <circle cx="50" cy="50" r="45" className="stroke-zinc-100 fill-none" strokeWidth="4" strokeDasharray={283} strokeDashoffset={283 * (1 - timeLeft / (pomoSettings[mode] * 60))} strokeLinecap="round" />
+                            </svg>
+                            <div className="flex flex-col items-center">
+                                <div className="text-6xl font-bold text-zinc-100 tabular-nums">{formatTime(timeLeft)}</div>
+                                <div className="text-zinc-500 uppercase tracking-widest text-sm mt-2">{mode}</div>
+                            </div>
+                       </div>
+                       
+                       <div className="flex gap-6">
+                           <button onClick={() => {
+                               if (isRunning) {
+                                   toggleTimer();
+                               } else {
+                                   toggleTimer();
+                               }
+                           }} className={clsx("btn btn-circle btn-xl w-24 h-24 shadow-2xl", isRunning ? "bg-zinc-800 text-red-500 border-red-500/20" : "bg-zinc-100 text-zinc-900")}>
+                               {isRunning ? <Pause size={40} /> : <Play size={40} className="ml-2" />}
+                           </button>
+                       </div>
+
+                       <div className="flex gap-2">
+                            {['work', 'break'].map(m => (
+                                <button 
+                                    key={m}
+                                    onClick={() => switchMode(m as any)}
+                                    className={clsx("px-6 py-2 rounded-full font-medium capitalize", mode === m ? "bg-white/10 text-white border border-white/20" : "text-zinc-500")}
+                                >
+                                    {m}
+                                </button>
+                            ))}
+                       </div>
+                  </div>
+              )}
+
+              {mobileTab === 'notes' && (
+                 <div className="h-full flex flex-col">
+                      {/* Mobile Note Page Selector */}
+                      <div className="flex gap-2 bg-white/5 p-1 rounded-xl mb-2 overflow-x-auto scrollbar-hide shrink-0">
+                          {notePages.map(page => (
+                              <button
+                                  key={page.id}
+                                  onClick={() => setActiveNoteId(page.id)}
+                                  className={clsx(
+                                      "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
+                                      activeNoteId === page.id 
+                                          ? "bg-zinc-100 text-zinc-900" 
+                                          : "text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
+                                  )}
+                              >
+                                  {page.title}
+                              </button>
+                          ))}
+                          <button 
+                              onClick={() => {
+                                  const newId = Date.now().toString();
+                                  setNotePages([...notePages, { id: newId, title: 'New Page', content: '' }]);
+                                  setActiveNoteId(newId);
+                              }}
+                              className="px-3 py-2 rounded-lg text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
+                          >
+                              <Plus size={16} />
+                          </button>
+                      </div>
+
+                      <textarea 
+                        className="flex-1 w-full bg-transparent text-zinc-200 resize-none focus:outline-none text-lg leading-relaxed p-2" 
+                        placeholder="Type your notes..."
+                        value={notePages.find(n => n.id === activeNoteId)?.content || ''}
+                        onChange={(e) => setNotePages(notePages.map(p => p.id === activeNoteId ? { ...p, content: e.target.value } : p))}
+                      />
+                 </div>
+              )}
+
+              {mobileTab === 'menu' && (
+                  <div className="grid grid-cols-2 gap-3">
+                      <button onClick={() => openModal(null, 'SETTINGS')} className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform">
+                          <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-100">
+                              <Settings size={20} />
+                          </div>
+                          <span className="font-medium text-zinc-200">Settings</span>
+                      </button>
+                      <button onClick={() => openModal(null, 'STATS')} className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform">
+                          <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                              <BarChart size={20} />
+                          </div>
+                          <span className="font-medium text-zinc-200">Stats</span>
+                      </button>
+                      <button onClick={() => {
+                      if (syncKey && syncSalt) {
+                          pullSync(syncKey, syncSalt);
+                          toast.info('Checking for updates...');
+                      }
+                      openModal(null, 'SYNC');
+                  }} className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform">
+                          <div className="w-10 h-10 rounded-full bg-violet-500/20 text-violet-400 flex items-center justify-center">
+                              <Cloud size={20} />
+                          </div>
+                          <span className="font-medium text-zinc-200">Sync Data</span>
+                      </button>
+                      <button onClick={() => openModal(null, 'ARCHIVE')} className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform">
+                          <div className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                              <Archive size={20} />
+                          </div>
+                          <span className="font-medium text-zinc-200">Archive</span>
+                      </button>
+                      <button onClick={() => openModal(null, 'BRAINSTORM')} className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform">
+                          <div className="w-10 h-10 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center">
+                              <Sparkles size={20} />
+                          </div>
+                          <span className="font-medium text-zinc-200">Brainstorm</span>
+                      </button>
+                       <button onClick={() => openModal(null, 'SHORTCUTS')} className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform">
+                          <div className="w-10 h-10 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center">
+                              <Keyboard size={20} />
+                          </div>
+                          <span className="font-medium text-zinc-200">Shortcuts</span>
+                      </button>
+                   </div>
+              )}
+          </div>
+          
+          {/* Bottom Nav */}
+          <div className="w-full bg-zinc-950/95 backdrop-blur-xl border-t border-white/10 grid grid-cols-4 shrink-0 h-16 pb-safe">
+              <button 
+                onClick={() => setMobileTab('tasks')}
+                className={clsx("flex flex-col items-center justify-center gap-0.5 active:bg-white/5 transition-colors", mobileTab === 'tasks' ? "text-white" : "text-zinc-500")}
+              >
+                  <Home size={20} strokeWidth={mobileTab === 'tasks' ? 2.5 : 2} />
+                  <span className="text-[10px] font-medium">Tasks</span>
+              </button>
+              <button 
+                onClick={() => setMobileTab('focus')}
+                className={clsx("flex flex-col items-center justify-center gap-0.5 active:bg-white/5 transition-colors", mobileTab === 'focus' ? "text-white" : "text-zinc-500")}
+              >
+                  <Clock size={20} strokeWidth={mobileTab === 'focus' ? 2.5 : 2} />
+                  <span className="text-[10px] font-medium">Focus</span>
+              </button>
+              <button 
+                onClick={() => setMobileTab('notes')}
+                className={clsx("flex flex-col items-center justify-center gap-0.5 active:bg-white/5 transition-colors", mobileTab === 'notes' ? "text-white" : "text-zinc-500")}
+              >
+                  <FileText size={20} strokeWidth={mobileTab === 'notes' ? 2.5 : 2} />
+                  <span className="text-[10px] font-medium">Notes</span>
+              </button>
+              <button 
+                onClick={() => setMobileTab('menu')}
+                className={clsx("flex flex-col items-center justify-center gap-0.5 active:bg-white/5 transition-colors", mobileTab === 'menu' ? "text-white" : "text-zinc-500")}
+              >
+                  <Menu size={20} strokeWidth={mobileTab === 'menu' ? 2.5 : 2} />
+                  <span className="text-[10px] font-medium">Menu</span>
+              </button>
+          </div>
+      </div>
+
+
+
+      {/* Hidden Audio Elements */}
+      <audio 
+        ref={musicRef} 
+        src={RADIO_STATIONS[currentStation]?.url || RADIO_STATIONS[0].url}
+        loop
+      />
+
       {/* Global Modal */}
       <AnimatePresence>
             {modalOpen && (
@@ -2154,10 +2869,10 @@ export default function TasksPage() {
                         onClick={(e) => e.stopPropagation()}
                         className={clsx(
                             "relative w-full bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col",
-                            modalType === 'NOTE' ? "max-w-3xl h-[80vh]" : "max-w-lg"
+                            (modalType === 'NOTE' || modalType === 'BRAINSTORM') ? "max-w-5xl h-[80vh]" : "max-w-lg"
                         )}
                     >
-                        <div className={clsx("p-6 overflow-y-auto", modalType === 'NOTE' ? "flex-1 flex flex-col" : "")}>
+                        <div className={clsx("p-6 overflow-y-auto", (modalType === 'NOTE' || modalType === 'BRAINSTORM') ? "flex-1 flex flex-col" : "")}>
                             <div className="flex justify-between items-center mb-6">
                                 <div className="flex items-center gap-2">
                                     {modalType === 'BRAINSTORM' && <Sparkles size={20} className="text-zinc-100" />}
@@ -2165,20 +2880,21 @@ export default function TasksPage() {
                                     {modalType === 'ARCHIVE' && <Archive size={20} className="text-zinc-100" />}
                                     {modalType === 'ATTACHMENT' && <Paperclip size={20} className="text-zinc-100" />}
                                     {modalType === 'SHORTCUTS' && <Keyboard size={20} className="text-zinc-100" />}
-                                    {modalType === 'STATS' && <BarChart size={20} className="text-zinc-100" />}
-                                    {modalType === 'NEW_LIST' && <FolderPlus size={20} className="text-zinc-100" />}
-                                    {modalType === 'DUE_DATE' && <Calendar size={20} className="text-zinc-100" />}
-                                    {modalType === 'ESTIMATE' && <Target size={20} className="text-zinc-100" />}
-                                    {modalType === 'MOVE_TO_LIST' && <Move size={20} className="text-zinc-100" />}
+                                    {modalType === 'STATS' && <BarChart3 size={20} />}
+                                    {modalType === 'NEW_LIST' && <FolderPlus size={20} />}
+                                    {modalType === 'MOVE_TO_LIST' && <FolderInput size={20} />}
+                                    {modalType === 'DUE_DATE' && <Calendar size={20} />}
+                                    {modalType === 'ESTIMATE' && <Timer size={20} />}
                                     <h3 className="text-xl font-bold text-zinc-100">
                                         {modalType === 'SUBTASK' && 'Add Subtask'}
-                                        {modalType === 'NOTE' && 'Edit Notes'}
-                                        {modalType === 'BRAINSTORM' && 'Brainstorm Tasks'}
+                                        {modalType === 'NOTE' && 'Notes'}
+                                        {modalType === 'BRAINSTORM' && 'AI Assistant'}
+                                        {modalType === 'EDIT_TASK' && 'Edit Task'}
                                         {modalType === 'SETTINGS' && 'Timer Settings'}
                                         {modalType === 'ARCHIVE' && 'Archived Tasks'}
                                         {modalType === 'ATTACHMENT' && 'Add Link Attachment'}
                                         {modalType === 'SHORTCUTS' && 'Keyboard Shortcuts'}
-                                        {modalType === 'STATS' && 'Productivity Stats'}
+                                        {modalType === 'STATS' && 'Productivity Stats & Summary'}
                                         {modalType === 'NEW_LIST' && 'Create New List'}
                                         {modalType === 'DUE_DATE' && 'Set Due Date'}
                                         {modalType === 'ESTIMATE' && 'Set Pomodoro Estimate'}
@@ -2222,6 +2938,73 @@ export default function TasksPage() {
                                     )}
                                 </div>
                             )}
+
+                            {modalType === 'EDIT_TASK' && (
+                                <div className="space-y-6">
+                                    <form onSubmit={handleModalSubmit}>
+                                        <input
+                                            ref={modalInputRef as any}
+                                            type="text"
+                                            value={modalInput}
+                                            onChange={(e) => setModalInput(e.target.value)}
+                                            className="w-full bg-black/20 text-lg text-zinc-100 border border-white/10 rounded-xl p-4 focus:outline-none focus:border-zinc-500 transition-colors"
+                                            autoFocus
+                                        />
+                                        <div className="flex justify-end gap-3 mt-4">
+                                            <button type="button" onClick={() => setModalOpen(false)} className="btn btn-ghost hover:bg-white/5 text-zinc-400">Cancel</button>
+                                            <button type="submit" className="btn bg-zinc-100 hover:bg-white text-zinc-900 border-none px-6">Save Rename</button>
+                                        </div>
+                                    </form>
+
+                                    <div className="border-t border-white/10 pt-6">
+                                        <h4 className="text-sm font-bold text-zinc-500 uppercase mb-3">Quick Actions</h4>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button 
+                                                onClick={() => setModalType('SUBTASK')}
+                                                className="p-3 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 text-zinc-300 transition-colors"
+                                            >
+                                                <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
+                                                    <Check size={16} />
+                                                </div>
+                                                <span className="font-medium">Add Subtasks</span>
+                                            </button>
+                                            <button 
+                                                onClick={() => {
+                                                     const task = tasks.find(t => t.id === activeTaskID);
+                                                     setModalInput(task?.notes || '');
+                                                     setModalType('NOTE');
+                                                }}
+                                                className="p-3 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 text-zinc-300 transition-colors"
+                                            >
+                                                <div className="p-2 bg-yellow-500/20 text-yellow-400 rounded-lg">
+                                                    <FileText size={16} />
+                                                </div>
+                                                <span className="font-medium">Edit Notes</span>
+                                            </button>
+                                            <button 
+                                                onClick={() => setModalType('ATTACHMENT')}
+                                                className="p-3 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 text-zinc-300 transition-colors"
+                                            >
+                                                <div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg">
+                                                    <Paperclip size={16} />
+                                                </div>
+                                                <span className="font-medium">Attach Link</span>
+                                            </button>
+                                            <button 
+                                                onClick={() => setModalType('DUE_DATE')}
+                                                className="p-3 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 text-zinc-300 transition-colors"
+                                            >
+                                                <div className="p-2 bg-red-500/20 text-red-400 rounded-lg">
+                                                    <Calendar size={16} />
+                                                </div>
+                                                <span className="font-medium">Set Due Date</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+
 
                             {modalType === 'SUBTASK' && (
                                 <form onSubmit={handleModalSubmit}>
@@ -2272,22 +3055,220 @@ export default function TasksPage() {
                                 </form>
                             )}
 
-                             {(modalType === 'NOTE' || modalType === 'BRAINSTORM') && (
-                                <form onSubmit={handleModalSubmit} className={clsx("flex flex-col gap-4", modalType === 'NOTE' ? "flex-1 h-full" : "")}>
+
+
+                            {modalType === 'BRAINSTORM' && (
+                                <div className="flex flex-1 overflow-hidden -mx-6 -mb-6">
+                                    {/* Left Column: Chat */}
+                                    <div className="flex-1 flex flex-col border-r border-white/5 bg-black/5 p-6 min-w-0">
+                                        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar flex flex-col">
+                                            <div className="flex-1" /> {/* Spacer to push messages down */}
+                                            <div className="flex flex-col space-y-4 pb-2">
+                                                {chatMessages.map((msg, idx) => (
+                                                    <div key={idx} className={clsx("flex flex-col max-w-[75%]", msg.role === 'user' ? "self-end items-end" : "self-start items-start")}>
+                                                        <div className={clsx(
+                                                            "p-4 rounded-2xl text-base leading-relaxed whitespace-pre-wrap break-words",
+                                                            msg.role === 'user' 
+                                                                ? "bg-zinc-200 text-zinc-900 rounded-br-sm" 
+                                                                : "bg-white/5 border border-white/5 text-zinc-300 rounded-bl-sm"
+                                                        )}>
+                                                            {msg.content}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {isChatTyping && (
+                                                    <div className="self-start flex items-center gap-2 p-3 bg-white/5 rounded-2xl rounded-bl-sm w-16">
+                                                        <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                                        <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                                        <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" />
+                                                    </div>
+                                                )}
+                                                <div ref={modalInputRef as any} /> 
+                                            </div>
+                                        </div>
+
+                                        <form 
+                                            onSubmit={(e) => {
+                                                e.preventDefault();
+                                                if (!modalInput.trim() || isChatTyping) return;
+                                                
+                                                const userText = modalInput.trim();
+                                                const newHistory = [...chatMessages, { role: 'user', content: userText } as any]; 
+                                                setChatMessages(newHistory);
+                                                setModalInput('');
+                                                setIsChatTyping(true);
+                                                
+                                                // Reset textarea height
+                                                const textarea = e.currentTarget.querySelector('textarea');
+                                                if (textarea) textarea.style.height = '48px'; // Min height for 1 line with padding
+
+                                                setTimeout(() => (modalInputRef.current as any)?.scrollIntoView({ behavior: 'smooth' }), 100);
+
+                                                chatWithAI(newHistory)
+                                                    .then(response => {
+                                                        const assistantMsg: any = { role: 'assistant', content: response.text };
+                                                        if (response.tasks) {
+                                                            assistantMsg.tasks = response.tasks.map(t => ({ 
+                                                                id: Math.random().toString(36), 
+                                                                text: t.text, 
+                                                                subtasks: t.subtasks,
+                                                                selected: true 
+                                                            }));
+                                                        }
+                                                        setChatMessages([...newHistory, assistantMsg]);
+                                                    })
+                                                    .catch(() => toast.error('Failed to get response'))
+                                                    .finally(() => {
+                                                        setIsChatTyping(false);
+                                                        setTimeout(() => (modalInputRef.current as any)?.scrollIntoView({ behavior: 'smooth' }), 100);
+                                                    });
+                                            }}
+                                            className="mt-4 bg-zinc-800/50 border border-white/10 rounded-3xl p-2 flex items-end gap-2 focus-within:border-zinc-500/50 focus-within:bg-zinc-800 transition-all shadow-inner"
+                                        >
+                                            <textarea
+                                                value={modalInput}
+                                                onChange={(e) => {
+                                                    setModalInput(e.target.value);
+                                                    e.target.style.height = 'auto';
+                                                    e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        e.currentTarget.form?.requestSubmit();
+                                                    }
+                                                }}
+                                                placeholder="Message AI Assistant..."
+                                                className="flex-1 bg-transparent text-base text-zinc-200 px-3 py-3 focus:outline-none placeholder:text-zinc-600 resize-none custom-scrollbar"
+                                                rows={1}
+                                                style={{ height: '48px', minHeight: '48px', maxHeight: '150px' }}
+                                                autoFocus
+                                            />
+                                            <button 
+                                                type="submit" 
+                                                disabled={!modalInput.trim() || isChatTyping}
+                                                className={clsx(
+                                                    "btn btn-circle btn-sm border-none transition-all",
+                                                    !modalInput.trim() || isChatTyping 
+                                                        ? "bg-zinc-700 text-zinc-500" 
+                                                        : "bg-zinc-100 text-zinc-900 hover:bg-white hover:scale-105"
+                                                )}
+                                            >
+                                                <ArrowUpCircle size={20} />
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    {/* Right Column: Latest Tasks & Actions */}
+                                    <div className="w-[340px] flex flex-col bg-black/20 border-l border-white/5">
+                                        {/* Find the latest message that HAS tasks */}
+                                        {(() => {
+                                            const latestTaskMsgIndex = [...chatMessages].reverse().findIndex(m => m.tasks && m.tasks.length > 0);
+                                            const realIndex = latestTaskMsgIndex >= 0 ? chatMessages.length - 1 - latestTaskMsgIndex : -1;
+                                            const latestMsgWithTasks = realIndex >= 0 ? chatMessages[realIndex] : null;
+
+                                            if (!latestMsgWithTasks || !latestMsgWithTasks.tasks) {
+                                                return (
+                                                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-zinc-500">
+                                                        <Sparkles size={32} className="mb-4 opacity-20" />
+                                                        <p className="text-sm">Describe your goal, and I'll build a plan here.</p>
+                                                    </div>
+                                                );
+                                            }
+
+                                            return (
+                                                <>
+                                                    <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
+                                                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                                                            Current Plan
+                                                        </span>
+                                                        <button 
+                                                            onClick={() => {
+                                                                const toAdd = latestMsgWithTasks.tasks?.filter(t => t.selected) || [];
+                                                                toAdd.forEach(t => addTask(t.text, t.subtasks));
+                                                                toast.success(`Populated ${toAdd.length} tasks`);
+                                                                setModalOpen(false);
+                                                            }}
+                                                            className="text-xs bg-zinc-100 text-zinc-900 hover:bg-white px-3 py-1.5 rounded-lg transition-colors font-bold shadow-lg shadow-zinc-900/10"
+                                                        >
+                                                            Add Selected
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                                                        {latestMsgWithTasks.tasks.map((task) => (
+                                                            <div 
+                                                                key={task.id}
+                                                                onClick={() => {
+                                                                    const newMessages = [...chatMessages];
+                                                                    // We know realIndex is valid here
+                                                                    const targetMsg = newMessages[realIndex];
+                                                                    if (targetMsg.tasks) {
+                                                                        targetMsg.tasks = targetMsg.tasks.map(t => 
+                                                                            t.id === task.id ? { ...t, selected: !t.selected } : t
+                                                                        );
+                                                                        setChatMessages(newMessages);
+                                                                    }
+                                                                }}
+                                                                className={clsx(
+                                                                    "p-3 rounded-xl border flex flex-col items-start gap-2 cursor-pointer transition-all group",
+                                                                    task.selected 
+                                                                        ? "bg-emerald-500/5 border-emerald-500/20" 
+                                                                        : "bg-transparent border-white/5 hover:bg-white/5"
+                                                                )}
+                                                            >
+                                                                <div className="flex items-start gap-3 w-full">
+                                                                    <div className={clsx(
+                                                                        "w-5 h-5 rounded-md border flex items-center justify-center mt-0.5 transition-all duration-200 shrink-0",
+                                                                        task.selected 
+                                                                            ? "bg-emerald-500 border-emerald-500 text-white shadow-sm" 
+                                                                            : "border-zinc-700 bg-black/20 group-hover:border-zinc-500"
+                                                                    )}>
+                                                                        {task.selected && <Check size={12} strokeWidth={3} />}
+                                                                    </div>
+                                                                    <span className={clsx(
+                                                                        "text-sm leading-relaxed transition-colors", 
+                                                                        task.selected ? "text-zinc-200" : "text-zinc-500"
+                                                                    )}>
+                                                                        {task.text}
+                                                                    </span>
+                                                                </div>
+                                                                
+                                                                {/* Render Subtasks Preview in Sidebar */}
+                                                                {task.subtasks && task.subtasks.length > 0 && (
+                                                                    <div className="pl-8 w-full space-y-1">
+                                                                        {task.subtasks.map((sub, i) => (
+                                                                            <div key={i} className="flex items-center gap-2 text-xs text-zinc-500">
+                                                                                 <div className="w-1 h-1 rounded-full bg-zinc-700" />
+                                                                                 <span>{sub}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
+                            )}
+
+                             {modalType === 'NOTE' && (
+                                <form onSubmit={handleModalSubmit} className="flex flex-col gap-4 flex-1 h-full">
                                     <textarea
                                         ref={modalInputRef as any}
                                         value={modalInput}
                                         onChange={(e) => setModalInput(e.target.value)}
-                                        placeholder={modalType === 'BRAINSTORM' ? "Dump your thoughts here...\nOne idea per line." : "Add details, links, or thoughts... (Markdown supported)"}
-                                        className={clsx(
-                                            "w-full bg-black/20 text-base text-zinc-200 border border-white/10 rounded-xl p-4 focus:outline-none focus:border-zinc-500 transition-colors resize-none leading-relaxed",
-                                            modalType === 'NOTE' ? "h-full flex-1" : "h-40"
-                                        )}
+                                        placeholder="Add details, links, or thoughts... (Markdown supported)"
+                                        className="w-full bg-black/20 text-base text-zinc-200 border border-white/10 rounded-xl p-4 focus:outline-none focus:border-zinc-500 transition-colors resize-none leading-relaxed h-full flex-1"
                                         autoFocus
                                     />
                                     <div className="flex justify-end gap-3 mt-6">
                                         <button type="button" onClick={() => setModalOpen(false)} className="btn btn-ghost hover:bg-white/5 text-zinc-400">Cancel</button>
-                                        <button type="submit" className="btn bg-zinc-100 hover:bg-white text-zinc-900 border-none px-6">{modalType === 'BRAINSTORM' ? 'Generate' : 'Save Notes'}</button>
+                                        <button type="submit" className="btn bg-zinc-100 hover:bg-white text-zinc-900 border-none px-6">Save Notes</button>
                                     </div>
                                 </form>
                             )}
@@ -2309,12 +3290,23 @@ export default function TasksPage() {
                                     </div>
 
                                     <div>
+                                        {/* Hidden Username Field for Autocomplete */}
+                                        <input 
+                                            type="text" 
+                                            name="username" 
+                                            value="Sync" 
+                                            readOnly 
+                                            autoComplete="username" 
+                                            className="hidden" 
+                                        />
                                         <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Sync Password</label>
                                         <input
                                             type="password"
+                                            name="password"
                                             value={modalInput}
                                             onChange={(e) => setModalInput(e.target.value)}
                                             placeholder="Enter your secret password..."
+                                            autoComplete="current-password"
                                             className="w-full bg-black/20 text-lg text-zinc-100 border border-white/10 rounded-xl p-4 mt-2 focus:outline-none focus:border-violet-500 transition-colors"
                                             autoFocus
                                         />
@@ -2419,8 +3411,17 @@ export default function TasksPage() {
                                                     }}
                                                     className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-medium hover:opacity-90 transition-opacity shadow-lg shadow-indigo-500/20"
                                                 >
-                                                    <Cloud size={18} />
-                                                    Enable Secure Sync
+                                                    {syncSalt ? (
+                                                        <>
+                                                            <Lock size={18} />
+                                                            Unlock Sync
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Cloud size={18} />
+                                                            Enable Secure Sync
+                                                        </>
+                                                    )}
                                                 </button>
                                             ) : (
                                                 <div className="flex items-center justify-between p-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400">
@@ -2527,6 +3528,54 @@ export default function TasksPage() {
 
                              {modalType === 'STATS' && (
                                 <div className="space-y-6">
+                                    {/* Daily Summary Section (Now at Top) */}
+                                    <div className="p-6 bg-white/5 rounded-2xl border border-white/5">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h4 className="text-lg font-bold text-zinc-200">Daily Summary</h4>
+                                            {!aiResult && (
+                                                <button 
+                                                    onClick={() => {
+                                                        setAiLoading(true);
+                                                        setAiResult('');
+                                                        const today = new Date().toISOString().split('T')[0];
+                                                        const todayStats = focusHistory.find(h => h.date === today);
+                                                        const minutes = todayStats?.minutes || 0;
+                                                        
+                                                        generateSummary(completedTasks, minutes)
+                                                            .then(res => setAiResult(res))
+                                                            .catch(() => toast.error('Failed to generate summary'))
+                                                            .finally(() => setAiLoading(false));
+                                                    }}
+                                                    className="text-xs px-3 py-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors flex items-center gap-1.5 font-medium"
+                                                    disabled={aiLoading}
+                                                >
+                                                    {aiLoading ? 'Generating...' : <><Sparkles size={12} /> Generate with AI</>}
+                                                </button>
+                                            )}
+                                        </div>
+                                        
+                                        {aiLoading && (
+                                            <div className="py-8 flex justify-center">
+                                                <span className="loading loading-spinner text-emerald-500"></span>
+                                            </div>
+                                        )}
+                                        
+                                        {aiResult && (
+                                            <div className="prose prose-invert prose-sm max-w-none bg-black/20 p-4 rounded-xl border border-white/5">
+                                                <ReactMarkdown>{aiResult}</ReactMarkdown>
+                                                <div className="flex justify-end mt-2">
+                                                    <button onClick={() => setAiResult('')} className="text-xs text-zinc-500 hover:text-zinc-300">Clear</button>
+                                                </div>
+                                            </div>
+                                        )}
+                                        
+                                        {!aiLoading && !aiResult && (
+                                            <div className="text-sm text-zinc-500 text-center py-4 italic">
+                                                Generate a summary of your achievements today.
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <div className="grid grid-cols-3 gap-4">
                                         <div className="p-4 bg-white/5 rounded-xl border border-white/5">
                                             <div className="text-xs text-zinc-500 uppercase font-bold truncate">Focus Today</div>
@@ -2636,6 +3685,8 @@ export default function TasksPage() {
                                             <span>More</span>
                                         </div>
                                     </div>
+
+
                                 </div>
                             )}
 
@@ -2801,54 +3852,39 @@ export default function TasksPage() {
               >
                   <div className="flex items-center justify-between px-4 py-2 bg-black/30">
                       <span className="text-sm font-bold text-zinc-300">
-                          {streamType === 'youtube' ? '🎵 YouTube' : '🎮 Twitch'}
+                           {streamType === 'youtube' ? 'YouTube' : 'Twitch'}
                       </span>
                       <button 
                           onClick={() => setShowYouTubePlayer(false)}
                           className="text-zinc-500 hover:text-white"
                       >
-                          <X size={18} />
+                          <X size={16} />
                       </button>
                   </div>
-                  {streamType === 'youtube' ? (
-                      <iframe
-                          width="320"
-                          height="180"
-                          src={`https://www.youtube.com/embed/${customStreamUrl || 'jfKfPfyJRdk'}?autoplay=1`}
-                          title="YouTube Player"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                          className="border-0"
-                      />
-                  ) : (
-                      <div className="flex flex-col">
-                          <iframe
-                              src={`https://player.twitch.tv/?channel=${customStreamUrl || 'lofiradio'}&parent=localhost&parent=mkhawam.com&parent=www.mkhawam.com`}
-                              width="320"
-                              height="180"
+                  <div className="w-[320px] h-[180px] bg-black">
+                      {streamType === 'youtube' ? (
+                           <iframe
+                              width="100%"
+                              height="100%"
+                              src={`https://www.youtube.com/embed/${customStreamUrl}?autoplay=1`}
+                              title="LoFi Player"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                               allowFullScreen
-                              className="border-0"
+                              className="border-none"
                           />
-                          <a
-                              href={`https://www.twitch.tv/${customStreamUrl || 'lofiradio'}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-center text-purple-400 hover:text-purple-300 py-2 bg-black/30"
-                          >
-                              Open in new tab if embed fails →
-                          </a>
-                      </div>
-                  )}
+                      ) : (
+                          <iframe
+                              src={`https://player.twitch.tv/?channel=${customStreamUrl}&parent=${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}`}
+                              height="100%"
+                              width="100%"
+                              allowFullScreen
+                              className="border-none"
+                          />
+                      )}
+                  </div>
               </motion.div>
           )}
       </AnimatePresence>
-
-      {/* Hidden Audio Elements */}
-      <audio 
-        ref={musicRef} 
-        src={RADIO_STATIONS[currentStation]?.url || RADIO_STATIONS[0].url}
-        loop
-      />
     </div>
   );
 

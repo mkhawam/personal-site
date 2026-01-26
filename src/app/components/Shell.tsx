@@ -6,12 +6,20 @@ import { Menu, X } from 'lucide-react';
 import NavBar from './Navbar';
 
 export default function Shell({ children }: { children: React.ReactNode }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
+    // Check local storage
     const saved = localStorage.getItem('sidebar-state');
-    if (saved !== null) setIsSidebarOpen(JSON.parse(saved));
+    if (saved !== null) {
+        setIsSidebarOpen(JSON.parse(saved));
+    } else {
+        // Default to OPEN on desktop, CLOSED on mobile
+        if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+            setIsSidebarOpen(true);
+        }
+    }
     setIsLoaded(true);
   }, []);
 
@@ -28,7 +36,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         initial={{ width: 320 }}
         animate={{ width: isSidebarOpen ? 320 : 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="relative h-full border-r border-white/5 bg-zinc-950 shadow-2xl overflow-hidden flex-shrink-0"
+        className="hidden md:flex relative h-full border-r border-white/5 bg-zinc-950 shadow-2xl overflow-hidden flex-shrink-0"
       >
         <div className="h-full w-[320px] overflow-y-auto bg-black/20">
              <NavBar />
@@ -40,7 +48,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         {/* Toggle Button (Floating) */}
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="absolute top-4 left-4 z-50 p-2 rounded-full bg-base-100 shadow-lg hover:bg-base-200 transition-colors border border-base-content/10"
+          className="hidden md:block absolute top-4 left-4 z-50 p-2 rounded-full bg-base-100 shadow-lg hover:bg-base-200 transition-colors border border-base-content/10"
           aria-label="Toggle Sidebar"
         >
           {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
