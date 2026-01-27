@@ -8,7 +8,7 @@ export async function sendErrorToDiscord(error: unknown, context: string) {
   }
 
   const errorMessage = error instanceof Error ? error.message : String(error);
-  const errorStack = error instanceof Error ? error.stack : 'No stack trace';
+  const errorStack = (error instanceof Error ? error.stack : undefined) || 'No stack trace';
 
   try {
     await fetch(webhookUrl, {
