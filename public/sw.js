@@ -1,4 +1,4 @@
-const VERSION = 'v3';
+const VERSION = 'v4';
 const CACHE_NAME = `workflow-${VERSION}`;
 const OFFLINE_URLS = [
   '/tasks',
@@ -52,6 +52,17 @@ self.addEventListener('fetch', (event) => {
         // Don't cache non-successful responses
         if (!response || response.status !== 200) {
           return response;
+        }
+
+        // Check if the response is a redirect (fix for "Response served by service worker has redirections")
+        if (response.redirected) {
+          const cleanResponse = new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers,
+          });
+
+          return cleanResponse;
         }
 
         // Clone the response
