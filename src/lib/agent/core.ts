@@ -13,6 +13,20 @@ type AgentResult = {
     process?: string[];
 };
 
+export class AIProviderError extends Error {
+    status: number;
+    code?: string;
+    details?: Record<string, unknown>;
+
+    constructor(message: string, options: { status: number; code?: string; details?: Record<string, unknown> }) {
+        super(message);
+        this.name = "AIProviderError";
+        this.status = options.status;
+        this.code = options.code;
+        this.details = options.details;
+    }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
     return !!value && typeof value === "object" && !Array.isArray(value);
 }
@@ -177,21 +191,104 @@ async function callOllama(messages: ChatMessage[]): Promise<string> {
             })
             .join("\n\n") + "\n\nAssistant:";
 
-    const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
+    const configuredBaseUrl = process.env.OLLAMA_BASE_URL;
+    const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
+    const OLLAMA_BASE_URL = configuredBaseUrl || "http://127.0.0.1:11434";
     const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2";
 
-    const res = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-        method: "POST",
-        body: JSON.stringify({
-            model: OLLAMA_MODEL,
-            prompt,
-            stream: false,
-            stop: ["User:", "System:"],
-        }),
-    });
+    if (!configuredBaseUrl && isProduction) {
+        throw new AIProviderError(
+            "Ollama is not configured for this deployment. Set OLLAMA_BASE_URL to a reachable Ollama server (Vercel cannot access 127.0.0.1 in your network).",
+            {
+                status: 503,
+                code: "OLLAMA_NOT_CONFIGURED",
+            },
+        );
+    }
 
-    if (!res.ok) throw new Error("Ollama call failed");
-    const data = await res.json();
+    const controller = new AbortController();
+    const timeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS || 15000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    let res: Response;
+    try {
+        res = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            body: JSON.stringify({
+                model: OLLAMA_MODEL,
+                prompt,
+                stream: false,
+                stop: ["User:", "System:"],
+            }),
+            signal: controller.signal,
+        });
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        throw new AIProviderError(`Failed to reach Ollama at ${OLLAMA_BASE_URL}: ${message}`, {
+            status: 503,
+            code: "OLLAMA_UNREACHABLE",
+        });
+    } finally {
+        clearTimeout(timeoutId);
+    }
+
+    if (!res.ok) {
+        let bodySnippet = "";
+        let upstreamMessage: string | undefined;
+        try {
+            const contentType = res.headers.get("content-type") || "";
+            if (contentType.includes("application/json")) {
+                const rawJson = (await res.json()) as unknown;
+                if (isRecord(rawJson)) {
+                    const msg = rawJson.error;
+                    if (typeof msg === "string" && msg.trim()) upstreamMessage = msg.trim();
+                }
+                bodySnippet = JSON.stringify(rawJson).slice(0, 500);
+            } else {
+                const raw = await res.text();
+                bodySnippet = raw.slice(0, 500);
+            }
+        } catch {
+            // ignore
+        }
+
+        const extra = upstreamMessage || bodySnippet;
+        const extraPart = extra ? ` — ${extra}` : "";
+
+        const isInsufficientMemory = typeof upstreamMessage === "string" && /requires more system memory/i.test(upstreamMessage);
+
+        const status = isInsufficientMemory ? 503 : 502;
+        const code = isInsufficientMemory ? "OLLAMA_INSUFFICIENT_MEMORY" : "OLLAMA_BAD_RESPONSE";
+
+        const hint =
+            isInsufficientMemory ? ` (Tip: set OLLAMA_MODEL to a smaller model, e.g. \"llama3.2:1b\" or another model you have installed.)` : "";
+
+        throw new AIProviderError(`Ollama request failed with status ${res.status} ${res.statusText}${extraPart}${hint}`, {
+            status,
+            code,
+            details: {
+                upstreamStatus: res.status,
+                upstreamStatusText: res.statusText,
+                baseUrl: OLLAMA_BASE_URL,
+                bodySnippet,
+                upstreamMessage,
+                model: OLLAMA_MODEL,
+            },
+        });
+    }
+
+    const data = (await res.json()) as unknown;
+    if (!isRecord(data) || typeof data.response !== "string") {
+        throw new AIProviderError("Ollama returned an unexpected response shape.", {
+            status: 502,
+            code: "OLLAMA_INVALID_JSON",
+        });
+    }
+
     return data.response.trim();
 }
 
