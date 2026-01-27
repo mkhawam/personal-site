@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { sendErrorToDiscord } from '@/lib/discord';
 
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
@@ -30,7 +31,9 @@ export const getAccessToken = async () => {
     });
 
     if (!response.ok) {
-        console.error("Failed to refresh token", await response.text());
+        const errorText = await response.text();
+        console.error("Failed to refresh token", errorText);
+        await sendErrorToDiscord(new Error(`Spotify Token Refresh Failed: ${errorText}`), "Spotify Service");
         return null;
     }
 

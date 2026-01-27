@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { AIProviderError, runAgentLoop } from "@/lib/agent/core";
+import { sendErrorToDiscord } from "@/lib/discord";
 
 export const runtime = "nodejs";
 
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
         }
 
         const message = error instanceof Error ? error.message : "Unknown error";
+        await sendErrorToDiscord(error, "AI Route");
         return NextResponse.json({ error: "Internal Server Error", details: message }, { status: 500 });
     }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { signToken } from '@/lib/auth';
+import { sendErrorToDiscord } from '@/lib/discord';
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
@@ -34,6 +35,7 @@ export async function GET(request: Request) {
 
     if (tokenData.error) {
       console.error('Discord Token Error:', tokenData);
+      await sendErrorToDiscord(new Error(`Discord Token Error: ${JSON.stringify(tokenData)}`), "Auth Callback (Token Exchange)");
       return NextResponse.json({ error: tokenData.error_description || 'Failed to extract token' }, { status: 400 });
     }
 
@@ -72,6 +74,7 @@ export async function GET(request: Request) {
 
   } catch (err) {
     console.error('Auth Error:', err);
+    await sendErrorToDiscord(err, "Auth Callback (Fatal)");
     return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
   }
 }

@@ -77,8 +77,13 @@ class FileSystemStorage implements SyncStorage {
   }
 }
 
+import { S3Storage } from './storage/s3';
+
 // Factory to choose the right storage
 export function getStorage(): SyncStorage {
+  if (process.env.S3_ENDPOINT) {
+    return new S3Storage();
+  }
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     return new VercelBlobStorage();
   }

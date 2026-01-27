@@ -3,6 +3,8 @@ import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { getStorage } from '@/lib/storage';
 
+import { sendErrorToDiscord } from '@/lib/discord';
+
 // Helper to get user from request
 async function getUser(request: Request) {
   const cookieStore = await cookies();
@@ -28,6 +30,14 @@ export async function GET(request: Request) {
     return NextResponse.json(data);
   } catch (err: any) {
     console.error("Sync GET Error:", err);
+
+    const errorMessage = err.message || String(err);
+    if (errorMessage.includes("This store has been suspended")) {
+         await sendErrorToDiscord(err, "Sync GET (Blob Suspended)");
+         return NextResponse.json({ error: 'Sync Unavailable: Storage suspended' }, { status: 503 });
+    }
+
+    await sendErrorToDiscord(err, "Sync GET");
     return NextResponse.json({ error: 'Failed to read data' }, { status: 500 });
   }
 }
@@ -83,8 +93,16 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Sync POST Error:", err);
+
+    const errorMessage = err.message || String(err);
+    if (errorMessage.includes("This store has been suspended")) {
+         await sendErrorToDiscord(err, "Sync POST (Blob Suspended)");
+         return NextResponse.json({ error: 'Sync Unavailable: Storage suspended' }, { status: 503 });
+    }
+
+    await sendErrorToDiscord(err, "Sync POST");
     return NextResponse.json({ error: 'Failed to save data' }, { status: 500 });
   }
 }
