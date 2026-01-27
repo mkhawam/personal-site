@@ -1,4 +1,5 @@
-const CACHE_NAME = 'workflow-v1';
+const VERSION = 'v3';
+const CACHE_NAME = `workflow-${VERSION}`;
 const OFFLINE_URLS = [
   '/tasks',
   '/manifest.json',
@@ -34,29 +35,32 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
-  
+
   // Skip non-http requests
   if (!event.request.url.startsWith('http')) return;
-  
+
+  // Skip API requests (especially auth)
+  if (event.request.url.includes('/api/')) return;
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
-      
+
       return fetch(event.request).then((response) => {
         // Don't cache non-successful responses
         if (!response || response.status !== 200) {
           return response;
         }
-        
+
         // Clone the response
         const responseToCache = response.clone();
-        
+
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, responseToCache);
         });
-        
+
         return response;
       });
     })

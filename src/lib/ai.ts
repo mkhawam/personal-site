@@ -6,6 +6,8 @@ type Task = {
     subtasks?: any[];
 };
 
+import { tryParseJSON } from './json-utils';
+
 // Types for Chat
 export type ChatMessage = {
     role: 'user' | 'assistant' | 'system';
@@ -15,6 +17,7 @@ export type ChatMessage = {
 export type ChatResponse = {
     text: string;
     tasks?: { text: string, subtasks?: string[] }[];
+    process?: string[];
 };
 
 export async function chatWithAI(messages: ChatMessage[]): Promise<ChatResponse> {
@@ -49,18 +52,23 @@ Respond naturally as the assistant.`;
 
         const data = await response.json();
         const rawText = data.response;
+        console.log("Client received AI response:", data);
 
         // Parse mixed response (Text + Optional JSON)
         let text = rawText;
-        let tasks: { text: string, subtasks?: string[] }[] | undefined;
+        let tasks: { text: string, subtasks?: string[] }[] | undefined = data.tasks;
 
-        // Try to find JSON block
-        const jsonMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/) || rawText.match(/```\s*([\s\S]*?)\s*```/);
+        // If server returned tasks, we don't need to parse rawText usually.
+        // But if tasks is missing, try client-side fallback.
+        if (!tasks || tasks.length === 0) {
+            // Try to find JSON block
+            const jsonMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/) || rawText.match(/```\s*([\s\S]*?)\s*```/);
         
         if (jsonMatch) {
             try {
                 const jsonContent = jsonMatch[1];
-                const parsed = JSON.parse(jsonContent);
+                const parsed = tryParseJSON(jsonContent);
+                
                 if (Array.isArray(parsed)) {
                     tasks = parsed.map((t: any) => ({
                         text: typeof t === 'string' ? t : t.text,
@@ -91,7 +99,16 @@ Respond naturally as the assistant.`;
              }
         }
 
-        return { text, tasks };
+        }
+        
+        let finalText = text;
+        if (data.process && Array.isArray(data.process) && data.process.length > 0) {
+            // Prepend process as a blockquote or similar
+            const processBlock = data.process.map((p: string) => `> ${p}`).join('\n');
+            finalText = `${processBlock}\n\n${text}`;
+        }
+        
+        return { text: finalText, tasks };
 
     } catch (error) {
         console.error('AI Chat Error:', error);

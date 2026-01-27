@@ -5,6 +5,9 @@ import "./globals.css";
 import Shell from "./components/Shell";
 import { headers } from "next/headers";
 
+import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
+import { Toaster } from "sonner";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -49,6 +52,8 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased h-full`}
       >
+        <ServiceWorkerRegister />
+        <Toaster />
         <Shell>
           {children}
         </Shell>
