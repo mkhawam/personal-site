@@ -34,8 +34,19 @@ export class S3Storage implements SyncStorage {
       return JSON.parse(str);
     } catch (error: any) {
       if (error.name === 'NoSuchKey') return null;
+      
       console.error('S3 Get Error:', error);
-      await sendErrorToDiscord(error, "S3 Get Error");
+
+      // Check for common configuration error: Pointing to Web UI instead of API
+      const msg = error.message || '';
+      if (msg.includes('Expected closing tag') || msg.includes('Deserialization error')) {
+         const warning = 'FATAL CONFIG: S3 Client received HTML instead of XML. You are likely pointing S3_ENDPOINT to the MinIO Console (Port 9001) or a Cloudflare Login page instead of the API (Port 9000).';
+         console.error(warning);
+         await sendErrorToDiscord(new Error(warning + ` Original: ${msg}`), "S3 Configuration Error");
+      } else {
+         await sendErrorToDiscord(error, "S3 Get Error");
+      }
+
       throw error;
     }
   }
