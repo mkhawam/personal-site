@@ -281,6 +281,7 @@ export default function TasksPage() {
     const [savedLinks, setSavedLinks] = useState<{ id: string; title: string; url: string; createdAt: string }[]>([]);
     const [newLinkTitle, setNewLinkTitle] = useState("");
     const [newLinkUrl, setNewLinkUrl] = useState("");
+    const [showCompleted, setShowCompleted] = useState(true);
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const musicRef = useRef<HTMLAudioElement | null>(null);
@@ -676,6 +677,22 @@ export default function TasksPage() {
 
     const deleteTask = (id: string) => {
         setTasks(tasks.filter((t) => t.id !== id));
+    };
+
+
+    const deleteList = (id: string) => {
+        if (id === "default") return;
+
+        // confirm?
+        if (!confirm("Are you sure? All tasks in this list will be deleted.")) return;
+
+        setLists(lists.filter((l) => l.id !== id));
+        setTasks(tasks.filter((t) => t.listId !== id));
+
+        if (activeListId === id) {
+            setActiveListId("default");
+        }
+        toast.success("List Deleted");
     };
 
     const archiveTask = (id: string) => {
@@ -1358,23 +1375,43 @@ export default function TasksPage() {
                                         >
                                             <div className="p-2 space-y-1">
                                                 {lists.map((list) => (
-                                                    <button
+                                                    <div
                                                         key={list.id}
-                                                        onClick={() => {
-                                                            setActiveListId(list.id);
-                                                            setIsListDropdownOpen(false);
-                                                        }}
                                                         className={clsx(
-                                                            "w-full text-left px-4 py-3 rounded-lg transition-colors font-medium",
+                                                            "group/item w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors font-medium",
                                                             activeListId === list.id ?
                                                                 "bg-zinc-100 text-zinc-900"
                                                             :   "text-zinc-400 hover:bg-white/5 hover:text-zinc-100",
                                                         )}
                                                     >
-                                                        {list.name}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                                        <button
+                                                            onClick={() => {
+                                                                setActiveListId(list.id);
+                                                                setIsListDropdownOpen(false);
+                                                            }}
+                                                            className="flex-1 text-left"
+                                                        >
+                                                            {list.name}
+                                                        </button>
+                                                        {list.id !== "default" && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    deleteList(list.id);
+                                                                }}
+                                                                className={clsx(
+                                                                    "p-1.5 rounded-md transition-colors",
+                                                                    activeListId === list.id ?
+                                                                        "text-zinc-500 hover:text-red-600 hover:bg-zinc-200"
+                                                                    :   "text-zinc-500 hover:text-red-400 hover:bg-white/10 opacity-0 group-hover/item:opacity-100",
+                                                                )}
+                                                                title="Delete List"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}                                            </div>
                                             <div className="border-t border-white/5 p-2">
                                                 <button
                                                     onClick={() => {
@@ -2555,48 +2592,65 @@ export default function TasksPage() {
 
                             {/* Completed Tasks */}
                             {completedTasks.length > 0 && (
-                                <div className="opacity-60 hover:opacity-100 transition-opacity">
-                                    <div className="flex justify-between items-center mb-4 px-2">
-                                        <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">
+                                <div className="transition-opacity">
+                                    <button
+                                        onClick={() => setShowCompleted(!showCompleted)}
+                                        className="flex items-center gap-2 mb-4 px-2 w-full group"
+                                    >
+                                        <ChevronDown
+                                            size={16}
+                                            className={clsx("text-zinc-500 transition-transform", !showCompleted && "-rotate-90")}
+                                        />
+                                        <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-wider group-hover:text-zinc-300 transition-colors">
                                             Completed ({completedTasks.length})
                                         </h2>
-                                    </div>
+                                        <div className="h-px flex-1 bg-white/5 ml-2" />
+                                    </button>
 
-                                    <div className="space-y-3">
-                                        {completedTasks.map((task) => (
+                                    <AnimatePresence>
+                                        {showCompleted && (
                                             <motion.div
-                                                key={task.id}
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                className="relative flex items-center gap-4 p-4 rounded-xl border border-transparent bg-black/20"
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: "auto", opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="space-y-3 overflow-hidden"
                                             >
-                                                <div className="w-[18px]" />
-                                                <button
-                                                    onClick={() => toggleTask(task.id)}
-                                                    className="w-6 h-6 rounded-full border-2 bg-zinc-500 border-zinc-500 flex items-center justify-center transition-colors flex-shrink-0"
-                                                >
-                                                    <Check size={14} className="text-zinc-950" />
-                                                </button>
-                                                <span className="flex-1 text-lg font-medium select-none truncate line-through text-zinc-600">
-                                                    {task.text}
-                                                </span>
-                                                {/* Archive Button */}
-                                                <button
-                                                    onClick={() => archiveTask(task.id)}
-                                                    className="p-2 text-zinc-600 hover:text-zinc-300 transition-colors"
-                                                    title="Archive"
-                                                >
-                                                    <Archive size={18} />
-                                                </button>
-                                                <button
-                                                    onClick={() => deleteTask(task.id)}
-                                                    className="p-2 text-zinc-800 hover:text-red-400 transition-colors"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
+                                                {completedTasks.map((task) => (
+                                                    <motion.div
+                                                        key={task.id}
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        className="relative flex items-center gap-4 p-4 rounded-xl border border-transparent bg-black/20"
+                                                    >
+                                                        <div className="w-[18px]" />
+                                                        <button
+                                                            onClick={() => toggleTask(task.id)}
+                                                            className="w-6 h-6 rounded-full border-2 bg-zinc-500 border-zinc-500 flex items-center justify-center transition-colors flex-shrink-0"
+                                                        >
+                                                            <Check size={14} className="text-zinc-950" />
+                                                        </button>
+                                                        <span className="flex-1 text-lg font-medium select-none truncate line-through text-zinc-600">
+                                                            {task.text}
+                                                        </span>
+                                                        {/* Archive Button */}
+                                                        <button
+                                                            onClick={() => archiveTask(task.id)}
+                                                            className="p-2 text-zinc-600 hover:text-zinc-300 transition-colors"
+                                                            title="Archive"
+                                                        >
+                                                            <Archive size={18} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => deleteTask(task.id)}
+                                                            className="p-2 text-zinc-800 hover:text-red-400 transition-colors"
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </motion.div>
+                                                ))}
                                             </motion.div>
-                                        ))}
-                                    </div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
                             )}
                         </motion.div>
@@ -2899,33 +2953,52 @@ export default function TasksPage() {
 
                                     {/* Completed Tasks (Mobile) */}
                                     {completedTasks.length > 0 && (
-                                        <div className="mt-8 pt-4 border-t border-white/5 opacity-60">
-                                            <h3 className="text-sm font-bold text-zinc-500 mb-3 px-2">Completed ({completedTasks.length})</h3>
-                                            <div className="space-y-3">
-                                                {completedTasks.map((task) => (
-                                                    <div
-                                                        key={task.id}
-                                                        onClick={() => toggleTask(task.id)}
-                                                        className="relative p-4 bg-zinc-900/50 border border-white/5 rounded-2xl flex items-start gap-4 active:bg-zinc-800 transition-colors"
+                                        <div className="mt-8 pt-4 border-t border-white/5">
+                                            <button
+                                                onClick={() => setShowCompleted(!showCompleted)}
+                                                className="flex items-center gap-2 mb-3 px-2 w-full"
+                                            >
+                                                <ChevronDown
+                                                    size={16}
+                                                    className={clsx("text-zinc-500 transition-transform", !showCompleted && "-rotate-90")}
+                                                />
+                                                <h3 className="text-sm font-bold text-zinc-500">Completed ({completedTasks.length})</h3>
+                                            </button>
+
+                                            <AnimatePresence>
+                                                {showCompleted && (
+                                                    <motion.div
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: "auto", opacity: 1 }}
+                                                        exit={{ height: 0, opacity: 0 }}
+                                                        className="space-y-3 overflow-hidden opacity-60"
                                                     >
-                                                        <div className="w-6 h-6 mt-0.5 rounded-full border-2 border-green-500 bg-green-500 flex items-center justify-center flex-shrink-0">
-                                                            <Check size={14} className="text-black" />
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <span className="text-lg block truncate text-zinc-500 line-through">{task.text}</span>
-                                                        </div>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                deleteTask(task.id);
-                                                            }}
-                                                            className="p-2 text-zinc-600 hover:text-red-400"
-                                                        >
-                                                            <Trash2 size={18} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                                        {completedTasks.map((task) => (
+                                                            <div
+                                                                key={task.id}
+                                                                onClick={() => toggleTask(task.id)}
+                                                                className="relative p-4 bg-zinc-900/50 border border-white/5 rounded-2xl flex items-start gap-4 active:bg-zinc-800 transition-colors"
+                                                            >
+                                                                <div className="w-6 h-6 mt-0.5 rounded-full border-2 border-green-500 bg-green-500 flex items-center justify-center flex-shrink-0">
+                                                                    <Check size={14} className="text-black" />
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <span className="text-lg block truncate text-zinc-500 line-through">{task.text}</span>
+                                                                </div>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        deleteTask(task.id);
+                                                                    }}
+                                                                    className="p-2 text-zinc-600 hover:text-red-400"
+                                                                >
+                                                                    <Trash2 size={18} />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
                                         </div>
                                     )}
                                 </div>
