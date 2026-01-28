@@ -1,4 +1,4 @@
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE_NAME = `workflow-${VERSION}`;
 const OFFLINE_URLS = [
   '/tasks',
