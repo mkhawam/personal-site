@@ -272,10 +272,6 @@ export default function TasksPage() {
     const [activeNoteId, setActiveNoteId] = useState("default");
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
 
-    // const modalInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null); // Kept if generic
-    // Looking at code, modalInputRef was used in brainstorming mainly.
-    // Let's remove brainstorming specific state.
-
     const [addingSubtaskId, setAddingSubtaskId] = useState<string | null>(null);
     const [newSubtaskText, setNewSubtaskText] = useState("");
     const [savedLinks, setSavedLinks] = useState<{ id: string; title: string; url: string; createdAt: string }[]>([]);
@@ -286,8 +282,6 @@ export default function TasksPage() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const musicRef = useRef<HTMLAudioElement | null>(null);
     const modalInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
-
-    // const [activeBrainstormTab, setActiveBrainstormTab] = useState<'chat' | 'plan'>('chat'); // REMOVED
 
     // --- Effects ---
 
@@ -1076,13 +1070,9 @@ export default function TasksPage() {
             const res = await fetch("/api/sync");
 
             if (res.status === 401) {
-                toast.error("Please login to enable sync", {
-                    action: {
-                        label: "Login",
-                        onClick: () => router.push("/api/auth/discord/login"),
-                    },
-                });
+                setUser(null);
                 setIsSyncing(false);
+                router.push("/api/auth/discord/login");
                 return;
             }
 
@@ -1175,6 +1165,12 @@ export default function TasksPage() {
             // Add timestamp to prevent Next.js/Browser caching
             const res = await fetch(`/api/sync?t=${Date.now()}`, { cache: "no-store" });
             console.log("Pull Sync Response Status:", res.status);
+
+            if (res.status === 401) {
+                console.warn("Pull Sync: Not authenticated");
+                setUser(null);
+                return;
+            }
 
             if (!res.ok) {
                 console.error("Pull Sync Error Response", res.status, res.statusText);
@@ -1489,23 +1485,37 @@ export default function TasksPage() {
                             {/* Sync Status Overlay Indicator */}
                             <div className="relative group">
                                 <button
-                                    onClick={() => openModal(null, "SYNC")}
+                                    onClick={() => {
+                                        if (!user && syncKey) {
+                                            router.push("/api/auth/discord/login");
+                                            return;
+                                        }
+                                        if (!user && !syncKey) {
+                                            router.push("/api/auth/discord/login");
+                                            return;
+                                        }
+                                        openModal(null, "SYNC");
+                                    }}
                                     className={clsx(
                                         "btn btn-circle btn-ghost hover:bg-white/10 relative",
                                         isSyncing ? "text-violet-400 animate-pulse"
-                                        : syncKey ? "text-green-500"
+                                        : syncKey && user ? "text-green-500"
+                                        : syncKey && !user ? "text-amber-500"
                                         : "text-zinc-600",
                                     )}
                                     title={
                                         isSyncing ? "Syncing..."
-                                        : syncKey ?
-                                            "Encrypted Sync Active"
-                                        :   "Sync Disabled"
+                                        : syncKey && user ? "Encrypted Sync Active"
+                                        : syncKey && !user ? "Session expired — click to login"
+                                        : "Sync Disabled — click to login"
                                     }
                                 >
                                     <Cloud size={24} />
                                     {syncKey && (
-                                        <span className="absolute bottom-2 right-2 w-2 h-2 rounded-full border border-black bg-current"></span>
+                                        <span className={clsx(
+                                            "absolute bottom-2 right-2 w-2 h-2 rounded-full border border-black",
+                                            user ? "bg-green-500" : "bg-amber-500"
+                                        )}></span>
                                     )}
                                 </button>
                             </div>
@@ -3136,6 +3146,10 @@ export default function TasksPage() {
                             </button>
                             <button
                                 onClick={() => {
+                                    if (!user) {
+                                        router.push("/api/auth/discord/login");
+                                        return;
+                                    }
                                     if (syncKey && syncSalt) {
                                         pullSync(syncKey, syncSalt);
                                         toast.info("Checking for updates...");
