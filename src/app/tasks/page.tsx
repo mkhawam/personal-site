@@ -281,7 +281,7 @@ export default function TasksPage() {
     const [savedLinks, setSavedLinks] = useState<{ id: string; title: string; url: string; createdAt: string }[]>([]);
     const [newLinkTitle, setNewLinkTitle] = useState("");
     const [newLinkUrl, setNewLinkUrl] = useState("");
-    const [showCompleted, setShowCompleted] = useState(true);
+    const [showCompleted, setShowCompleted] = useState(false);
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const musicRef = useRef<HTMLAudioElement | null>(null);
@@ -678,7 +678,6 @@ export default function TasksPage() {
     const deleteTask = (id: string) => {
         setTasks(tasks.filter((t) => t.id !== id));
     };
-
 
     const deleteList = (id: string) => {
         if (id === "default") return;
@@ -1411,7 +1410,8 @@ export default function TasksPage() {
                                                             </button>
                                                         )}
                                                     </div>
-                                                ))}                                            </div>
+                                                ))}{" "}
+                                            </div>
                                             <div className="border-t border-white/5 p-2">
                                                 <button
                                                     onClick={() => {
@@ -2983,7 +2983,9 @@ export default function TasksPage() {
                                                                     <Check size={14} className="text-black" />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
-                                                                    <span className="text-lg block truncate text-zinc-500 line-through">{task.text}</span>
+                                                                    <span className="text-lg block truncate text-zinc-500 line-through">
+                                                                        {task.text}
+                                                                    </span>
                                                                 </div>
                                                                 <button
                                                                     onClick={(e) => {
