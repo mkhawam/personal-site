@@ -61,6 +61,15 @@ export const commands: commandList = {
             return result + "\n" + data.output;
         },
     },
+    resume: {
+        name: "resume",
+        description: "Open the PDF resume.",
+        executable: () => {
+            if (typeof window === "undefined") return "resume: no display available";
+            window.open("/scripts/resume.pdf", "_blank", "noopener,noreferrer");
+            return "Opening resume.pdf ...\n(also readable here: cat resume.md)";
+        },
+    },
     sl: {
         name: "sl",
         description: "Steam Locomotive",

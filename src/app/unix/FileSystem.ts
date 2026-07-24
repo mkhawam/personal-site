@@ -1,5 +1,6 @@
 import { GetUserNameFromID } from "./UserSystem";
 import { parseArgs } from "./Utils";
+import { PACKAGE_JSON, README_MD, RESUME_MD } from "./files";
 
 function mapUnixPermissions(n: number): string {
     const permissionList = [];
@@ -366,9 +367,17 @@ export class FileSystem {
             if (personalSite) {
                 personalSite.addLink("src", new Inode("src", "d"));
                 personalSite.addLink("public", new Inode("public", "d"));
+                personalSite.addLink("posts", new Inode("posts", "d"));
                 personalSite.addLink("tsconfig.json", new Inode("tsconfig.json", "-"));
                 personalSite.addLink("package.json", new Inode("package.json", "-"));
                 personalSite.addLink("README.md", new Inode("README.md", "-"));
+                personalSite.addLink("resume.md", new Inode("resume.md", "-"));
+
+                // These files are the point of the /cv easter egg, so they need
+                // real contents — an empty `cat` is a dead end.
+                personalSite.getLink("resume.md")?.writeContent(RESUME_MD);
+                personalSite.getLink("README.md")?.writeContent(README_MD);
+                personalSite.getLink("package.json")?.writeContent(PACKAGE_JSON);
             }
         }
         const sbin = this.root.getLink("sbin");
@@ -726,7 +735,6 @@ export class FileSystem {
         if (path == "") return "No such file or directory";
         if (path.indexOf("/") === -1) {
             const targetFile = this.cwd.getLink(path);
-            console.log(targetFile);
             if (!targetFile) return "No such file or directory";
             if (targetFile.filetype !== "-") return "Not a file";
             return targetFile.readContent();

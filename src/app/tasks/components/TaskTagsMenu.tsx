@@ -8,7 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 export type TaskTag = {
     id: string;
     label: string;
-    color: string; // tailwind class e.g. bg-blue-500
+    color: string; // tailwind class e.g. bg-info
 };
 
 type Props = {
@@ -153,7 +153,7 @@ export default function TaskTagsMenu({ open, anchorEl, tags, selectedTagIds, onT
                     style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width }}
                     className={clsx(
                         // Match other dropdowns in this page (e.g., list dropdown)
-                        "z-[1000] bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden",
+                        "z-[1000] bg-base-200 border border-base-content/10 rounded-xl shadow-2xl overflow-hidden",
                     )}
                     role="menu"
                     aria-label="Task tags"
@@ -172,7 +172,7 @@ export default function TaskTagsMenu({ open, anchorEl, tags, selectedTagIds, onT
                                     onClick={() => onToggleTag(tag.id)}
                                     className={clsx(
                                         "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors text-left",
-                                        isSelected ? `${tag.color} text-white` : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100",
+                                        isSelected ? `${tag.color} text-white` : "text-base-content/70 hover:bg-base-content/5 hover:text-base-content",
                                     )}
                                     role="menuitemcheckbox"
                                     aria-checked={isSelected}

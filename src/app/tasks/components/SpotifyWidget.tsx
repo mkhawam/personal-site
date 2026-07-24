@@ -79,12 +79,12 @@ export default function SpotifyWidget() {
         }
     };
 
-    if (loading) return <div className="text-zinc-500 text-xs text-center p-4">Loading Spotify...</div>;
+    if (loading) return <div className="text-base-content/50 text-xs text-center p-4">Loading Spotify...</div>;
 
     if (!data?.isConnected) {
         return (
             <div className="flex flex-col items-center gap-2 p-2">
-                <p className="text-xs text-zinc-400">Connect Spotify to control playback</p>
+                <p className="text-xs text-base-content/70">Connect Spotify to control playback</p>
                 <a 
                     href="/api/spotify/login" 
                     className="px-4 py-2 bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold rounded-full text-xs transition-colors"
@@ -98,10 +98,10 @@ export default function SpotifyWidget() {
     if (!data.isPlaying && !data.title) {
          return (
             <div className="flex flex-col items-center gap-2 p-2">
-                <p className="text-xs text-zinc-400">Spotify connected but idle.</p>
+                <p className="text-xs text-base-content/70">Spotify connected but idle.</p>
                 <button 
                   onClick={() => handleAction('play')}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full text-xs transition-colors"
+                  className="px-4 py-2 bg-base-300 hover:bg-base-300/70 text-base-content rounded-full text-xs transition-colors"
                 >
                     Resume Playback
                 </button>
@@ -110,25 +110,25 @@ export default function SpotifyWidget() {
     }
 
     return (
-        <div className="bg-zinc-800/50 rounded-lg p-3 space-y-3">
+        <div className="bg-base-300/50 rounded-lg p-3 space-y-3">
              <div className="flex items-center gap-3">
                  {data.albumArt ? (
                      <img src={data.albumArt} alt="Album Art" className="w-12 h-12 rounded-md shadow-md" />
                  ) : (
-                     <div className="w-12 h-12 bg-zinc-700 rounded-md animate-pulse" />
+                     <div className="w-12 h-12 bg-base-300 rounded-md animate-pulse" />
                  )}
                  <div className="flex-1 min-w-0">
-                     <h4 className="text-sm font-bold text-white truncate">{data.title}</h4>
-                     <p className="text-xs text-zinc-400 truncate">{data.artist}</p>
+                     <h4 className="text-sm font-bold text-base-content truncate">{data.title}</h4>
+                     <p className="text-xs text-base-content/70 truncate">{data.artist}</p>
                  </div>
-                 <a href={data.uri || '#'} target="_blank" className="text-zinc-500 hover:text-[#1DB954]">
+                 <a href={data.uri || '#'} target="_blank" className="text-base-content/50 hover:text-[#1DB954]">
                      <ExternalLink size={14} />
                  </a>
              </div>
              
              {/* Progress Bar */}
              {data.duration && data.progress && (
-                 <div className="w-full bg-zinc-700 h-1 rounded-full overflow-hidden">
+                 <div className="w-full bg-base-300 h-1 rounded-full overflow-hidden">
                      <div 
                         className="bg-[#1DB954] h-full transition-all duration-1000 ease-linear" 
                         style={{ width: `${(data.progress / data.duration) * 100}%` }}
@@ -137,29 +137,29 @@ export default function SpotifyWidget() {
              )}
 
              <div className="flex justify-center items-center gap-4">
-                 <button onClick={() => handleAction('previous')} className="text-zinc-400 hover:text-white">
+                 <button onClick={() => handleAction('previous')} className="text-base-content/70 hover:text-base-content">
                      <SkipBack size={20} fill="currentColor" />
                  </button>
                  <button 
                     onClick={() => handleAction(data.isPlaying ? 'pause' : 'play')}
-                    className="p-3 bg-white text-black rounded-full hover:scale-105 transition-transform"
+                    className="p-3 bg-primary text-primary-content rounded-full hover:scale-105 transition-transform"
                 >
                     {data.isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}
                  </button>
-                 <button onClick={() => handleAction('next')} className="text-zinc-400 hover:text-white">
+                 <button onClick={() => handleAction('next')} className="text-base-content/70 hover:text-base-content">
                      <SkipForward size={20} fill="currentColor" />
                  </button>
              </div>
 
              {/* Up Next Section */}
              {data.nextTracks && data.nextTracks.length > 0 && (
-                 <div className="pt-2 mt-2 border-t border-white/5 space-y-2">
-                     <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Up Next</span>
+                 <div className="pt-2 mt-2 border-t border-base-content/5 space-y-2">
+                     <span className="text-[10px] uppercase font-bold text-base-content/50 tracking-wider">Up Next</span>
                      {data.nextTracks.map((track, i) => (
                          <div 
                             key={i} 
                             onClick={() => handlePlayTrack(track.uri)}
-                            className="flex items-center gap-2 min-w-0 group cursor-pointer hover:bg-white/5 p-1 rounded transition-colors"
+                            className="flex items-center gap-2 min-w-0 group cursor-pointer hover:bg-base-content/5 p-1 rounded transition-colors"
                          >
                              {track.albumArt && (
                                  <div className="relative w-6 h-6">
@@ -170,8 +170,8 @@ export default function SpotifyWidget() {
                                  </div>
                              )}
                              <div className="min-w-0 flex-1">
-                                 <p className="text-xs text-zinc-300 truncate font-medium group-hover:text-white">{track.title}</p>
-                                 <p className="text-[10px] text-zinc-500 truncate">{track.artist}</p>
+                                 <p className="text-xs text-base-content/80 truncate font-medium group-hover:text-base-content">{track.title}</p>
+                                 <p className="text-[10px] text-base-content/50 truncate">{track.artist}</p>
                              </div>
                          </div>
                      ))}

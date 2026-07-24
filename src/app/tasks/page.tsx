@@ -29,15 +29,6 @@ import {
     Image as ImageIcon,
     Video,
     FileCode,
-    Github,
-    Youtube,
-    Twitter,
-    Instagram,
-    Linkedin,
-    Figma,
-    Codepen,
-    Trello,
-    Slack,
     Disc,
     Download,
     Upload,
@@ -69,6 +60,19 @@ import {
     BarChart3,
     FolderInput,
 } from "lucide-react";
+// Brand icons — lucide-react 1.x dropped brand glyphs; react-icons (already a
+// dependency, used in Socials) is lucide's recommended source for these.
+import {
+    FaGithub,
+    FaYoutube,
+    FaTwitter,
+    FaFigma,
+    FaInstagram,
+    FaLinkedin,
+    FaCodepen,
+    FaTrello,
+    FaSlack,
+} from "react-icons/fa";
 import { toast } from "sonner";
 import clsx from "clsx";
 import ReactMarkdown from "react-markdown";
@@ -913,10 +917,10 @@ export default function TasksPage() {
     const strokeDasharray = 283;
 
     const getPriorityColor = (p?: string) => {
-        if (p === "disaster") return "text-red-600";
-        if (p === "high") return "text-red-400";
-        if (p === "medium") return "text-amber-400";
-        return "text-zinc-600";
+        if (p === "disaster") return "text-error";
+        if (p === "high") return "text-error";
+        if (p === "medium") return "text-warning";
+        return "text-base-content/50";
     };
 
     const getIconForUrl = (url: string) => {
@@ -926,15 +930,15 @@ export default function TasksPage() {
             const path = u.pathname.toLowerCase();
 
             // Services
-            if (domain.includes("github.com")) return <Github size={12} />;
-            if (domain.includes("youtube.com") || domain.includes("youtu.be")) return <Youtube size={12} />;
-            if (domain.includes("twitter.com") || domain.includes("x.com")) return <Twitter size={12} />;
-            if (domain.includes("figma.com")) return <Figma size={12} />;
-            if (domain.includes("instagram.com")) return <Instagram size={12} />;
-            if (domain.includes("linkedin.com")) return <Linkedin size={12} />;
-            if (domain.includes("codepen.io")) return <Codepen size={12} />;
-            if (domain.includes("trello.com")) return <Trello size={12} />;
-            if (domain.includes("slack.com")) return <Slack size={12} />;
+            if (domain.includes("github.com")) return <FaGithub size={12} />;
+            if (domain.includes("youtube.com") || domain.includes("youtu.be")) return <FaYoutube size={12} />;
+            if (domain.includes("twitter.com") || domain.includes("x.com")) return <FaTwitter size={12} />;
+            if (domain.includes("figma.com")) return <FaFigma size={12} />;
+            if (domain.includes("instagram.com")) return <FaInstagram size={12} />;
+            if (domain.includes("linkedin.com")) return <FaLinkedin size={12} />;
+            if (domain.includes("codepen.io")) return <FaCodepen size={12} />;
+            if (domain.includes("trello.com")) return <FaTrello size={12} />;
+            if (domain.includes("slack.com")) return <FaSlack size={12} />;
 
             // Files by extension
             if (path.endsWith(".pdf") || path.endsWith(".doc") || path.endsWith(".docx") || path.endsWith(".txt")) return <FileText size={12} />;
@@ -1333,11 +1337,11 @@ export default function TasksPage() {
     }, [syncKey, syncSalt]);
 
     if (!isLoaded) {
-        return <div className="min-h-full w-full bg-zinc-950" />;
+        return <div className="min-h-full w-full bg-base-100" />;
     }
 
     return (
-        <div className="min-h-full w-full p-4 md:p-12 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 relative">
+        <div className="min-h-full w-full p-4 md:p-12 bg-gradient-to-br from-base-100 via-base-200 to-base-100 relative">
             {/* <Toaster position="top-center" theme="dark" /> Removed duplicate */}
             <input type="file" ref={fileInputRef} onChange={importData} accept=".json" className="hidden" />
 
@@ -1349,15 +1353,15 @@ export default function TasksPage() {
                         <div className="flex items-center gap-6">
                             <div className="relative">
                                 <button onClick={() => setIsListDropdownOpen(!isListDropdownOpen)} className="flex items-center gap-2 group">
-                                    <h1 className="text-3xl md:text-5xl font-extrabold text-zinc-100 tracking-tight">
+                                    <h1 className="text-3xl md:text-5xl font-extrabold text-base-content tracking-tight">
                                         {lists.find((l) => l.id === activeListId)?.name || "My Tasks"}
                                     </h1>
                                     <ChevronDown
                                         size={24}
-                                        className={clsx("text-zinc-500 group-hover:text-zinc-300 transition-all", isListDropdownOpen && "rotate-180")}
+                                        className={clsx("text-base-content/50 group-hover:text-base-content/80 transition-all", isListDropdownOpen && "rotate-180")}
                                     />
                                 </button>
-                                <p className="text-zinc-500 mt-2 font-medium">Capture ideas. Stay focused.</p>
+                                <p className="text-base-content/50 mt-2 font-medium">Capture ideas. Stay focused.</p>
 
                                 {/* List Dropdown */}
                                 <AnimatePresence>
@@ -1366,7 +1370,7 @@ export default function TasksPage() {
                                             initial={{ opacity: 0, y: -10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, y: -10 }}
-                                            className="absolute top-full left-0 mt-2 w-64 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden"
+                                            className="absolute top-full left-0 mt-2 w-64 bg-base-200 border border-base-content/10 rounded-xl shadow-2xl z-50 overflow-hidden"
                                         >
                                             <div className="p-2 space-y-1">
                                                 {lists.map((list) => (
@@ -1375,8 +1379,8 @@ export default function TasksPage() {
                                                         className={clsx(
                                                             "group/item w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors font-medium",
                                                             activeListId === list.id ?
-                                                                "bg-zinc-100 text-zinc-900"
-                                                            :   "text-zinc-400 hover:bg-white/5 hover:text-zinc-100",
+                                                                "bg-primary text-primary-content"
+                                                            :   "text-base-content/70 hover:bg-base-content/5 hover:text-base-content",
                                                         )}
                                                     >
                                                         <button
@@ -1397,8 +1401,8 @@ export default function TasksPage() {
                                                                 className={clsx(
                                                                     "p-1.5 rounded-md transition-colors",
                                                                     activeListId === list.id ?
-                                                                        "text-zinc-500 hover:text-red-600 hover:bg-zinc-200"
-                                                                    :   "text-zinc-500 hover:text-red-400 hover:bg-white/10 opacity-0 group-hover/item:opacity-100",
+                                                                        "text-base-content/50 hover:text-error hover:bg-primary/80"
+                                                                    :   "text-base-content/50 hover:text-error hover:bg-base-content/10 opacity-0 group-hover/item:opacity-100",
                                                                 )}
                                                                 title="Delete List"
                                                             >
@@ -1408,7 +1412,7 @@ export default function TasksPage() {
                                                     </div>
                                                 ))}{" "}
                                             </div>
-                                            <div className="border-t border-white/5 p-2">
+                                            <div className="border-t border-base-content/5 p-2">
                                                 <button
                                                     onClick={() => {
                                                         setIsListDropdownOpen(false);
@@ -1416,7 +1420,7 @@ export default function TasksPage() {
                                                         setModalType("NEW_LIST");
                                                         setModalOpen(true);
                                                     }}
-                                                    className="w-full flex items-center gap-2 px-4 py-3 rounded-lg text-zinc-500 hover:bg-white/5 hover:text-zinc-100 transition-colors font-medium"
+                                                    className="w-full flex items-center gap-2 px-4 py-3 rounded-lg text-base-content/50 hover:bg-base-content/5 hover:text-base-content transition-colors font-medium"
                                                 >
                                                     <FolderPlus size={18} />
                                                     Create New List
@@ -1434,16 +1438,16 @@ export default function TasksPage() {
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         exit={{ opacity: 0, x: -20 }}
-                                        className="hidden md:flex items-center gap-4 px-4 py-2 bg-white/5 rounded-2xl border border-white/5 backdrop-blur-md"
+                                        className="hidden md:flex items-center gap-4 px-4 py-2 bg-base-content/5 rounded-2xl border border-base-content/5 backdrop-blur-md"
                                     >
-                                        <span className="text-2xl font-bold text-zinc-100 tabular-nums">{formatTime(timeLeft)}</span>
-                                        <div className="flex bg-black/30 rounded-lg p-1">
-                                            <div className={clsx("w-2 h-2 rounded-full mx-1", mode === "work" ? "bg-zinc-100" : "bg-zinc-700")} />
-                                            <div className={clsx("w-2 h-2 rounded-full mx-1", mode !== "work" ? "bg-zinc-100" : "bg-zinc-700")} />
+                                        <span className="text-2xl font-bold text-base-content tabular-nums">{formatTime(timeLeft)}</span>
+                                        <div className="flex bg-base-300/50 rounded-lg p-1">
+                                            <div className={clsx("w-2 h-2 rounded-full mx-1", mode === "work" ? "bg-primary" : "bg-base-300")} />
+                                            <div className={clsx("w-2 h-2 rounded-full mx-1", mode !== "work" ? "bg-primary" : "bg-base-300")} />
                                         </div>
                                         <button
                                             onClick={toggleTimer}
-                                            className="btn btn-circle btn-sm bg-zinc-100 hover:bg-white text-zinc-900 border-none"
+                                            className="btn btn-circle btn-sm bg-primary hover:bg-primary/90 text-primary-content border-none"
                                         >
                                             {isRunning ?
                                                 <Pause size={14} fill="currentColor" />
@@ -1452,7 +1456,7 @@ export default function TasksPage() {
                                         <button
                                             onClick={toggleMinimize}
                                             title="Expand Timer"
-                                            className="btn btn-circle btn-sm btn-ghost hover:bg-white/10 text-zinc-400"
+                                            className="btn btn-circle btn-sm btn-ghost hover:bg-base-content/10 text-base-content/70"
                                         >
                                             <Maximize2 size={16} />
                                         </button>
@@ -1465,17 +1469,17 @@ export default function TasksPage() {
                             {/* Streak Badge */}
                             {currentStreak > 0 && (
                                 <div
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-400 font-bold text-sm"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-warning/20 border border-warning/30 rounded-full text-warning font-bold text-sm"
                                     title={`${currentStreak} day streak! Keep it up!`}
                                 >
-                                    <Flame size={16} className="fill-orange-400" />
+                                    <Flame size={16} className="fill-warning" />
                                     <span>{currentStreak}</span>
                                 </div>
                             )}
                             {!notificationsEnabled && (
                                 <button
                                     onClick={requestNotificationPermission}
-                                    className="btn btn-circle btn-ghost hover:bg-white/10 text-zinc-500 hover:text-zinc-100"
+                                    className="btn btn-circle btn-ghost hover:bg-base-content/10 text-base-content/50 hover:text-base-content"
                                     title="Enable Notifications"
                                 >
                                     <Bell size={24} />
@@ -1497,11 +1501,11 @@ export default function TasksPage() {
                                         openModal(null, "SYNC");
                                     }}
                                     className={clsx(
-                                        "btn btn-circle btn-ghost hover:bg-white/10 relative",
-                                        isSyncing ? "text-violet-400 animate-pulse"
-                                        : syncKey && user ? "text-green-500"
-                                        : syncKey && !user ? "text-amber-500"
-                                        : "text-zinc-600",
+                                        "btn btn-circle btn-ghost hover:bg-base-content/10 relative",
+                                        isSyncing ? "text-secondary animate-pulse"
+                                        : syncKey && user ? "text-success"
+                                        : syncKey && !user ? "text-warning"
+                                        : "text-base-content/50",
                                     )}
                                     title={
                                         isSyncing ? "Syncing..."
@@ -1513,8 +1517,8 @@ export default function TasksPage() {
                                     <Cloud size={24} />
                                     {syncKey && (
                                         <span className={clsx(
-                                            "absolute bottom-2 right-2 w-2 h-2 rounded-full border border-black",
-                                            user ? "bg-green-500" : "bg-amber-500"
+                                            "absolute bottom-2 right-2 w-2 h-2 rounded-full border border-base-100",
+                                            user ? "bg-success" : "bg-warning"
                                         )}></span>
                                     )}
                                 </button>
@@ -1525,8 +1529,8 @@ export default function TasksPage() {
                                 <button
                                     onClick={() => setShowMusicPanel(!showMusicPanel)}
                                     className={clsx(
-                                        "btn btn-circle btn-ghost hover:bg-white/10",
-                                        isMusicPlaying ? "text-green-400" : "text-zinc-500 hover:text-zinc-100",
+                                        "btn btn-circle btn-ghost hover:bg-base-content/10",
+                                        isMusicPlaying ? "text-success" : "text-base-content/50 hover:text-base-content",
                                     )}
                                     title={isMusicPlaying ? "Music playing" : "Focus music"}
                                 >
@@ -1540,10 +1544,10 @@ export default function TasksPage() {
                                             initial={{ opacity: 0, y: -10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, y: -10 }}
-                                            className="absolute top-full right-0 mt-2 p-4 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl z-50 w-96"
+                                            className="absolute top-full right-0 mt-2 p-4 bg-base-200 border border-base-content/10 rounded-xl shadow-2xl z-50 w-96"
                                         >
                                             <div className="flex items-center justify-between mb-4">
-                                                <span className="text-sm font-bold text-zinc-300">Focus Music</span>
+                                                <span className="text-sm font-bold text-base-content/80">Focus Music</span>
                                                 {musicMode === "radio" && (
                                                     <button
                                                         onClick={() => {
@@ -1558,7 +1562,7 @@ export default function TasksPage() {
                                                         }}
                                                         className={clsx(
                                                             "btn btn-sm btn-circle",
-                                                            isMusicPlaying ? "bg-green-500 text-black" : "bg-zinc-700 text-zinc-300",
+                                                            isMusicPlaying ? "bg-success text-success-content" : "bg-base-300 text-base-content/80",
                                                         )}
                                                     >
                                                         {isMusicPlaying ?
@@ -1569,15 +1573,15 @@ export default function TasksPage() {
                                             </div>
 
                                             {/* Mode Toggle */}
-                                            <div className="flex bg-black/20 p-1 rounded-lg mb-4">
+                                            <div className="flex bg-base-300/40 p-1 rounded-lg mb-4">
                                                 <button
                                                     onClick={() => {
                                                         setMusicMode("radio");
                                                     }}
                                                     className={clsx(
                                                         "flex-1 text-xs py-1.5 font-medium rounded-md transition-all",
-                                                        musicMode === "radio" ? "bg-zinc-700 text-white shadow-sm" : (
-                                                            "text-zinc-500 hover:text-zinc-300"
+                                                        musicMode === "radio" ? "bg-base-300 text-base-content shadow-sm" : (
+                                                            "text-base-content/50 hover:text-base-content/80"
                                                         ),
                                                     )}
                                                 >
@@ -1595,7 +1599,7 @@ export default function TasksPage() {
                                                     className={clsx(
                                                         "flex-1 text-xs py-1.5 font-medium rounded-md transition-all",
                                                         musicMode === "spotify" ? "bg-[#1DB954] text-black shadow-sm" : (
-                                                            "text-zinc-500 hover:text-zinc-300"
+                                                            "text-base-content/50 hover:text-base-content/80"
                                                         ),
                                                     )}
                                                 >
@@ -1612,8 +1616,8 @@ export default function TasksPage() {
                                                     }}
                                                     className={clsx(
                                                         "flex-1 text-xs py-1.5 font-medium rounded-md transition-all",
-                                                        musicMode === "video" ? "bg-red-500 text-white shadow-sm" : (
-                                                            "text-zinc-500 hover:text-zinc-300"
+                                                        musicMode === "video" ? "bg-error text-white shadow-sm" : (
+                                                            "text-base-content/50 hover:text-base-content/80"
                                                         ),
                                                     )}
                                                 >
@@ -1646,7 +1650,7 @@ export default function TasksPage() {
                                                                     "px-3 py-2 rounded-lg text-xs font-medium transition-all text-left truncate",
                                                                     currentStation === i ?
                                                                         `${station.color} text-white`
-                                                                    :   "bg-white/5 text-zinc-400 hover:bg-white/10",
+                                                                    :   "bg-base-content/5 text-base-content/70 hover:bg-base-content/10",
                                                                 )}
                                                             >
                                                                 {station.name}
@@ -1655,7 +1659,7 @@ export default function TasksPage() {
                                                     </div>
 
                                                     <div className="flex items-center gap-3">
-                                                        <VolumeX size={16} className="text-zinc-500" />
+                                                        <VolumeX size={16} className="text-base-content/50" />
                                                         <input
                                                             type="range"
                                                             min="0"
@@ -1669,15 +1673,15 @@ export default function TasksPage() {
                                                                     musicRef.current.volume = vol;
                                                                 }
                                                             }}
-                                                            className="flex-1 accent-green-500 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer"
+                                                            className="flex-1 accent-success h-1 bg-base-300 rounded-lg appearance-none cursor-pointer"
                                                         />
-                                                        <Volume2 size={16} className="text-zinc-500" />
+                                                        <Volume2 size={16} className="text-base-content/50" />
                                                     </div>
                                                 </>
                                             : musicMode === "spotify" ?
                                                 <SpotifyWidget />
                                             :   <div className="space-y-3">
-                                                    <p className="text-xs text-zinc-500 font-medium">Video Stream</p>
+                                                    <p className="text-xs text-base-content/50 font-medium">Video Stream</p>
 
                                                     {/* Stream Type Toggle */}
                                                     <div className="grid grid-cols-2 gap-2">
@@ -1685,16 +1689,16 @@ export default function TasksPage() {
                                                             onClick={() => setStreamType("youtube")}
                                                             className={clsx(
                                                                 "px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1",
-                                                                streamType === "youtube" ? "bg-red-500 text-white" : "bg-white/5 text-zinc-400",
+                                                                streamType === "youtube" ? "bg-error text-white" : "bg-base-content/5 text-base-content/70",
                                                             )}
                                                         >
-                                                            <Youtube size={14} /> YouTube
+                                                            <FaYoutube size={14} /> YouTube
                                                         </button>
                                                         <button
                                                             onClick={() => setStreamType("twitch")}
                                                             className={clsx(
                                                                 "px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1",
-                                                                streamType === "twitch" ? "bg-purple-500 text-white" : "bg-white/5 text-zinc-400",
+                                                                streamType === "twitch" ? "bg-secondary text-white" : "bg-base-content/5 text-base-content/70",
                                                             )}
                                                         >
                                                             <Video size={14} /> Twitch
@@ -1711,7 +1715,7 @@ export default function TasksPage() {
                                                         }
                                                         value={customStreamUrl}
                                                         onChange={(e) => setCustomStreamUrl(e.target.value)}
-                                                        className="w-full bg-black/20 text-zinc-200 text-xs px-3 py-2 rounded-lg border border-white/10 focus:border-zinc-500 outline-none"
+                                                        className="w-full bg-base-300/40 text-base-content/80 text-xs px-3 py-2 rounded-lg border border-base-content/10 focus:border-base-content/40 outline-none"
                                                     />
 
                                                     {/* Quick Presets */}
@@ -1721,7 +1725,7 @@ export default function TasksPage() {
                                                                 setStreamType("youtube");
                                                                 setCustomStreamUrl("jfKfPfyJRdk");
                                                             }}
-                                                            className="flex-1 px-2 py-1 bg-white/5 hover:bg-white/10 rounded text-xs text-zinc-400"
+                                                            className="flex-1 px-2 py-1 bg-base-content/5 hover:bg-base-content/10 rounded text-xs text-base-content/70"
                                                         >
                                                             Lofi Girl
                                                         </button>
@@ -1730,7 +1734,7 @@ export default function TasksPage() {
                                                                 setStreamType("youtube");
                                                                 setCustomStreamUrl("rUxyKA_-grg");
                                                             }}
-                                                            className="flex-1 px-2 py-1 bg-white/5 hover:bg-white/10 rounded text-xs text-zinc-400"
+                                                            className="flex-1 px-2 py-1 bg-base-content/5 hover:bg-base-content/10 rounded text-xs text-base-content/70"
                                                         >
                                                             Chillhop
                                                         </button>
@@ -1746,7 +1750,7 @@ export default function TasksPage() {
                                                         }}
                                                         className={clsx(
                                                             "w-full px-3 py-2 rounded-lg text-sm font-medium transition-all",
-                                                            showYouTubePlayer ? "bg-red-500 text-white" : "bg-zinc-100 text-zinc-900 hover:bg-white",
+                                                            showYouTubePlayer ? "bg-error text-white" : "bg-primary text-primary-content hover:bg-primary/90",
                                                         )}
                                                     >
                                                         {showYouTubePlayer ? "Close Player" : "Open Player"}
@@ -1759,34 +1763,34 @@ export default function TasksPage() {
                             </div>
 
                             {user && (
-                                <div className="flex items-center gap-3 mr-4 pl-4 border-l border-white/10">
+                                <div className="flex items-center gap-3 mr-4 pl-4 border-l border-base-content/10">
                                     {user.avatar ?
-                                        <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full border border-white/10" />
-                                    :   <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold text-white">
+                                        <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full border border-base-content/10" />
+                                    :   <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-white">
                                             {user.username.charAt(0).toUpperCase()}
                                         </div>
                                     }
-                                    <span className="text-sm font-medium text-zinc-400 hidden md:block">{user.username}</span>
+                                    <span className="text-sm font-medium text-base-content/70 hidden md:block">{user.username}</span>
                                 </div>
                             )}
 
                             <button
                                 onClick={() => openModal(null, "STATS")}
-                                className="btn btn-circle btn-ghost hover:bg-white/10 text-zinc-500 hover:text-zinc-100"
+                                className="btn btn-circle btn-ghost hover:bg-base-content/10 text-base-content/50 hover:text-base-content"
                                 title="Statistics"
                             >
                                 <BarChart size={24} />
                             </button>
                             <button
                                 onClick={() => setIsZenMode(true)}
-                                className="btn btn-circle btn-ghost hover:bg-white/10 text-zinc-500 hover:text-zinc-100"
+                                className="btn btn-circle btn-ghost hover:bg-base-content/10 text-base-content/50 hover:text-base-content"
                                 title="Enter Zen Mode"
                             >
                                 <Eye size={24} />
                             </button>
                             <button
                                 onClick={() => openModal(null, "BRAINSTORM")}
-                                className="btn btn-circle btn-ghost hover:bg-white/10 text-zinc-500 hover:text-zinc-100"
+                                className="btn btn-circle btn-ghost hover:bg-base-content/10 text-base-content/50 hover:text-base-content"
                                 title="Brainstorm Mode"
                             >
                                 <BrainCircuit size={28} />
@@ -1794,11 +1798,11 @@ export default function TasksPage() {
                             {archivedTasks.length > 0 && (
                                 <button
                                     onClick={() => openModal(null, "ARCHIVE")}
-                                    className="btn btn-circle btn-ghost hover:bg-white/10 text-zinc-500 hover:text-zinc-100 relative"
+                                    className="btn btn-circle btn-ghost hover:bg-base-content/10 text-base-content/50 hover:text-base-content relative"
                                     title={`Archived Tasks (${archivedTasks.length})`}
                                 >
                                     <Archive size={24} />
-                                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-zinc-800 rounded-full text-[10px] flex items-center justify-center text-zinc-400 border border-white/10">
+                                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-base-300 rounded-full text-[10px] flex items-center justify-center text-base-content/70 border border-base-content/10">
                                         {archivedTasks.length}
                                     </span>
                                 </button>
@@ -1815,7 +1819,7 @@ export default function TasksPage() {
                     <div className="fixed top-6 right-6 z-50">
                         <button
                             onClick={() => setIsZenMode(false)}
-                            className="flex items-center gap-2 px-4 py-2 bg-zinc-900/80 backdrop-blur border border-white/5 rounded-full text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 transition-all text-sm font-medium"
+                            className="flex items-center gap-2 px-4 py-2 bg-base-200/80 backdrop-blur border border-base-content/5 rounded-full text-base-content/50 hover:text-base-content hover:bg-base-300/70 transition-all text-sm font-medium"
                         >
                             <EyeOff size={16} />
                             Exit Zen
@@ -1833,7 +1837,7 @@ export default function TasksPage() {
                                     href={link.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-zinc-400 hover:text-zinc-200 whitespace-nowrap transition-colors group"
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-base-content/5 hover:bg-base-content/10 rounded-lg text-sm text-base-content/70 hover:text-base-content/80 whitespace-nowrap transition-colors group"
                                 >
                                     <Globe size={12} className="flex-shrink-0" />
                                     {link.title}
@@ -1843,13 +1847,13 @@ export default function TasksPage() {
                                             e.stopPropagation();
                                             setSavedLinks(savedLinks.filter((l) => l.id !== link.id));
                                         }}
-                                        className="text-zinc-700 hover:text-red-400 opacity-0 group-hover:opacity-100"
+                                        className="text-base-content/30 hover:text-error opacity-0 group-hover:opacity-100"
                                     >
                                         <X size={12} />
                                     </button>
                                 </a>
                             ))}
-                            {savedLinks.length === 0 && <span className="text-zinc-600 text-sm">No quick links yet</span>}
+                            {savedLinks.length === 0 && <span className="text-base-content/50 text-sm">No quick links yet</span>}
                         </div>
 
                         {/* Add Link Button */}
@@ -1882,7 +1886,7 @@ export default function TasksPage() {
                                 placeholder="+ Add link..."
                                 value={newLinkUrl}
                                 onChange={(e) => setNewLinkUrl(e.target.value)}
-                                className="w-40 bg-transparent text-zinc-400 text-sm px-3 py-1.5 border border-white/10 rounded-lg focus:outline-none focus:border-zinc-500"
+                                className="w-40 bg-transparent text-base-content/70 text-sm px-3 py-1.5 border border-base-content/10 rounded-lg focus:outline-none focus:border-base-content/40"
                             />
                         </form>
 
@@ -1891,7 +1895,7 @@ export default function TasksPage() {
                             onClick={() => setActiveTab(activeTab === "notes" ? "tasks" : "notes")}
                             className={clsx(
                                 "p-2 rounded-lg transition-colors",
-                                activeTab === "notes" ? "bg-amber-500/20 text-amber-400" : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5",
+                                activeTab === "notes" ? "bg-warning/20 text-warning" : "text-base-content/50 hover:text-base-content/80 hover:bg-base-content/5",
                             )}
                             title="Toggle Notes Panel"
                         >
@@ -1916,17 +1920,17 @@ export default function TasksPage() {
                                 initial={{ opacity: 0, x: 300 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: 300 }}
-                                className="fixed top-0 right-0 w-full md:w-[60%] h-full bg-zinc-900 border-l border-white/10 z-40 shadow-2xl flex flex-col"
+                                className="fixed top-0 right-0 w-full md:w-[60%] h-full bg-base-200 border-l border-base-content/10 z-40 shadow-2xl flex flex-col"
                             >
-                                <div className="flex items-center justify-between p-4 border-b border-white/10">
-                                    <h3 className="text-lg font-bold text-zinc-100">📝 Notes</h3>
-                                    <button onClick={() => setActiveTab("tasks")} className="text-zinc-500 hover:text-zinc-100">
+                                <div className="flex items-center justify-between p-4 border-b border-base-content/10">
+                                    <h3 className="text-lg font-bold text-base-content">📝 Notes</h3>
+                                    <button onClick={() => setActiveTab("tasks")} className="text-base-content/50 hover:text-base-content">
                                         <X size={20} />
                                     </button>
                                 </div>
 
                                 {/* Page Tabs */}
-                                <div className="flex items-center gap-2 p-3 border-b border-white/10 overflow-x-auto">
+                                <div className="flex items-center gap-2 p-3 border-b border-base-content/10 overflow-x-auto">
                                     {notePages.map((page) => (
                                         <button
                                             key={page.id}
@@ -1935,8 +1939,8 @@ export default function TasksPage() {
                                             className={clsx(
                                                 "px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 group",
                                                 activeNoteId === page.id ?
-                                                    "bg-zinc-100 text-zinc-900"
-                                                :   "bg-white/5 text-zinc-400 hover:text-zinc-200",
+                                                    "bg-primary text-primary-content"
+                                                :   "bg-base-content/5 text-base-content/70 hover:text-base-content/80",
                                             )}
                                         >
                                             {editingNoteId === page.id ?
@@ -1981,7 +1985,7 @@ export default function TasksPage() {
                                                             setActiveNoteId(newPages[0].id);
                                                         }
                                                     }}
-                                                    className="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100"
+                                                    className="text-base-content/50 hover:text-error opacity-0 group-hover:opacity-100"
                                                 >
                                                     <X size={12} />
                                                 </span>
@@ -1994,7 +1998,7 @@ export default function TasksPage() {
                                             setNotePages([...notePages, { id: newId, title: `Page ${notePages.length + 1}`, content: "" }]);
                                             setActiveNoteId(newId);
                                         }}
-                                        className="px-2 py-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-white/10 rounded-lg text-sm"
+                                        className="px-2 py-1.5 text-base-content/50 hover:text-base-content/80 hover:bg-base-content/10 rounded-lg text-sm"
                                         title="Add new page"
                                     >
                                         <Plus size={16} />
@@ -2014,9 +2018,9 @@ export default function TasksPage() {
                                                     )
                                                 }
                                                 placeholder="Write your notes here... (Markdown supported)"
-                                                className="flex-1 w-full bg-transparent text-zinc-200 p-4 focus:outline-none resize-none font-mono text-sm leading-relaxed"
+                                                className="flex-1 w-full bg-transparent text-base-content/80 p-4 focus:outline-none resize-none font-mono text-sm leading-relaxed"
                                             />
-                                            <div className="p-3 border-t border-white/10 text-xs text-zinc-600 text-center">
+                                            <div className="p-3 border-t border-base-content/10 text-xs text-base-content/50 text-center">
                                                 Auto-saved • {activePage?.content.length || 0} characters
                                             </div>
                                         </>
@@ -2039,33 +2043,33 @@ export default function TasksPage() {
                             >
                                 <motion.div
                                     layout
-                                    className="relative overflow-hidden rounded-3xl bg-white/5 backdrop-blur-xl border border-white/5 p-8 shadow-2xl flex flex-col items-center"
+                                    className="relative overflow-hidden rounded-3xl bg-base-content/5 backdrop-blur-xl border border-base-content/5 p-8 shadow-2xl flex flex-col items-center"
                                 >
                                     <div className="absolute top-4 right-4 flex gap-2">
                                         <button
                                             onClick={() => openModal(null, "SETTINGS")}
-                                            className="text-zinc-600 hover:text-zinc-300 transition-colors"
+                                            className="text-base-content/50 hover:text-base-content/80 transition-colors"
                                             title="Timer Settings"
                                         >
                                             <Settings size={20} />
                                         </button>
                                         <button
                                             onClick={toggleMinimize}
-                                            className="text-zinc-600 hover:text-zinc-300 transition-colors"
+                                            className="text-base-content/50 hover:text-base-content/80 transition-colors"
                                             title="Minimize Timer"
                                         >
                                             <Minimize2 size={20} />
                                         </button>
                                     </div>
 
-                                    <div className="flex justify-center gap-2 mb-8 relative z-10 p-1 bg-black/20 rounded-full">
+                                    <div className="flex justify-center gap-2 mb-8 relative z-10 p-1 bg-base-300/40 rounded-full">
                                         {["work", "break", "longBreak"].map((m) => (
                                             <button
                                                 key={m}
                                                 onClick={() => switchMode(m as any)}
                                                 className={clsx(
                                                     "px-4 py-2 rounded-full text-xs font-semibold transition-all duration-300",
-                                                    mode === m ? "bg-zinc-100 text-zinc-900 shadow-lg" : "text-zinc-500 hover:text-zinc-300",
+                                                    mode === m ? "bg-primary text-primary-content shadow-lg" : "text-base-content/50 hover:text-base-content/80",
                                                 )}
                                             >
                                                 {m === "longBreak" ? "Long Break" : m.charAt(0).toUpperCase() + m.slice(1)}
@@ -2075,12 +2079,12 @@ export default function TasksPage() {
 
                                     <div className="relative w-64 h-64 mb-8 flex items-center justify-center">
                                         <svg className="absolute w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                                            <circle cx="50" cy="50" r="45" className="stroke-zinc-800 fill-none" strokeWidth="8" />
+                                            <circle cx="50" cy="50" r="45" className="stroke-base-300 fill-none" strokeWidth="8" />
                                             <motion.circle
                                                 cx="50"
                                                 cy="50"
                                                 r="45"
-                                                className="stroke-zinc-100 fill-none"
+                                                className="stroke-primary fill-none"
                                                 strokeWidth="8"
                                                 strokeLinecap="round"
                                                 strokeDasharray={strokeDasharray}
@@ -2090,10 +2094,10 @@ export default function TasksPage() {
                                             />
                                         </svg>
                                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                            <div className="text-6xl font-bold tracking-tighter text-zinc-100 tabular-nums">
+                                            <div className="text-6xl font-bold tracking-tighter text-base-content tabular-nums">
                                                 {formatTime(timeLeft)}
                                             </div>
-                                            <div className="text-sm font-mono text-zinc-500 mt-2">
+                                            <div className="text-sm font-mono text-base-content/50 mt-2">
                                                 Session {(sessionsCompleted % pomoSettings.interval) + 1}/{pomoSettings.interval}
                                             </div>
                                         </div>
@@ -2101,9 +2105,9 @@ export default function TasksPage() {
 
                                     {/* Current Task Display */}
                                     {currentTaskId && (
-                                        <div className="mb-6 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center">
-                                            <div className="text-xs text-amber-500/70 uppercase font-bold mb-1">Focusing On</div>
-                                            <div className="text-sm text-zinc-200 font-medium truncate">
+                                        <div className="mb-6 px-4 py-3 bg-warning/10 border border-warning/20 rounded-xl text-center">
+                                            <div className="text-xs text-warning/70 uppercase font-bold mb-1">Focusing On</div>
+                                            <div className="text-sm text-base-content/80 font-medium truncate">
                                                 {tasks.find((t) => t.id === currentTaskId)?.text || "Unknown Task"}
                                             </div>
                                         </div>
@@ -2112,7 +2116,7 @@ export default function TasksPage() {
                                     <div className="flex justify-center gap-4 relative z-10 w-full">
                                         <button
                                             onClick={toggleTimer}
-                                            className="btn btn-circle btn-lg bg-zinc-100 hover:bg-white text-zinc-950 border-none hover:scale-105 transition-all shadow-xl shadow-white/10"
+                                            className="btn btn-circle btn-lg bg-primary hover:bg-primary/90 text-primary-content border-none hover:scale-105 transition-all shadow-xl shadow-base-content/10"
                                         >
                                             {isRunning ?
                                                 <Pause fill="currentColor" />
@@ -2120,7 +2124,7 @@ export default function TasksPage() {
                                         </button>
                                         <button
                                             onClick={resetTimer}
-                                            className="btn btn-circle btn-lg btn-ghost hover:bg-white/10 text-zinc-500 hover:text-zinc-100"
+                                            className="btn btn-circle btn-lg btn-ghost hover:bg-base-content/10 text-base-content/50 hover:text-base-content"
                                         >
                                             <RotateCcw size={24} />
                                         </button>
@@ -2144,24 +2148,24 @@ export default function TasksPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, ease: "easeOut" as const }}
-                            className="rounded-3xl bg-zinc-900/50 border border-white/5 p-4 md:p-8 h-[calc(100vh-6rem)] shadow-xl flex flex-col overflow-hidden"
+                            className="rounded-3xl bg-base-200/50 border border-base-content/5 p-4 md:p-8 h-[calc(100vh-6rem)] shadow-xl flex flex-col overflow-hidden"
                         >
                             {/* Header / Search / Input Section - FIXED */}
                             <div className="flex-shrink-0">
                                 {/* Search Input */}
                                 <div className="relative mb-4">
-                                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
                                     <input
                                         type="text"
                                         placeholder="Search tasks..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full bg-white/5 text-zinc-200 pl-10 pr-4 py-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-zinc-500 text-sm"
+                                        className="w-full bg-base-content/5 text-base-content/80 pl-10 pr-4 py-2.5 rounded-xl border border-base-content/10 focus:outline-none focus:border-base-content/40 text-sm"
                                     />
                                     {searchQuery && (
                                         <button
                                             onClick={() => setSearchQuery("")}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/50 hover:text-base-content/80"
                                         >
                                             <X size={16} />
                                         </button>
@@ -2172,19 +2176,19 @@ export default function TasksPage() {
                                     <input
                                         type="text"
                                         placeholder="What's your focus today?"
-                                        className="w-full bg-transparent text-xl md:text-2xl font-medium text-zinc-100 placeholder:text-zinc-600 border-b-2 border-white/5 py-4 focus:outline-none focus:border-zinc-100 transition-colors pl-2"
+                                        className="w-full bg-transparent text-xl md:text-2xl font-medium text-base-content placeholder:text-base-content/50 border-b-2 border-base-content/5 py-4 focus:outline-none focus:border-primary transition-colors pl-2"
                                         value={newTaskText}
                                         onChange={(e) => setNewTaskText(e.target.value)}
                                     />
                                     <button
                                         type="submit"
-                                        className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity btn btn-circle btn-sm btn-ghost text-zinc-100"
+                                        className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity btn btn-circle btn-sm btn-ghost text-base-content"
                                     >
                                         <Plus size={24} />
                                     </button>
                                 </form>
 
-                                <h2 className="text-xl font-bold text-zinc-100 mb-4 px-2">Active Tasks</h2>
+                                <h2 className="text-xl font-bold text-base-content mb-4 px-2">Active Tasks</h2>
                             </div>
 
                             {/* Scrollable Task List */}
@@ -2204,28 +2208,28 @@ export default function TasksPage() {
                                                     transition={{ duration: 0.2, ease: "easeInOut" as const }}
                                                     whileHover={{ scale: 1.005, backgroundColor: "rgba(255,255,255,0.05)" }}
                                                     className={clsx(
-                                                        "relative flex flex-col p-4 rounded-xl border transition-colors bg-white/5",
+                                                        "relative flex flex-col p-4 rounded-xl border transition-colors bg-base-content/5",
                                                         currentTaskId === task.id ?
-                                                            "border-amber-500/50 ring-2 ring-inset ring-amber-500/20 shadow-lg shadow-amber-500/10"
+                                                            "border-warning/50 ring-2 ring-inset ring-warning/20 shadow-lg shadow-warning/10"
                                                         :   "border-transparent",
                                                     )}
                                                 >
                                                     {/* Progress Bar Background */}
                                                     {prog > 0 && (
                                                         <div
-                                                            className="absolute bottom-0 left-0 h-1 bg-green-500/20"
+                                                            className="absolute bottom-0 left-0 h-1 bg-success/20"
                                                             style={{ width: `${prog * 100}%` }}
                                                         />
                                                     )}
 
                                                     <div className="flex items-center gap-4 relative z-10">
-                                                        <div className="cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-400">
+                                                        <div className="cursor-grab active:cursor-grabbing text-base-content/50 hover:text-base-content/70">
                                                             <GripVertical size={18} />
                                                         </div>
 
                                                         <button
                                                             onClick={() => toggleTask(task.id)}
-                                                            className="w-6 h-6 rounded-full border-2 border-zinc-600 hover:border-zinc-100 flex items-center justify-center transition-colors flex-shrink-0"
+                                                            className="w-6 h-6 rounded-full border-2 border-base-content/40 hover:border-primary flex items-center justify-center transition-colors flex-shrink-0"
                                                         ></button>
 
                                                         {/* Task Text - Double-click to edit */}
@@ -2252,12 +2256,12 @@ export default function TasksPage() {
                                                                         setEditingTaskId(null);
                                                                     }
                                                                 }}
-                                                                className="flex-1 text-lg font-medium text-zinc-200 bg-transparent border-b-2 border-zinc-500 focus:border-zinc-300 outline-none px-1 py-0"
+                                                                className="flex-1 text-lg font-medium text-base-content/80 bg-transparent border-b-2 border-base-content/40 focus:border-primary outline-none px-1 py-0"
                                                             />
                                                         :   <div className="flex-1 min-w-0 flex flex-col gap-1">
                                                                 <span
                                                                     onDoubleClick={() => setEditingTaskId(task.id)}
-                                                                    className="w-full text-lg font-medium select-none truncate text-zinc-200 cursor-text hover:text-zinc-100 block"
+                                                                    className="w-full text-lg font-medium select-none truncate text-base-content/80 cursor-text hover:text-base-content block"
                                                                     title="Double-click to edit"
                                                                 >
                                                                     {task.text}
@@ -2308,25 +2312,25 @@ export default function TasksPage() {
                                                                 onClick={() => cycleRecurrence(task.id)}
                                                                 className={clsx(
                                                                     "p-2 rounded-lg transition-colors",
-                                                                    task.recurrence === "daily" && "text-blue-400 bg-blue-500/20",
-                                                                    task.recurrence === "weekly" && "text-purple-400 bg-purple-500/20",
-                                                                    task.recurrence === "monthly" && "text-green-400 bg-green-500/20",
-                                                                    !task.recurrence && "text-zinc-500 hover:text-zinc-100 hover:bg-white/10",
+                                                                    task.recurrence === "daily" && "text-info bg-info/20",
+                                                                    task.recurrence === "weekly" && "text-secondary bg-secondary/20",
+                                                                    task.recurrence === "monthly" && "text-success bg-success/20",
+                                                                    !task.recurrence && "text-base-content/50 hover:text-base-content hover:bg-base-content/10",
                                                                 )}
                                                                 title={task.recurrence ? `Repeats ${task.recurrence}` : "Set recurrence"}
                                                             >
                                                                 <Repeat size={18} />
                                                             </button>
 
-                                                            <div className="w-px h-4 bg-white/10 mx-1" />
+                                                            <div className="w-px h-4 bg-base-content/10 mx-1" />
 
                                                             <button
                                                                 onClick={() => openModal(task.id, "ATTACHMENT")}
                                                                 className={clsx(
                                                                     "p-2 rounded-lg transition-colors",
                                                                     task.attachments && task.attachments.length > 0 ?
-                                                                        "text-zinc-100 bg-white/10"
-                                                                    :   "text-zinc-500 hover:text-zinc-100 hover:bg-white/10",
+                                                                        "text-base-content bg-base-content/10"
+                                                                    :   "text-base-content/50 hover:text-base-content hover:bg-base-content/10",
                                                                 )}
                                                                 title="Attach Link"
                                                             >
@@ -2337,8 +2341,8 @@ export default function TasksPage() {
                                                                 onClick={() => openModal(task.id, "NOTE")}
                                                                 className={clsx(
                                                                     "p-2 rounded-lg transition-colors",
-                                                                    task.notes ? "text-zinc-100 bg-white/10" : (
-                                                                        "text-zinc-500 hover:text-zinc-100 hover:bg-white/10"
+                                                                    task.notes ? "text-base-content bg-base-content/10" : (
+                                                                        "text-base-content/50 hover:text-base-content hover:bg-base-content/10"
                                                                     ),
                                                                 )}
                                                                 title="Notes"
@@ -2352,8 +2356,8 @@ export default function TasksPage() {
                                                                 className={clsx(
                                                                     "p-2 rounded-lg transition-colors",
                                                                     currentTaskId === task.id ?
-                                                                        "text-amber-400 bg-amber-500/20"
-                                                                    :   "text-zinc-500 hover:text-amber-400 hover:bg-white/10",
+                                                                        "text-warning bg-warning/20"
+                                                                    :   "text-base-content/50 hover:text-warning hover:bg-base-content/10",
                                                                 )}
                                                                 title={currentTaskId === task.id ? "Unfocus" : "Focus on task"}
                                                             >
@@ -2368,11 +2372,11 @@ export default function TasksPage() {
                                                                     setModalType("ESTIMATE");
                                                                     setModalOpen(true);
                                                                 }}
-                                                                className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-mono transition-colors"
+                                                                className="flex items-center gap-1 px-2 py-1 bg-base-content/5 hover:bg-base-content/10 rounded-lg text-xs font-mono transition-colors"
                                                                 title="Set pomodoro estimate"
                                                             >
-                                                                <span className="text-red-400">🍅</span>
-                                                                <span className="text-zinc-400">
+                                                                <span className="text-error">🍅</span>
+                                                                <span className="text-base-content/70">
                                                                     {task.actualPomos || 0}/{task.estimatedPomos || "?"}
                                                                 </span>
                                                             </button>
@@ -2393,12 +2397,12 @@ export default function TasksPage() {
                                                                             const dueDate = new Date(task.dueDate + "T00:00:00");
                                                                             const today = new Date();
                                                                             today.setHours(0, 0, 0, 0);
-                                                                            if (dueDate < today) return "bg-red-500/20 text-red-400";
+                                                                            if (dueDate < today) return "bg-error/20 text-error";
                                                                             if (dueDate.getTime() === today.getTime())
-                                                                                return "bg-amber-500/20 text-amber-400";
-                                                                            return "bg-white/5 text-zinc-400";
+                                                                                return "bg-warning/20 text-warning";
+                                                                            return "bg-base-content/5 text-base-content/70";
                                                                         })()
-                                                                    :   "bg-white/5 text-zinc-500 hover:text-zinc-300",
+                                                                    :   "bg-base-content/5 text-base-content/50 hover:text-base-content/80",
                                                                 )}
                                                                 title={
                                                                     task.dueDate ?
@@ -2425,7 +2429,7 @@ export default function TasksPage() {
                                                                         setModalType("MOVE_TO_LIST");
                                                                         setModalOpen(true);
                                                                     }}
-                                                                    className="p-2 text-zinc-500 hover:text-zinc-100 hover:bg-white/10 rounded-lg"
+                                                                    className="p-2 text-base-content/50 hover:text-base-content hover:bg-base-content/10 rounded-lg"
                                                                     title="Move to another list"
                                                                 >
                                                                     <Move size={18} />
@@ -2439,8 +2443,8 @@ export default function TasksPage() {
                                                                     className={clsx(
                                                                         "p-2 rounded-lg transition-colors",
                                                                         task.tags && task.tags.length > 0 ?
-                                                                            "text-zinc-100 bg-white/10"
-                                                                        :   "text-zinc-500 hover:text-zinc-100 hover:bg-white/10",
+                                                                            "text-base-content bg-base-content/10"
+                                                                        :   "text-base-content/50 hover:text-base-content hover:bg-base-content/10",
                                                                     )}
                                                                     title="Tags"
                                                                     aria-haspopup="menu"
@@ -2465,7 +2469,7 @@ export default function TasksPage() {
 
                                                             <button
                                                                 onClick={() => deleteTask(task.id)}
-                                                                className="p-2 text-red-900/50 hover:text-red-400 hover:bg-red-500/10 rounded-lg"
+                                                                className="p-2 text-error/40 hover:text-error hover:bg-error/10 rounded-lg"
                                                             >
                                                                 <Trash2 size={18} />
                                                             </button>
@@ -2474,7 +2478,7 @@ export default function TasksPage() {
 
                                                     {/* Notes Preview */}
                                                     {task.notes && (
-                                                        <div className="pl-12 mt-2 text-sm text-zinc-400 font-serif prose prose-invert prose-sm max-w-none relative z-10">
+                                                        <div className="pl-12 mt-2 text-sm text-base-content/70 font-serif prose prose-sm max-w-none relative z-10">
                                                             <ReactMarkdown>{task.notes}</ReactMarkdown>
                                                         </div>
                                                     )}
@@ -2490,29 +2494,29 @@ export default function TasksPage() {
                                                                     exit={{ opacity: 0, height: 0 }}
                                                                     className="flex items-center gap-3 text-sm"
                                                                 >
-                                                                    <CornerDownRight size={14} className="text-zinc-700" />
+                                                                    <CornerDownRight size={14} className="text-base-content/30" />
                                                                     <button
                                                                         onClick={() => toggleSubTask(task.id, sub.id)}
                                                                         className={clsx(
                                                                             "w-4 h-4 rounded border flex items-center justify-center transition-colors flex-shrink-0",
-                                                                            sub.completed ? "bg-zinc-600 border-zinc-600" : (
-                                                                                "border-zinc-700 hover:border-zinc-500"
+                                                                            sub.completed ? "bg-base-content/40 border-base-content/40" : (
+                                                                                "border-base-content/25 hover:border-base-content/40"
                                                                             ),
                                                                         )}
                                                                     >
-                                                                        {sub.completed && <Check size={10} className="text-black" />}
+                                                                        {sub.completed && <Check size={10} className="text-base-100" />}
                                                                     </button>
                                                                     <span
                                                                         className={clsx(
-                                                                            "flex-1 text-zinc-400 transition-colors",
-                                                                            sub.completed && "line-through text-zinc-700",
+                                                                            "flex-1 text-base-content/70 transition-colors",
+                                                                            sub.completed && "line-through text-base-content/30",
                                                                         )}
                                                                     >
                                                                         {sub.text}
                                                                     </span>
                                                                     <button
                                                                         onClick={() => deleteSubTask(task.id, sub.id)}
-                                                                        className="text-zinc-800 hover:text-red-400 transition-colors"
+                                                                        className="text-base-content/30 hover:text-error transition-colors"
                                                                     >
                                                                         <Trash2 size={14} />
                                                                     </button>
@@ -2522,12 +2526,12 @@ export default function TasksPage() {
 
                                                         {/* Quick Add Subtask */}
                                                         <div className="flex items-center gap-3 text-sm group/addsub opacity-50 hover:opacity-100 transition-opacity">
-                                                            <CornerDownRight size={14} className="text-zinc-700" />
-                                                            <Plus size={14} className="text-zinc-600" />
+                                                            <CornerDownRight size={14} className="text-base-content/30" />
+                                                            <Plus size={14} className="text-base-content/50" />
                                                             <input
                                                                 type="text"
                                                                 placeholder="Add subtask..."
-                                                                className="flex-1 bg-transparent text-zinc-400 placeholder:text-zinc-700 outline-none text-sm"
+                                                                className="flex-1 bg-transparent text-base-content/70 placeholder:text-base-content/30 outline-none text-sm"
                                                                 onKeyDown={(e) => {
                                                                     if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
                                                                         const text = (e.target as HTMLInputElement).value.trim();
@@ -2559,20 +2563,20 @@ export default function TasksPage() {
                                                             {task.attachments.map((att) => (
                                                                 <div
                                                                     key={att.id}
-                                                                    className="group flex items-center gap-2 bg-zinc-800/50 border border-white/5 rounded-full px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors"
+                                                                    className="group flex items-center gap-2 bg-base-300/50 border border-base-content/5 rounded-full px-3 py-1 text-xs text-base-content/80 hover:bg-base-300/70 transition-colors"
                                                                 >
                                                                     <a
                                                                         href={att.url}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="flex items-center gap-2 hover:text-white"
+                                                                        className="flex items-center gap-2 hover:text-base-content"
                                                                     >
                                                                         {getIconForUrl(att.url)}
                                                                         <span className="max-w-[150px] truncate">{att.name}</span>
                                                                     </a>
                                                                     <button
                                                                         onClick={() => deleteAttachment(task.id, att.id)}
-                                                                        className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400"
+                                                                        className="opacity-0 group-hover:opacity-100 text-base-content/50 hover:text-error"
                                                                     >
                                                                         <X size={12} />
                                                                     </button>
@@ -2580,7 +2584,7 @@ export default function TasksPage() {
                                                             ))}
                                                             <button
                                                                 onClick={() => openModal(task.id, "ATTACHMENT")}
-                                                                className="opacity-0 group-hover/list:opacity-100 transition-opacity flex items-center justify-center w-6 h-6 rounded-full bg-zinc-800 border border-white/10 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-700"
+                                                                className="opacity-0 group-hover/list:opacity-100 transition-opacity flex items-center justify-center w-6 h-6 rounded-full bg-base-300 border border-base-content/10 text-base-content/50 hover:text-base-content hover:bg-base-300/70"
                                                                 title="Add another link"
                                                             >
                                                                 <Plus size={12} />
@@ -2589,7 +2593,7 @@ export default function TasksPage() {
                                                     )}
 
                                                     {task.subtasks && task.subtasks.length > 0 && (
-                                                        <div className="absolute top-2 right-2 text-[10px] font-mono text-zinc-600 opacity-50 relative z-10">
+                                                        <div className="absolute top-2 right-2 text-[10px] font-mono text-base-content/50 opacity-50 relative z-10">
                                                             {Math.round(prog * 100)}%
                                                         </div>
                                                     )}
@@ -2609,12 +2613,12 @@ export default function TasksPage() {
                                     >
                                         <ChevronDown
                                             size={16}
-                                            className={clsx("text-zinc-500 transition-transform", !showCompleted && "-rotate-90")}
+                                            className={clsx("text-base-content/50 transition-transform", !showCompleted && "-rotate-90")}
                                         />
-                                        <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-wider group-hover:text-zinc-300 transition-colors">
+                                        <h2 className="text-sm font-bold text-base-content/50 uppercase tracking-wider group-hover:text-base-content/80 transition-colors">
                                             Completed ({completedTasks.length})
                                         </h2>
-                                        <div className="h-px flex-1 bg-white/5 ml-2" />
+                                        <div className="h-px flex-1 bg-base-content/5 ml-2" />
                                     </button>
 
                                     <AnimatePresence>
@@ -2630,29 +2634,29 @@ export default function TasksPage() {
                                                         key={task.id}
                                                         initial={{ opacity: 0 }}
                                                         animate={{ opacity: 1 }}
-                                                        className="relative flex items-center gap-4 p-4 rounded-xl border border-transparent bg-black/20"
+                                                        className="relative flex items-center gap-4 p-4 rounded-xl border border-transparent bg-base-300/40"
                                                     >
                                                         <div className="w-[18px]" />
                                                         <button
                                                             onClick={() => toggleTask(task.id)}
-                                                            className="w-6 h-6 rounded-full border-2 bg-zinc-500 border-zinc-500 flex items-center justify-center transition-colors flex-shrink-0"
+                                                            className="w-6 h-6 rounded-full border-2 bg-base-content/50 border-base-content/40 flex items-center justify-center transition-colors flex-shrink-0"
                                                         >
-                                                            <Check size={14} className="text-zinc-950" />
+                                                            <Check size={14} className="text-base-100" />
                                                         </button>
-                                                        <span className="flex-1 text-lg font-medium select-none truncate line-through text-zinc-600">
+                                                        <span className="flex-1 text-lg font-medium select-none truncate line-through text-base-content/50">
                                                             {task.text}
                                                         </span>
                                                         {/* Archive Button */}
                                                         <button
                                                             onClick={() => archiveTask(task.id)}
-                                                            className="p-2 text-zinc-600 hover:text-zinc-300 transition-colors"
+                                                            className="p-2 text-base-content/50 hover:text-base-content/80 transition-colors"
                                                             title="Archive"
                                                         >
                                                             <Archive size={18} />
                                                         </button>
                                                         <button
                                                             onClick={() => deleteTask(task.id)}
-                                                            className="p-2 text-zinc-800 hover:text-red-400 transition-colors"
+                                                            className="p-2 text-base-content/30 hover:text-error transition-colors"
                                                         >
                                                             <Trash2 size={18} />
                                                         </button>
@@ -2674,11 +2678,11 @@ export default function TasksPage() {
                             initial={{ opacity: 0, y: 20, scale: 0.9 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 20, scale: 0.9 }}
-                            className="fixed bottom-8 right-8 z-50 bg-zinc-900 rounded-2xl shadow-2xl border border-white/10 overflow-hidden"
+                            className="fixed bottom-8 right-8 z-50 bg-base-200 rounded-2xl shadow-2xl border border-base-content/10 overflow-hidden"
                         >
-                            <div className="flex items-center justify-between px-4 py-2 bg-black/30">
-                                <span className="text-sm font-bold text-zinc-300">{streamType === "youtube" ? "🎵 YouTube" : "🎮 Twitch"}</span>
-                                <button onClick={() => setShowYouTubePlayer(false)} className="text-zinc-500 hover:text-white">
+                            <div className="flex items-center justify-between px-4 py-2 bg-base-300/50">
+                                <span className="text-sm font-bold text-base-content/80">{streamType === "youtube" ? "🎵 YouTube" : "🎮 Twitch"}</span>
+                                <button onClick={() => setShowYouTubePlayer(false)} className="text-base-content/50 hover:text-base-content">
                                     <X size={18} />
                                 </button>
                             </div>
@@ -2704,7 +2708,7 @@ export default function TasksPage() {
                                         href={`https://www.twitch.tv/${customStreamUrl || "lofiradio"}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-xs text-center text-purple-400 hover:text-purple-300 py-2 bg-black/30"
+                                        className="text-xs text-center text-secondary hover:text-secondary/80 py-2 bg-base-300/50"
                                     >
                                         Open in new tab if embed fails →
                                     </a>
@@ -2716,10 +2720,10 @@ export default function TasksPage() {
             </div>
 
             {/* Mobile Layout */}
-            <div className="md:hidden fixed inset-0 z-40 bg-zinc-950 flex flex-col h-[100dvh] supports-[height:100svh]:h-[100svh] overflow-hidden">
+            <div className="md:hidden fixed inset-0 z-40 bg-base-100 flex flex-col h-[100dvh] supports-[height:100svh]:h-[100svh] overflow-hidden">
                 {/* Mobile Header */}
                 <div className="p-4 flex items-center justify-between shrink-0">
-                    <h1 className="text-2xl font-bold text-zinc-100">
+                    <h1 className="text-2xl font-bold text-base-content">
                         {mobileTab === "tasks" && "My Tasks"}
                         {mobileTab === "focus" && "Focus Timer"}
                         {mobileTab === "notes" && "Notes"}
@@ -2738,10 +2742,10 @@ export default function TasksPage() {
                     {mobileTab === "tasks" && (
                         <>
                             {/* Fixed Top Controls (List Selector + Input) */}
-                            <div className="px-4 pb-2 bg-zinc-950 z-20 shrink-0 border-b border-white/5 pt-2">
+                            <div className="px-4 pb-2 bg-base-100 z-20 shrink-0 border-b border-base-content/5 pt-2">
                                 <div className="space-y-4">
                                     {/* Mobile List Selector */}
-                                    <div className="flex gap-2 bg-white/5 p-1 rounded-xl overflow-x-auto scrollbar-hide">
+                                    <div className="flex gap-2 bg-base-content/5 p-1 rounded-xl overflow-x-auto scrollbar-hide">
                                         {lists.map((list) => (
                                             <button
                                                 key={list.id}
@@ -2749,8 +2753,8 @@ export default function TasksPage() {
                                                 className={clsx(
                                                     "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
                                                     activeListId === list.id ?
-                                                        "bg-zinc-100 text-zinc-900"
-                                                    :   "text-zinc-500 hover:bg-white/5 hover:text-zinc-300",
+                                                        "bg-primary text-primary-content"
+                                                    :   "text-base-content/50 hover:bg-base-content/5 hover:text-base-content/80",
                                                 )}
                                             >
                                                 {list.name}
@@ -2758,7 +2762,7 @@ export default function TasksPage() {
                                         ))}
                                         <button
                                             onClick={() => openModal(null, "NEW_LIST")}
-                                            className="px-3 py-2 rounded-lg text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
+                                            className="px-3 py-2 rounded-lg text-base-content/50 hover:bg-base-content/5 hover:text-base-content/80"
                                         >
                                             <Plus size={16} />
                                         </button>
@@ -2771,9 +2775,9 @@ export default function TasksPage() {
                                             value={newTaskText}
                                             onChange={(e) => setNewTaskText(e.target.value)}
                                             placeholder="Add a task..."
-                                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-zinc-500"
+                                            className="flex-1 bg-base-content/5 border border-base-content/10 rounded-xl px-4 py-3 text-base-content focus:outline-none focus:border-base-content/40"
                                         />
-                                        <button type="submit" className="bg-zinc-100 text-zinc-900 rounded-xl px-4 font-bold">
+                                        <button type="submit" className="bg-primary text-primary-content rounded-xl px-4 font-bold">
                                             <Plus />
                                         </button>
                                     </form>
@@ -2794,8 +2798,8 @@ export default function TasksPage() {
                                                 className="relative group"
                                             >
                                                 {/* Trash Background Layer */}
-                                                <div className="absolute inset-0 bg-red-500/20 rounded-2xl flex items-center justify-end px-6 z-0">
-                                                    <Trash2 className="text-red-500" />
+                                                <div className="absolute inset-0 bg-error/20 rounded-2xl flex items-center justify-end px-6 z-0">
+                                                    <Trash2 className="text-error" />
                                                 </div>
 
                                                 {/* Swipeable Task Card */}
@@ -2809,22 +2813,22 @@ export default function TasksPage() {
                                                     }}
                                                     whileDrag={{ scale: 1.02 }}
                                                     onClick={() => toggleTask(task.id)}
-                                                    className="relative p-4 bg-zinc-900 border border-white/5 rounded-2xl flex items-start gap-4 active:bg-zinc-800 transition-all z-10"
+                                                    className="relative p-4 bg-base-200 border border-base-content/5 rounded-2xl flex items-start gap-4 active:bg-base-300 transition-all z-10"
                                                     style={{ touchAction: "pan-y" }} // Important for scrolling while dragging
                                                 >
                                                     <div
                                                         className={clsx(
                                                             "w-6 h-6 mt-0.5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                                                            task.completed ? "bg-green-500 border-green-500" : "border-zinc-500",
+                                                            task.completed ? "bg-success border-success" : "border-base-content/40",
                                                         )}
                                                     >
-                                                        {task.completed && <Check size={14} className="text-black" />}
+                                                        {task.completed && <Check size={14} className="text-success-content" />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <span
                                                             className={clsx(
                                                                 "text-lg block truncate",
-                                                                task.completed ? "text-zinc-500 line-through" : "text-zinc-100",
+                                                                task.completed ? "text-base-content/50 line-through" : "text-base-content",
                                                             )}
                                                         >
                                                             {task.text}
@@ -2850,15 +2854,15 @@ export default function TasksPage() {
                                                                                 }),
                                                                             );
                                                                         }}
-                                                                        className="flex items-center gap-2 text-sm text-zinc-400 py-1 cursor-pointer active:opacity-70"
+                                                                        className="flex items-center gap-2 text-sm text-base-content/70 py-1 cursor-pointer active:opacity-70"
                                                                     >
                                                                         <div
                                                                             className={clsx(
                                                                                 "w-3 h-3 rounded-full border flex items-center justify-center transition-colors",
-                                                                                st.completed ? "bg-zinc-600 border-zinc-600" : "border-zinc-600",
+                                                                                st.completed ? "bg-base-content/40 border-base-content/40" : "border-base-content/40",
                                                                             )}
                                                                         >
-                                                                            {st.completed && <Check size={8} className="text-zinc-950" />}
+                                                                            {st.completed && <Check size={8} className="text-base-100" />}
                                                                         </div>
                                                                         <span
                                                                             className={clsx(
@@ -2905,7 +2909,7 @@ export default function TasksPage() {
                                                                 }}
                                                                 className="mt-2 flex items-center gap-2"
                                                             >
-                                                                <div className="w-3 h-3 rounded-full border border-zinc-600 flex-shrink-0" />
+                                                                <div className="w-3 h-3 rounded-full border border-base-content/40 flex-shrink-0" />
                                                                 <input
                                                                     type="text"
                                                                     autoFocus
@@ -2918,9 +2922,9 @@ export default function TasksPage() {
                                                                         }, 100);
                                                                     }}
                                                                     placeholder="New subtask..."
-                                                                    className="bg-transparent text-sm text-zinc-200 focus:outline-none flex-1 placeholder:text-zinc-600"
+                                                                    className="bg-transparent text-sm text-base-content/80 focus:outline-none flex-1 placeholder:text-base-content/50"
                                                                 />
-                                                                <button type="submit" className="text-zinc-400 p-1">
+                                                                <button type="submit" className="text-base-content/70 p-1">
                                                                     <ArrowUpCircle size={20} />
                                                                 </button>
                                                             </form>
@@ -2930,16 +2934,16 @@ export default function TasksPage() {
                                                                     setAddingSubtaskId(task.id);
                                                                     setNewSubtaskText("");
                                                                 }}
-                                                                className="mt-2 flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-300 py-1"
+                                                                className="mt-2 flex items-center gap-2 text-xs text-base-content/50 hover:text-base-content/80 py-1"
                                                             >
-                                                                <Plus size={12} className="text-zinc-500" />
+                                                                <Plus size={12} className="text-base-content/50" />
                                                                 Add subtask
                                                             </button>
                                                         }
 
                                                         {task.estimatedPomos && (
-                                                            <div className="flex items-center gap-1 mt-1 text-xs text-zinc-500">
-                                                                <Flame size={12} className="text-amber-500" />
+                                                            <div className="flex items-center gap-1 mt-1 text-xs text-base-content/50">
+                                                                <Flame size={12} className="text-warning" />
                                                                 <span>
                                                                     {task.actualPomos || 0}/{task.estimatedPomos}
                                                                 </span>
@@ -2951,7 +2955,7 @@ export default function TasksPage() {
                                                             e.stopPropagation();
                                                             openModal(task.id, "EDIT_TASK");
                                                         }}
-                                                        className="p-2 text-zinc-500 hover:text-zinc-300"
+                                                        className="p-2 text-base-content/50 hover:text-base-content/80"
                                                     >
                                                         <MoreHorizontal size={20} />
                                                     </button>
@@ -2959,20 +2963,20 @@ export default function TasksPage() {
                                             </motion.div>
                                         ))}
                                     </AnimatePresence>
-                                    {activeTasks.length === 0 && <div className="text-center py-20 text-zinc-500">No active tasks</div>}
+                                    {activeTasks.length === 0 && <div className="text-center py-20 text-base-content/50">No active tasks</div>}
 
                                     {/* Completed Tasks (Mobile) */}
                                     {completedTasks.length > 0 && (
-                                        <div className="mt-8 pt-4 border-t border-white/5">
+                                        <div className="mt-8 pt-4 border-t border-base-content/5">
                                             <button
                                                 onClick={() => setShowCompleted(!showCompleted)}
                                                 className="flex items-center gap-2 mb-3 px-2 w-full"
                                             >
                                                 <ChevronDown
                                                     size={16}
-                                                    className={clsx("text-zinc-500 transition-transform", !showCompleted && "-rotate-90")}
+                                                    className={clsx("text-base-content/50 transition-transform", !showCompleted && "-rotate-90")}
                                                 />
-                                                <h3 className="text-sm font-bold text-zinc-500">Completed ({completedTasks.length})</h3>
+                                                <h3 className="text-sm font-bold text-base-content/50">Completed ({completedTasks.length})</h3>
                                             </button>
 
                                             <AnimatePresence>
@@ -2987,13 +2991,13 @@ export default function TasksPage() {
                                                             <div
                                                                 key={task.id}
                                                                 onClick={() => toggleTask(task.id)}
-                                                                className="relative p-4 bg-zinc-900/50 border border-white/5 rounded-2xl flex items-start gap-4 active:bg-zinc-800 transition-colors"
+                                                                className="relative p-4 bg-base-200/50 border border-base-content/5 rounded-2xl flex items-start gap-4 active:bg-base-300 transition-colors"
                                                             >
-                                                                <div className="w-6 h-6 mt-0.5 rounded-full border-2 border-green-500 bg-green-500 flex items-center justify-center flex-shrink-0">
-                                                                    <Check size={14} className="text-black" />
+                                                                <div className="w-6 h-6 mt-0.5 rounded-full border-2 border-success bg-success flex items-center justify-center flex-shrink-0">
+                                                                    <Check size={14} className="text-success-content" />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
-                                                                    <span className="text-lg block truncate text-zinc-500 line-through">
+                                                                    <span className="text-lg block truncate text-base-content/50 line-through">
                                                                         {task.text}
                                                                     </span>
                                                                 </div>
@@ -3002,7 +3006,7 @@ export default function TasksPage() {
                                                                         e.stopPropagation();
                                                                         deleteTask(task.id);
                                                                     }}
-                                                                    className="p-2 text-zinc-600 hover:text-red-400"
+                                                                    className="p-2 text-base-content/50 hover:text-error"
                                                                 >
                                                                     <Trash2 size={18} />
                                                                 </button>
@@ -3022,12 +3026,12 @@ export default function TasksPage() {
                         <div className="flex flex-col items-center justify-center h-full gap-8">
                             <div className="relative w-72 h-72 flex items-center justify-center">
                                 <svg className="absolute w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                                    <circle cx="50" cy="50" r="45" className="stroke-zinc-800 fill-none" strokeWidth="4" />
+                                    <circle cx="50" cy="50" r="45" className="stroke-base-300 fill-none" strokeWidth="4" />
                                     <circle
                                         cx="50"
                                         cy="50"
                                         r="45"
-                                        className="stroke-zinc-100 fill-none"
+                                        className="stroke-primary fill-none"
                                         strokeWidth="4"
                                         strokeDasharray={283}
                                         strokeDashoffset={
@@ -3043,8 +3047,8 @@ export default function TasksPage() {
                                     />
                                 </svg>
                                 <div className="flex flex-col items-center">
-                                    <div className="text-6xl font-bold text-zinc-100 tabular-nums">{formatTime(timeLeft)}</div>
-                                    <div className="text-zinc-500 uppercase tracking-widest text-sm mt-2">{mode}</div>
+                                    <div className="text-6xl font-bold text-base-content tabular-nums">{formatTime(timeLeft)}</div>
+                                    <div className="text-base-content/50 uppercase tracking-widest text-sm mt-2">{mode}</div>
                                 </div>
                             </div>
 
@@ -3059,7 +3063,7 @@ export default function TasksPage() {
                                     }}
                                     className={clsx(
                                         "btn btn-circle btn-xl w-24 h-24 shadow-2xl",
-                                        isRunning ? "bg-zinc-800 text-red-500 border-red-500/20" : "bg-zinc-100 text-zinc-900",
+                                        isRunning ? "bg-base-300 text-error border-error/20" : "bg-primary text-primary-content",
                                     )}
                                 >
                                     {isRunning ?
@@ -3075,7 +3079,7 @@ export default function TasksPage() {
                                         onClick={() => switchMode(m as any)}
                                         className={clsx(
                                             "px-6 py-2 rounded-full font-medium capitalize",
-                                            mode === m ? "bg-white/10 text-white border border-white/20" : "text-zinc-500",
+                                            mode === m ? "bg-base-content/10 text-base-content border border-base-content/20" : "text-base-content/50",
                                         )}
                                     >
                                         {m}
@@ -3088,7 +3092,7 @@ export default function TasksPage() {
                     {mobileTab === "notes" && (
                         <div className="h-full flex flex-col">
                             {/* Mobile Note Page Selector */}
-                            <div className="flex gap-2 bg-white/5 p-1 rounded-xl mb-2 overflow-x-auto scrollbar-hide shrink-0">
+                            <div className="flex gap-2 bg-base-content/5 p-1 rounded-xl mb-2 overflow-x-auto scrollbar-hide shrink-0">
                                 {notePages.map((page) => (
                                     <button
                                         key={page.id}
@@ -3096,8 +3100,8 @@ export default function TasksPage() {
                                         className={clsx(
                                             "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
                                             activeNoteId === page.id ?
-                                                "bg-zinc-100 text-zinc-900"
-                                            :   "text-zinc-500 hover:bg-white/5 hover:text-zinc-300",
+                                                "bg-primary text-primary-content"
+                                            :   "text-base-content/50 hover:bg-base-content/5 hover:text-base-content/80",
                                         )}
                                     >
                                         {page.title}
@@ -3109,14 +3113,14 @@ export default function TasksPage() {
                                         setNotePages([...notePages, { id: newId, title: "New Page", content: "" }]);
                                         setActiveNoteId(newId);
                                     }}
-                                    className="px-3 py-2 rounded-lg text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
+                                    className="px-3 py-2 rounded-lg text-base-content/50 hover:bg-base-content/5 hover:text-base-content/80"
                                 >
                                     <Plus size={16} />
                                 </button>
                             </div>
 
                             <textarea
-                                className="flex-1 w-full bg-transparent text-zinc-200 resize-none focus:outline-none text-lg leading-relaxed p-2"
+                                className="flex-1 w-full bg-transparent text-base-content/80 resize-none focus:outline-none text-lg leading-relaxed p-2"
                                 placeholder="Type your notes..."
                                 value={notePages.find((n) => n.id === activeNoteId)?.content || ""}
                                 onChange={(e) => setNotePages(notePages.map((p) => (p.id === activeNoteId ? { ...p, content: e.target.value } : p)))}
@@ -3128,21 +3132,21 @@ export default function TasksPage() {
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={() => openModal(null, "SETTINGS")}
-                                className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
+                                className="p-4 bg-base-content/5 rounded-2xl border border-base-content/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
                             >
-                                <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-100">
+                                <div className="w-10 h-10 rounded-full bg-base-300 flex items-center justify-center text-base-content">
                                     <Settings size={20} />
                                 </div>
-                                <span className="font-medium text-zinc-200">Settings</span>
+                                <span className="font-medium text-base-content/80">Settings</span>
                             </button>
                             <button
                                 onClick={() => openModal(null, "STATS")}
-                                className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
+                                className="p-4 bg-base-content/5 rounded-2xl border border-base-content/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
                             >
-                                <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-info/20 text-info flex items-center justify-center">
                                     <BarChart size={20} />
                                 </div>
-                                <span className="font-medium text-zinc-200">Stats</span>
+                                <span className="font-medium text-base-content/80">Stats</span>
                             </button>
                             <button
                                 onClick={() => {
@@ -3156,51 +3160,51 @@ export default function TasksPage() {
                                     }
                                     openModal(null, "SYNC");
                                 }}
-                                className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
+                                className="p-4 bg-base-content/5 rounded-2xl border border-base-content/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
                             >
-                                <div className="w-10 h-10 rounded-full bg-violet-500/20 text-violet-400 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-secondary/20 text-secondary flex items-center justify-center">
                                     <Cloud size={20} />
                                 </div>
-                                <span className="font-medium text-zinc-200">Sync Data</span>
+                                <span className="font-medium text-base-content/80">Sync Data</span>
                             </button>
                             <button
                                 onClick={() => openModal(null, "ARCHIVE")}
-                                className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
+                                className="p-4 bg-base-content/5 rounded-2xl border border-base-content/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
                             >
-                                <div className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-warning/20 text-warning flex items-center justify-center">
                                     <Archive size={20} />
                                 </div>
-                                <span className="font-medium text-zinc-200">Archive</span>
+                                <span className="font-medium text-base-content/80">Archive</span>
                             </button>
                             <button
                                 onClick={() => openModal(null, "BRAINSTORM")}
-                                className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
+                                className="p-4 bg-base-content/5 rounded-2xl border border-base-content/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
                             >
-                                <div className="w-10 h-10 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-secondary/20 text-secondary flex items-center justify-center">
                                     <Sparkles size={20} />
                                 </div>
-                                <span className="font-medium text-zinc-200">Brainstorm</span>
+                                <span className="font-medium text-base-content/80">Brainstorm</span>
                             </button>
                             <button
                                 onClick={() => openModal(null, "SHORTCUTS")}
-                                className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
+                                className="p-4 bg-base-content/5 rounded-2xl border border-base-content/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
                             >
-                                <div className="w-10 h-10 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-success/20 text-success flex items-center justify-center">
                                     <Keyboard size={20} />
                                 </div>
-                                <span className="font-medium text-zinc-200">Shortcuts</span>
+                                <span className="font-medium text-base-content/80">Shortcuts</span>
                             </button>
                         </div>
                     )}
                 </div>
 
                 {/* Bottom Nav */}
-                <div className="w-full bg-zinc-950/95 backdrop-blur-xl border-t border-white/10 grid grid-cols-4 shrink-0 h-16 pb-safe">
+                <div className="w-full bg-base-100/95 backdrop-blur-xl border-t border-base-content/10 grid grid-cols-4 shrink-0 h-16 pb-safe">
                     <button
                         onClick={() => setMobileTab("tasks")}
                         className={clsx(
-                            "flex flex-col items-center justify-center gap-0.5 active:bg-white/5 transition-colors",
-                            mobileTab === "tasks" ? "text-white" : "text-zinc-500",
+                            "flex flex-col items-center justify-center gap-0.5 active:bg-base-content/5 transition-colors",
+                            mobileTab === "tasks" ? "text-base-content" : "text-base-content/50",
                         )}
                     >
                         <Home size={20} strokeWidth={mobileTab === "tasks" ? 2.5 : 2} />
@@ -3209,8 +3213,8 @@ export default function TasksPage() {
                     <button
                         onClick={() => setMobileTab("focus")}
                         className={clsx(
-                            "flex flex-col items-center justify-center gap-0.5 active:bg-white/5 transition-colors",
-                            mobileTab === "focus" ? "text-white" : "text-zinc-500",
+                            "flex flex-col items-center justify-center gap-0.5 active:bg-base-content/5 transition-colors",
+                            mobileTab === "focus" ? "text-base-content" : "text-base-content/50",
                         )}
                     >
                         <Clock size={20} strokeWidth={mobileTab === "focus" ? 2.5 : 2} />
@@ -3219,8 +3223,8 @@ export default function TasksPage() {
                     <button
                         onClick={() => setMobileTab("notes")}
                         className={clsx(
-                            "flex flex-col items-center justify-center gap-0.5 active:bg-white/5 transition-colors",
-                            mobileTab === "notes" ? "text-white" : "text-zinc-500",
+                            "flex flex-col items-center justify-center gap-0.5 active:bg-base-content/5 transition-colors",
+                            mobileTab === "notes" ? "text-base-content" : "text-base-content/50",
                         )}
                     >
                         <FileText size={20} strokeWidth={mobileTab === "notes" ? 2.5 : 2} />
@@ -3229,8 +3233,8 @@ export default function TasksPage() {
                     <button
                         onClick={() => setMobileTab("menu")}
                         className={clsx(
-                            "flex flex-col items-center justify-center gap-0.5 active:bg-white/5 transition-colors",
-                            mobileTab === "menu" ? "text-white" : "text-zinc-500",
+                            "flex flex-col items-center justify-center gap-0.5 active:bg-base-content/5 transition-colors",
+                            mobileTab === "menu" ? "text-base-content" : "text-base-content/50",
                         )}
                     >
                         <Menu size={20} strokeWidth={mobileTab === "menu" ? 2.5 : 2} />
@@ -3262,7 +3266,7 @@ export default function TasksPage() {
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             onClick={(e) => e.stopPropagation()}
                             className={clsx(
-                                "relative w-full bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col",
+                                "relative w-full bg-base-200 border border-base-content/10 rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col",
                                 modalType === "NOTE" || modalType === "BRAINSTORM" ? "max-w-5xl h-[80vh]" : "max-w-lg",
                             )}
                         >
@@ -3274,17 +3278,17 @@ export default function TasksPage() {
                             >
                                 <div className="flex justify-between items-center mb-6">
                                     <div className="flex items-center gap-2">
-                                        {modalType === "BRAINSTORM" && <Sparkles size={20} className="text-zinc-100" />}
-                                        {modalType === "SETTINGS" && <Settings size={20} className="text-zinc-100" />}
-                                        {modalType === "ARCHIVE" && <Archive size={20} className="text-zinc-100" />}
-                                        {modalType === "ATTACHMENT" && <Paperclip size={20} className="text-zinc-100" />}
-                                        {modalType === "SHORTCUTS" && <Keyboard size={20} className="text-zinc-100" />}
+                                        {modalType === "BRAINSTORM" && <Sparkles size={20} className="text-base-content" />}
+                                        {modalType === "SETTINGS" && <Settings size={20} className="text-base-content" />}
+                                        {modalType === "ARCHIVE" && <Archive size={20} className="text-base-content" />}
+                                        {modalType === "ATTACHMENT" && <Paperclip size={20} className="text-base-content" />}
+                                        {modalType === "SHORTCUTS" && <Keyboard size={20} className="text-base-content" />}
                                         {modalType === "STATS" && <BarChart3 size={20} />}
                                         {modalType === "NEW_LIST" && <FolderPlus size={20} />}
                                         {modalType === "MOVE_TO_LIST" && <FolderInput size={20} />}
                                         {modalType === "DUE_DATE" && <Calendar size={20} />}
                                         {modalType === "ESTIMATE" && <Timer size={20} />}
-                                        <h3 className="text-xl font-bold text-zinc-100">
+                                        <h3 className="text-xl font-bold text-base-content">
                                             {modalType === "SUBTASK" && "Add Subtask"}
                                             {modalType === "NOTE" && "Notes"}
                                             {modalType === "BRAINSTORM" && "AI Assistant"}
@@ -3300,7 +3304,7 @@ export default function TasksPage() {
                                             {modalType === "MOVE_TO_LIST" && "Move to List"}
                                         </h3>
                                     </div>
-                                    <button type="button" onClick={() => setModalOpen(false)} className="text-zinc-500 hover:text-white">
+                                    <button type="button" onClick={() => setModalOpen(false)} className="text-base-content/50 hover:text-base-content">
                                         <X size={20} />
                                     </button>
                                 </div>
@@ -3309,24 +3313,24 @@ export default function TasksPage() {
                                 {modalType === "ARCHIVE" && (
                                     <div className="space-y-4">
                                         {archivedTasks.length === 0 ?
-                                            <div className="text-center text-zinc-500 py-8">No archived tasks found.</div>
+                                            <div className="text-center text-base-content/50 py-8">No archived tasks found.</div>
                                         :   <div className="space-y-2">
                                                 {archivedTasks.map((task) => (
                                                     <div
                                                         key={task.id}
-                                                        className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/5"
+                                                        className="flex items-center gap-3 p-3 bg-base-content/5 rounded-lg border border-base-content/5"
                                                     >
-                                                        <span className="flex-1 text-zinc-400 line-through text-sm">{task.text}</span>
+                                                        <span className="flex-1 text-base-content/70 line-through text-sm">{task.text}</span>
                                                         <button
                                                             onClick={() => unarchiveTask(task.id)}
-                                                            className="p-2 hover:bg-white/10 rounded text-zinc-500 hover:text-zinc-100"
+                                                            className="p-2 hover:bg-base-content/10 rounded text-base-content/50 hover:text-base-content"
                                                             title="Restore"
                                                         >
                                                             <RotateCw size={14} />
                                                         </button>
                                                         <button
                                                             onClick={() => deleteTask(task.id)}
-                                                            className="p-2 hover:bg-red-500/20 rounded text-red-900 hover:text-red-400"
+                                                            className="p-2 hover:bg-error/20 rounded text-error/50 hover:text-error"
                                                             title="Delete Forever"
                                                         >
                                                             <Trash2 size={14} />
@@ -3346,31 +3350,31 @@ export default function TasksPage() {
                                                 type="text"
                                                 value={modalInput}
                                                 onChange={(e) => setModalInput(e.target.value)}
-                                                className="w-full bg-black/20 text-lg text-zinc-100 border border-white/10 rounded-xl p-4 focus:outline-none focus:border-zinc-500 transition-colors"
+                                                className="w-full bg-base-300/40 text-lg text-base-content border border-base-content/10 rounded-xl p-4 focus:outline-none focus:border-base-content/40 transition-colors"
                                                 autoFocus
                                             />
                                             <div className="flex justify-end gap-3 mt-4">
                                                 <button
                                                     type="button"
                                                     onClick={() => setModalOpen(false)}
-                                                    className="btn btn-ghost hover:bg-white/5 text-zinc-400"
+                                                    className="btn btn-ghost hover:bg-base-content/5 text-base-content/70"
                                                 >
                                                     Cancel
                                                 </button>
-                                                <button type="submit" className="btn bg-zinc-100 hover:bg-white text-zinc-900 border-none px-6">
+                                                <button type="submit" className="btn bg-primary hover:bg-primary/90 text-primary-content border-none px-6">
                                                     Save Rename
                                                 </button>
                                             </div>
                                         </form>
 
-                                        <div className="border-t border-white/10 pt-6">
-                                            <h4 className="text-sm font-bold text-zinc-500 uppercase mb-3">Quick Actions</h4>
+                                        <div className="border-t border-base-content/10 pt-6">
+                                            <h4 className="text-sm font-bold text-base-content/50 uppercase mb-3">Quick Actions</h4>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <button
                                                     onClick={() => setModalType("SUBTASK")}
-                                                    className="p-3 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 text-zinc-300 transition-colors"
+                                                    className="p-3 bg-base-content/5 hover:bg-base-content/10 rounded-xl flex items-center gap-3 text-base-content/80 transition-colors"
                                                 >
-                                                    <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
+                                                    <div className="p-2 bg-info/20 text-info rounded-lg">
                                                         <Check size={16} />
                                                     </div>
                                                     <span className="font-medium">Add Subtasks</span>
@@ -3381,27 +3385,27 @@ export default function TasksPage() {
                                                         setModalInput(task?.notes || "");
                                                         setModalType("NOTE");
                                                     }}
-                                                    className="p-3 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 text-zinc-300 transition-colors"
+                                                    className="p-3 bg-base-content/5 hover:bg-base-content/10 rounded-xl flex items-center gap-3 text-base-content/80 transition-colors"
                                                 >
-                                                    <div className="p-2 bg-yellow-500/20 text-yellow-400 rounded-lg">
+                                                    <div className="p-2 bg-warning/20 text-warning rounded-lg">
                                                         <FileText size={16} />
                                                     </div>
                                                     <span className="font-medium">Edit Notes</span>
                                                 </button>
                                                 <button
                                                     onClick={() => setModalType("ATTACHMENT")}
-                                                    className="p-3 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 text-zinc-300 transition-colors"
+                                                    className="p-3 bg-base-content/5 hover:bg-base-content/10 rounded-xl flex items-center gap-3 text-base-content/80 transition-colors"
                                                 >
-                                                    <div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg">
+                                                    <div className="p-2 bg-secondary/20 text-secondary rounded-lg">
                                                         <Paperclip size={16} />
                                                     </div>
                                                     <span className="font-medium">Attach Link</span>
                                                 </button>
                                                 <button
                                                     onClick={() => setModalType("DUE_DATE")}
-                                                    className="p-3 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 text-zinc-300 transition-colors"
+                                                    className="p-3 bg-base-content/5 hover:bg-base-content/10 rounded-xl flex items-center gap-3 text-base-content/80 transition-colors"
                                                 >
-                                                    <div className="p-2 bg-red-500/20 text-red-400 rounded-lg">
+                                                    <div className="p-2 bg-error/20 text-error rounded-lg">
                                                         <Calendar size={16} />
                                                     </div>
                                                     <span className="font-medium">Set Due Date</span>
@@ -3419,18 +3423,18 @@ export default function TasksPage() {
                                             value={modalInput}
                                             onChange={(e) => setModalInput(e.target.value)}
                                             placeholder="What needs to be done?"
-                                            className="w-full bg-black/20 text-lg text-zinc-100 border border-white/10 rounded-xl p-4 focus:outline-none focus:border-zinc-500 transition-colors"
+                                            className="w-full bg-base-300/40 text-lg text-base-content border border-base-content/10 rounded-xl p-4 focus:outline-none focus:border-base-content/40 transition-colors"
                                             autoFocus
                                         />
                                         <div className="flex justify-end gap-3 mt-6">
                                             <button
                                                 type="button"
                                                 onClick={() => setModalOpen(false)}
-                                                className="btn btn-ghost hover:bg-white/5 text-zinc-400"
+                                                className="btn btn-ghost hover:bg-base-content/5 text-base-content/70"
                                             >
                                                 Cancel
                                             </button>
-                                            <button type="submit" className="btn bg-zinc-100 hover:bg-white text-zinc-900 border-none px-6">
+                                            <button type="submit" className="btn bg-primary hover:bg-primary/90 text-primary-content border-none px-6">
                                                 Add Task
                                             </button>
                                         </div>
@@ -3440,36 +3444,36 @@ export default function TasksPage() {
                                 {modalType === "ATTACHMENT" && (
                                     <form onSubmit={handleModalSubmit} className="space-y-4">
                                         <div>
-                                            <label className="text-sm font-bold text-zinc-500 uppercase">Link URL</label>
+                                            <label className="text-sm font-bold text-base-content/50 uppercase">Link URL</label>
                                             <input
                                                 ref={modalInputRef as any}
                                                 type="url"
                                                 value={modalInput}
                                                 onChange={(e) => setModalInput(e.target.value)}
                                                 placeholder="https://drive.google.com/..."
-                                                className="w-full bg-black/20 text-lg text-zinc-100 border border-white/10 rounded-xl p-4 mt-2 focus:outline-none focus:border-zinc-500 transition-colors"
+                                                className="w-full bg-base-300/40 text-lg text-base-content border border-base-content/10 rounded-xl p-4 mt-2 focus:outline-none focus:border-base-content/40 transition-colors"
                                                 autoFocus
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-sm font-bold text-zinc-500 uppercase">Display Name (Optional)</label>
+                                            <label className="text-sm font-bold text-base-content/50 uppercase">Display Name (Optional)</label>
                                             <input
                                                 type="text"
                                                 value={attachmentName}
                                                 onChange={(e) => setAttachmentName(e.target.value)}
                                                 placeholder="Project Spec, Figma Board, etc."
-                                                className="w-full bg-black/20 text-lg text-zinc-100 border border-white/10 rounded-xl p-4 mt-2 focus:outline-none focus:border-zinc-500 transition-colors"
+                                                className="w-full bg-base-300/40 text-lg text-base-content border border-base-content/10 rounded-xl p-4 mt-2 focus:outline-none focus:border-base-content/40 transition-colors"
                                             />
                                         </div>
                                         <div className="flex justify-end gap-3 mt-6">
                                             <button
                                                 type="button"
                                                 onClick={() => setModalOpen(false)}
-                                                className="btn btn-ghost hover:bg-white/5 text-zinc-400"
+                                                className="btn btn-ghost hover:bg-base-content/5 text-base-content/70"
                                             >
                                                 Cancel
                                             </button>
-                                            <button type="submit" className="btn bg-zinc-100 hover:bg-white text-zinc-900 border-none px-6">
+                                            <button type="submit" className="btn bg-primary hover:bg-primary/90 text-primary-content border-none px-6">
                                                 Add Link
                                             </button>
                                         </div>
@@ -3487,18 +3491,18 @@ export default function TasksPage() {
                                             value={modalInput}
                                             onChange={(e) => setModalInput(e.target.value)}
                                             placeholder="Add details, links, or thoughts... (Markdown supported)"
-                                            className="w-full bg-black/20 text-base text-zinc-200 border border-white/10 rounded-xl p-4 focus:outline-none focus:border-zinc-500 transition-colors resize-none leading-relaxed h-full flex-1"
+                                            className="w-full bg-base-300/40 text-base text-base-content/80 border border-base-content/10 rounded-xl p-4 focus:outline-none focus:border-base-content/40 transition-colors resize-none leading-relaxed h-full flex-1"
                                             autoFocus
                                         />
                                         <div className="flex justify-end gap-3 mt-6">
                                             <button
                                                 type="button"
                                                 onClick={() => setModalOpen(false)}
-                                                className="btn btn-ghost hover:bg-white/5 text-zinc-400"
+                                                className="btn btn-ghost hover:bg-base-content/5 text-base-content/70"
                                             >
                                                 Cancel
                                             </button>
-                                            <button type="submit" className="btn bg-zinc-100 hover:bg-white text-zinc-900 border-none px-6">
+                                            <button type="submit" className="btn bg-primary hover:bg-primary/90 text-primary-content border-none px-6">
                                                 Save Notes
                                             </button>
                                         </div>
@@ -3514,12 +3518,12 @@ export default function TasksPage() {
                                         className="flex flex-col gap-4"
                                     >
                                         <div className="text-center mb-4">
-                                            <div className="w-16 h-16 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-500/20">
+                                            <div className="w-16 h-16 bg-gradient-to-br from-secondary to-secondary/70 rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl shadow-secondary/20">
                                                 <Lock size={32} className="text-white" />
                                             </div>
-                                            <h3 className="text-xl font-bold text-zinc-100">Setup Secure Sync</h3>
-                                            <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
-                                                Enter a <span className="text-zinc-200 font-medium">Sync Password</span> to encrypt your data. This
+                                            <h3 className="text-xl font-bold text-base-content">Setup Secure Sync</h3>
+                                            <p className="text-sm text-base-content/70 mt-2 leading-relaxed">
+                                                Enter a <span className="text-base-content/80 font-medium">Sync Password</span> to encrypt your data. This
                                                 password never leaves your device. Existing data will be downloaded, or we'll upload your current
                                                 tasks.
                                             </p>
@@ -3528,7 +3532,7 @@ export default function TasksPage() {
                                         <div>
                                             {/* Hidden Username Field for Autocomplete */}
                                             <input type="text" name="username" value="Sync" readOnly autoComplete="username" className="hidden" />
-                                            <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Sync Password</label>
+                                            <label className="text-xs font-bold text-base-content/50 uppercase ml-1">Sync Password</label>
                                             <input
                                                 type="password"
                                                 name="password"
@@ -3536,7 +3540,7 @@ export default function TasksPage() {
                                                 onChange={(e) => setModalInput(e.target.value)}
                                                 placeholder="Enter your secret password..."
                                                 autoComplete="current-password"
-                                                className="w-full bg-black/20 text-lg text-zinc-100 border border-white/10 rounded-xl p-4 mt-2 focus:outline-none focus:border-violet-500 transition-colors"
+                                                className="w-full bg-base-300/40 text-lg text-base-content border border-base-content/10 rounded-xl p-4 mt-2 focus:outline-none focus:border-secondary transition-colors"
                                                 autoFocus
                                             />
                                         </div>
@@ -3545,14 +3549,14 @@ export default function TasksPage() {
                                             <button
                                                 type="button"
                                                 onClick={() => setModalOpen(false)}
-                                                className="btn btn-ghost hover:bg-white/5 text-zinc-400"
+                                                className="btn btn-ghost hover:bg-base-content/5 text-base-content/70"
                                             >
                                                 Cancel
                                             </button>
                                             <button
                                                 type="submit"
                                                 disabled={!modalInput || isSyncing}
-                                                className="btn bg-violet-600 hover:bg-violet-500 text-white border-none px-6 disabled:opacity-50"
+                                                className="btn bg-secondary hover:bg-secondary/80 text-white border-none px-6 disabled:opacity-50"
                                             >
                                                 {isSyncing ?
                                                     <span className="loading loading-spinner loading-sm"></span>
@@ -3566,49 +3570,49 @@ export default function TasksPage() {
                                     <form onSubmit={handleModalSubmit} className="space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="text-sm font-bold text-zinc-500 uppercase">Work (min)</label>
+                                                <label className="text-sm font-bold text-base-content/50 uppercase">Work (min)</label>
                                                 <input
                                                     type="number"
                                                     value={settingsForm.work}
                                                     onChange={(e) => setSettingsForm({ ...settingsForm, work: Number(e.target.value) })}
-                                                    className="w-full bg-black/20 text-zinc-100 border border-white/10 rounded-xl p-3 mt-1 focus:border-zinc-500 outline-none"
+                                                    className="w-full bg-base-300/40 text-base-content border border-base-content/10 rounded-xl p-3 mt-1 focus:border-base-content/40 outline-none"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="text-sm font-bold text-zinc-500 uppercase">Short Break</label>
+                                                <label className="text-sm font-bold text-base-content/50 uppercase">Short Break</label>
                                                 <input
                                                     type="number"
                                                     value={settingsForm.shortBreak}
                                                     onChange={(e) => setSettingsForm({ ...settingsForm, shortBreak: Number(e.target.value) })}
-                                                    className="w-full bg-black/20 text-zinc-100 border border-white/10 rounded-xl p-3 mt-1 focus:border-zinc-500 outline-none"
+                                                    className="w-full bg-base-300/40 text-base-content border border-base-content/10 rounded-xl p-3 mt-1 focus:border-base-content/40 outline-none"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="text-sm font-bold text-zinc-500 uppercase">Long Break</label>
+                                                <label className="text-sm font-bold text-base-content/50 uppercase">Long Break</label>
                                                 <input
                                                     type="number"
                                                     value={settingsForm.longBreak}
                                                     onChange={(e) => setSettingsForm({ ...settingsForm, longBreak: Number(e.target.value) })}
-                                                    className="w-full bg-black/20 text-zinc-100 border border-white/10 rounded-xl p-3 mt-1 focus:border-zinc-500 outline-none"
+                                                    className="w-full bg-base-300/40 text-base-content border border-base-content/10 rounded-xl p-3 mt-1 focus:border-base-content/40 outline-none"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="text-sm font-bold text-zinc-500 uppercase">Interval</label>
+                                                <label className="text-sm font-bold text-base-content/50 uppercase">Interval</label>
                                                 <input
                                                     type="number"
                                                     value={settingsForm.interval}
                                                     onChange={(e) => setSettingsForm({ ...settingsForm, interval: Number(e.target.value) })}
-                                                    className="w-full bg-black/20 text-zinc-100 border border-white/10 rounded-xl p-3 mt-1 focus:border-zinc-500 outline-none"
+                                                    className="w-full bg-base-300/40 text-base-content border border-base-content/10 rounded-xl p-3 mt-1 focus:border-base-content/40 outline-none"
                                                 />
                                             </div>
                                         </div>
-                                        <div className="text-xs text-zinc-500 mt-2">
+                                        <div className="text-xs text-base-content/50 mt-2">
                                             Long break triggers after every {settingsForm.interval} work sessions.
                                         </div>
 
                                         {/* Sound Selection */}
-                                        <div className="pt-4 border-t border-white/5">
-                                            <label className="text-sm font-bold text-zinc-500 uppercase block mb-2">Alarm Sound</label>
+                                        <div className="pt-4 border-t border-base-content/5">
+                                            <label className="text-sm font-bold text-base-content/50 uppercase block mb-2">Alarm Sound</label>
                                             <div className="grid grid-cols-3 gap-2">
                                                 {(Object.keys(SOUNDS) as Array<keyof typeof SOUNDS>).map((soundKey) => (
                                                     <button
@@ -3622,8 +3626,8 @@ export default function TasksPage() {
                                                         className={clsx(
                                                             "p-3 rounded-xl border text-sm font-medium capitalize transition-all",
                                                             settingsForm.sound === soundKey ?
-                                                                "bg-zinc-100 text-zinc-900 border-zinc-100"
-                                                            :   "bg-black/20 text-zinc-400 border-white/10 hover:bg-white/5 hover:text-zinc-200",
+                                                                "bg-primary text-primary-content border-primary"
+                                                            :   "bg-base-300/40 text-base-content/70 border-base-content/10 hover:bg-base-content/5 hover:text-base-content/80",
                                                         )}
                                                     >
                                                         {soundKey}
@@ -3632,8 +3636,8 @@ export default function TasksPage() {
                                             </div>
                                         </div>
                                         {/* Sync & Data */}
-                                        <div className="pt-4 border-t border-white/5">
-                                            <label className="text-sm font-bold text-zinc-500 uppercase block mb-2">Data & Sync</label>
+                                        <div className="pt-4 border-t border-base-content/5">
+                                            <label className="text-sm font-bold text-base-content/50 uppercase block mb-2">Data & Sync</label>
                                             <div className="flex flex-col gap-3">
                                                 {!syncKey ?
                                                     <button
@@ -3642,7 +3646,7 @@ export default function TasksPage() {
                                                             setModalType("SYNC");
                                                             setModalInput(""); // Clear input for password
                                                         }}
-                                                        className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-medium hover:opacity-90 transition-opacity shadow-lg shadow-indigo-500/20"
+                                                        className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-gradient-to-r from-secondary to-secondary/70 text-white font-medium hover:opacity-90 transition-opacity shadow-lg shadow-secondary/20"
                                                     >
                                                         {syncSalt ?
                                                             <>
@@ -3655,7 +3659,7 @@ export default function TasksPage() {
                                                             </>
                                                         }
                                                     </button>
-                                                :   <div className="flex items-center justify-between p-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400">
+                                                :   <div className="flex items-center justify-between p-3 rounded-xl bg-success/10 border border-success/20 text-success">
                                                         <div className="flex items-center gap-2">
                                                             <Check size={16} />
                                                             <span className="text-sm font-medium">Sync Active</span>
@@ -3705,7 +3709,7 @@ export default function TasksPage() {
                                                                         });
                                                                 }}
                                                                 title="Pull latest from server"
-                                                                className="p-1 hover:bg-green-500/20 rounded-full transition-colors"
+                                                                className="p-1 hover:bg-success/20 rounded-full transition-colors"
                                                             >
                                                                 <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
                                                             </button>
@@ -3717,12 +3721,12 @@ export default function TasksPage() {
                                                     <button
                                                         type="button"
                                                         onClick={exportData}
-                                                        className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl bg-black/20 border border-white/10 text-zinc-400 hover:bg-white/5 hover:text-zinc-200 transition-colors"
+                                                        className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl bg-base-300/40 border border-base-content/10 text-base-content/70 hover:bg-base-content/5 hover:text-base-content/80 transition-colors"
                                                     >
                                                         <Download size={16} />
                                                         Export
                                                     </button>
-                                                    <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 p-3 rounded-xl bg-black/20 border border-white/10 text-zinc-400 hover:bg-white/5 hover:text-zinc-200 transition-colors">
+                                                    <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 p-3 rounded-xl bg-base-300/40 border border-base-content/10 text-base-content/70 hover:bg-base-content/5 hover:text-base-content/80 transition-colors">
                                                         <Upload size={16} />
                                                         Import
                                                         <input type="file" accept=".json" onChange={importData} className="hidden" />
@@ -3735,11 +3739,11 @@ export default function TasksPage() {
                                             <button
                                                 type="button"
                                                 onClick={() => setModalOpen(false)}
-                                                className="btn btn-ghost hover:bg-white/5 text-zinc-400"
+                                                className="btn btn-ghost hover:bg-base-content/5 text-base-content/70"
                                             >
                                                 Cancel
                                             </button>
-                                            <button type="submit" className="btn bg-zinc-100 hover:bg-white text-zinc-900 border-none px-6">
+                                            <button type="submit" className="btn bg-primary hover:bg-primary/90 text-primary-content border-none px-6">
                                                 Save Settings
                                             </button>
                                         </div>
@@ -3749,21 +3753,21 @@ export default function TasksPage() {
                                 {modalType === "SHORTCUTS" && (
                                     <div className="space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
-                                            <div className="p-4 bg-white/5 rounded-xl border border-white/5 flex flex-col items-center text-center">
-                                                <kbd className="kbd kbd-lg bg-zinc-800 text-zinc-100 border-white/10 mb-2">Space</kbd>
-                                                <span className="text-sm text-zinc-400">Toggle Timer</span>
+                                            <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5 flex flex-col items-center text-center">
+                                                <kbd className="kbd kbd-lg bg-base-300 text-base-content border-base-content/10 mb-2">Space</kbd>
+                                                <span className="text-sm text-base-content/70">Toggle Timer</span>
                                             </div>
-                                            <div className="p-4 bg-white/5 rounded-xl border border-white/5 flex flex-col items-center text-center">
-                                                <kbd className="kbd kbd-lg bg-zinc-800 text-zinc-100 border-white/10 mb-2">N</kbd>
-                                                <span className="text-sm text-zinc-400">New Task</span>
+                                            <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5 flex flex-col items-center text-center">
+                                                <kbd className="kbd kbd-lg bg-base-300 text-base-content border-base-content/10 mb-2">N</kbd>
+                                                <span className="text-sm text-base-content/70">New Task</span>
                                             </div>
-                                            <div className="p-4 bg-white/5 rounded-xl border border-white/5 flex flex-col items-center text-center">
-                                                <kbd className="kbd kbd-lg bg-zinc-800 text-zinc-100 border-white/10 mb-2">Esc</kbd>
-                                                <span className="text-sm text-zinc-400">Close / Exit Zen</span>
+                                            <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5 flex flex-col items-center text-center">
+                                                <kbd className="kbd kbd-lg bg-base-300 text-base-content border-base-content/10 mb-2">Esc</kbd>
+                                                <span className="text-sm text-base-content/70">Close / Exit Zen</span>
                                             </div>
-                                            <div className="p-4 bg-white/5 rounded-xl border border-white/5 flex flex-col items-center text-center">
-                                                <kbd className="kbd kbd-lg bg-zinc-800 text-zinc-100 border-white/10 mb-2">?</kbd>
-                                                <span className="text-sm text-zinc-400">Shortcuts</span>
+                                            <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5 flex flex-col items-center text-center">
+                                                <kbd className="kbd kbd-lg bg-base-300 text-base-content border-base-content/10 mb-2">?</kbd>
+                                                <span className="text-sm text-base-content/70">Shortcuts</span>
                                             </div>
                                         </div>
                                     </div>
@@ -3772,9 +3776,9 @@ export default function TasksPage() {
                                 {modalType === "STATS" && (
                                     <div className="space-y-6">
                                         {/* Daily Summary Section (Now at Top) */}
-                                        <div className="p-6 bg-white/5 rounded-2xl border border-white/5">
+                                        <div className="p-6 bg-base-content/5 rounded-2xl border border-base-content/5">
                                             <div className="flex justify-between items-center mb-4">
-                                                <h4 className="text-lg font-bold text-zinc-200">Daily Summary</h4>
+                                                <h4 className="text-lg font-bold text-base-content/80">Daily Summary</h4>
                                                 {!aiResult && (
                                                     <button
                                                         onClick={() => {
@@ -3789,7 +3793,7 @@ export default function TasksPage() {
                                                                 .catch(() => toast.error("Failed to generate summary"))
                                                                 .finally(() => setAiLoading(false));
                                                         }}
-                                                        className="text-xs px-3 py-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors flex items-center gap-1.5 font-medium"
+                                                        className="text-xs px-3 py-1.5 bg-success/10 text-success hover:bg-success/20 rounded-lg transition-colors flex items-center gap-1.5 font-medium"
                                                         disabled={aiLoading}
                                                     >
                                                         {aiLoading ?
@@ -3804,15 +3808,15 @@ export default function TasksPage() {
 
                                             {aiLoading && (
                                                 <div className="py-8 flex justify-center">
-                                                    <span className="loading loading-spinner text-emerald-500"></span>
+                                                    <span className="loading loading-spinner text-success"></span>
                                                 </div>
                                             )}
 
                                             {aiResult && (
-                                                <div className="prose prose-invert prose-sm max-w-none bg-black/20 p-4 rounded-xl border border-white/5">
+                                                <div className="prose prose-sm max-w-none bg-base-300/40 p-4 rounded-xl border border-base-content/5">
                                                     <ReactMarkdown>{aiResult}</ReactMarkdown>
                                                     <div className="flex justify-end mt-2">
-                                                        <button onClick={() => setAiResult("")} className="text-xs text-zinc-500 hover:text-zinc-300">
+                                                        <button onClick={() => setAiResult("")} className="text-xs text-base-content/50 hover:text-base-content/80">
                                                             Clear
                                                         </button>
                                                     </div>
@@ -3820,34 +3824,34 @@ export default function TasksPage() {
                                             )}
 
                                             {!aiLoading && !aiResult && (
-                                                <div className="text-sm text-zinc-500 text-center py-4 italic">
+                                                <div className="text-sm text-base-content/50 text-center py-4 italic">
                                                     Generate a summary of your achievements today.
                                                 </div>
                                             )}
                                         </div>
 
                                         <div className="grid grid-cols-3 gap-4">
-                                            <div className="p-4 bg-white/5 rounded-xl border border-white/5">
-                                                <div className="text-xs text-zinc-500 uppercase font-bold truncate">Focus Today</div>
-                                                <div className="text-2xl md:text-3xl font-extrabold text-zinc-100">
+                                            <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5">
+                                                <div className="text-xs text-base-content/50 uppercase font-bold truncate">Focus Today</div>
+                                                <div className="text-2xl md:text-3xl font-extrabold text-base-content">
                                                     {focusHistory.find((h) => h.date === new Date().toISOString().split("T")[0])?.minutes || 0}
-                                                    <span className="text-sm text-zinc-500 font-normal ml-1">min</span>
+                                                    <span className="text-sm text-base-content/50 font-normal ml-1">min</span>
                                                 </div>
                                             </div>
-                                            <div className="p-4 bg-white/5 rounded-xl border border-white/5">
-                                                <div className="text-xs text-zinc-500 uppercase font-bold truncate">Tasks Finished</div>
-                                                <div className="text-2xl md:text-3xl font-extrabold text-zinc-100">
+                                            <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5">
+                                                <div className="text-xs text-base-content/50 uppercase font-bold truncate">Tasks Finished</div>
+                                                <div className="text-2xl md:text-3xl font-extrabold text-base-content">
                                                     {focusHistory.find((h) => h.date === new Date().toISOString().split("T")[0])?.tasksCompleted || 0}
                                                 </div>
                                             </div>
-                                            <div className="p-4 bg-white/5 rounded-xl border border-white/5">
-                                                <div className="text-xs text-zinc-500 uppercase font-bold truncate">Total Sessions</div>
-                                                <div className="text-2xl md:text-3xl font-extrabold text-zinc-100">{sessionsCompleted}</div>
+                                            <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5">
+                                                <div className="text-xs text-base-content/50 uppercase font-bold truncate">Total Sessions</div>
+                                                <div className="text-2xl md:text-3xl font-extrabold text-base-content">{sessionsCompleted}</div>
                                             </div>
                                         </div>
 
-                                        <div className="p-6 bg-white/5 rounded-2xl border border-white/5">
-                                            <h4 className="text-lg font-bold text-zinc-200 mb-6">Last 7 Days</h4>
+                                        <div className="p-6 bg-base-content/5 rounded-2xl border border-base-content/5">
+                                            <h4 className="text-lg font-bold text-base-content/80 mb-6">Last 7 Days</h4>
                                             <div className="flex items-end justify-between h-48 gap-2">
                                                 {Array.from({ length: 7 }).map((_, i) => {
                                                     const d = new Date();
@@ -3862,14 +3866,14 @@ export default function TasksPage() {
                                                         <div key={i} className="flex-1 flex flex-col items-center justify-end group">
                                                             <div className="relative w-full flex items-end justify-center">
                                                                 <div
-                                                                    className="w-full bg-zinc-700/50 hover:bg-zinc-100 transition-all rounded-md"
+                                                                    className="w-full bg-base-300/50 hover:bg-primary/90 transition-all rounded-md"
                                                                     style={{ height: `${height}%` }}
                                                                 />
                                                                 <div className="absolute -top-8 px-2 py-1 bg-black text-xs text-white rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
                                                                     {minutes} min
                                                                 </div>
                                                             </div>
-                                                            <div className="text-xs text-zinc-500 mt-3 font-mono">
+                                                            <div className="text-xs text-base-content/50 mt-3 font-mono">
                                                                 {d.toLocaleDateString("en-US", { weekday: "short" })}
                                                             </div>
                                                         </div>
@@ -3879,12 +3883,12 @@ export default function TasksPage() {
                                         </div>
 
                                         {/* Heatmap Calendar */}
-                                        <div className="p-6 bg-white/5 rounded-2xl border border-white/5">
+                                        <div className="p-6 bg-base-content/5 rounded-2xl border border-base-content/5">
                                             <div className="flex justify-between items-center mb-4">
-                                                <h4 className="text-lg font-bold text-zinc-200">Activity Heatmap</h4>
+                                                <h4 className="text-lg font-bold text-base-content/80">Activity Heatmap</h4>
                                                 {currentStreak > 0 && (
-                                                    <div className="flex items-center gap-1.5 text-orange-400 text-sm font-bold">
-                                                        <Flame size={14} className="fill-orange-400" />
+                                                    <div className="flex items-center gap-1.5 text-warning text-sm font-bold">
+                                                        <Flame size={14} className="fill-warning" />
                                                         <span>{currentStreak} day streak</span>
                                                     </div>
                                                 )}
@@ -3899,19 +3903,19 @@ export default function TasksPage() {
                                                     const tasks = entry?.tasksCompleted || 0;
 
                                                     // Color intensity based on activity
-                                                    let bgColor = "bg-zinc-800/50";
+                                                    let bgColor = "bg-base-300/50";
                                                     if (minutes > 0 || tasks > 0) {
                                                         const intensity = Math.min(minutes / 60, 1); // Cap at 1 hour for max intensity
-                                                        if (intensity > 0.7) bgColor = "bg-green-500";
-                                                        else if (intensity > 0.4) bgColor = "bg-green-600";
-                                                        else if (intensity > 0.1) bgColor = "bg-green-700";
-                                                        else bgColor = "bg-green-900";
+                                                        if (intensity > 0.7) bgColor = "bg-success";
+                                                        else if (intensity > 0.4) bgColor = "bg-success/70";
+                                                        else if (intensity > 0.1) bgColor = "bg-success/45";
+                                                        else bgColor = "bg-success/20";
                                                     }
 
                                                     return (
                                                         <div
                                                             key={i}
-                                                            className={`aspect-square rounded-sm ${bgColor} hover:ring-2 hover:ring-zinc-500 transition-all cursor-default group relative`}
+                                                            className={`aspect-square rounded-sm ${bgColor} hover:ring-2 hover:ring-base-content/40 transition-all cursor-default group relative`}
                                                             title={`${d.toLocaleDateString()}: ${minutes}min, ${tasks} tasks`}
                                                         >
                                                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black text-xs text-white rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 pointer-events-none">
@@ -3922,14 +3926,14 @@ export default function TasksPage() {
                                                     );
                                                 })}
                                             </div>
-                                            <div className="flex justify-end gap-2 mt-3 text-xs text-zinc-500">
+                                            <div className="flex justify-end gap-2 mt-3 text-xs text-base-content/50">
                                                 <span>Less</span>
                                                 <div className="flex gap-1">
-                                                    <div className="w-3 h-3 rounded-sm bg-zinc-800/50" />
-                                                    <div className="w-3 h-3 rounded-sm bg-green-900" />
-                                                    <div className="w-3 h-3 rounded-sm bg-green-700" />
-                                                    <div className="w-3 h-3 rounded-sm bg-green-600" />
-                                                    <div className="w-3 h-3 rounded-sm bg-green-500" />
+                                                    <div className="w-3 h-3 rounded-sm bg-base-300/50" />
+                                                    <div className="w-3 h-3 rounded-sm bg-success/20" />
+                                                    <div className="w-3 h-3 rounded-sm bg-success/45" />
+                                                    <div className="w-3 h-3 rounded-sm bg-success/70" />
+                                                    <div className="w-3 h-3 rounded-sm bg-success" />
                                                 </div>
                                                 <span>More</span>
                                             </div>
@@ -3955,18 +3959,18 @@ export default function TasksPage() {
                                             value={modalInput}
                                             onChange={(e) => setModalInput(e.target.value)}
                                             placeholder="e.g., Work, Personal, Side Project..."
-                                            className="w-full bg-black/20 text-lg text-zinc-100 border border-white/10 rounded-xl p-4 focus:outline-none focus:border-zinc-500 transition-colors"
+                                            className="w-full bg-base-300/40 text-lg text-base-content border border-base-content/10 rounded-xl p-4 focus:outline-none focus:border-base-content/40 transition-colors"
                                             autoFocus
                                         />
                                         <div className="flex justify-end gap-3 mt-6">
                                             <button
                                                 type="button"
                                                 onClick={() => setModalOpen(false)}
-                                                className="btn btn-ghost hover:bg-white/5 text-zinc-400"
+                                                className="btn btn-ghost hover:bg-base-content/5 text-base-content/70"
                                             >
                                                 Cancel
                                             </button>
-                                            <button type="submit" className="btn bg-zinc-100 hover:bg-white text-zinc-900 border-none px-6">
+                                            <button type="submit" className="btn bg-primary hover:bg-primary/90 text-primary-content border-none px-6">
                                                 Create List
                                             </button>
                                         </div>
@@ -3990,7 +3994,7 @@ export default function TasksPage() {
                                             type="date"
                                             value={modalInput}
                                             onChange={(e) => setModalInput(e.target.value)}
-                                            className="w-full bg-black/20 text-lg text-zinc-100 border border-white/10 rounded-xl p-4 focus:outline-none focus:border-zinc-500 transition-colors"
+                                            className="w-full bg-base-300/40 text-lg text-base-content border border-base-content/10 rounded-xl p-4 focus:outline-none focus:border-base-content/40 transition-colors"
                                             autoFocus
                                         />
                                         <div className="flex justify-between gap-3 mt-6">
@@ -4006,7 +4010,7 @@ export default function TasksPage() {
                                                     setModalOpen(false);
                                                     toast.info("Due date cleared");
                                                 }}
-                                                className="btn btn-ghost hover:bg-red-500/20 text-red-400"
+                                                className="btn btn-ghost hover:bg-error/20 text-error"
                                             >
                                                 Clear Date
                                             </button>
@@ -4014,11 +4018,11 @@ export default function TasksPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setModalOpen(false)}
-                                                    className="btn btn-ghost hover:bg-white/5 text-zinc-400"
+                                                    className="btn btn-ghost hover:bg-base-content/5 text-base-content/70"
                                                 >
                                                     Cancel
                                                 </button>
-                                                <button type="submit" className="btn bg-zinc-100 hover:bg-white text-zinc-900 border-none px-6">
+                                                <button type="submit" className="btn bg-primary hover:bg-primary/90 text-primary-content border-none px-6">
                                                     Save
                                                 </button>
                                             </div>
@@ -4043,35 +4047,35 @@ export default function TasksPage() {
                                         }}
                                     >
                                         <div className="text-center mb-4">
-                                            <p className="text-sm text-zinc-500">How many pomodoros do you think this task will take?</p>
+                                            <p className="text-sm text-base-content/50">How many pomodoros do you think this task will take?</p>
                                         </div>
                                         <div className="flex items-center justify-center gap-4">
                                             <button
                                                 type="button"
                                                 onClick={() => setModalInput(String(Math.max(0, (parseInt(modalInput) || 0) - 1)))}
-                                                className="btn btn-circle btn-lg btn-ghost text-zinc-400 hover:text-zinc-100"
+                                                className="btn btn-circle btn-lg btn-ghost text-base-content/70 hover:text-base-content"
                                             >
                                                 -
                                             </button>
-                                            <div className="text-6xl font-bold text-zinc-100 w-24 text-center">{modalInput || "0"}</div>
+                                            <div className="text-6xl font-bold text-base-content w-24 text-center">{modalInput || "0"}</div>
                                             <button
                                                 type="button"
                                                 onClick={() => setModalInput(String((parseInt(modalInput) || 0) + 1))}
-                                                className="btn btn-circle btn-lg btn-ghost text-zinc-400 hover:text-zinc-100"
+                                                className="btn btn-circle btn-lg btn-ghost text-base-content/70 hover:text-base-content"
                                             >
                                                 +
                                             </button>
                                         </div>
-                                        <div className="text-center mt-2 text-sm text-zinc-500">🍅 = {pomoSettings.work} minutes</div>
+                                        <div className="text-center mt-2 text-sm text-base-content/50">🍅 = {pomoSettings.work} minutes</div>
                                         <div className="flex justify-end gap-3 mt-6">
                                             <button
                                                 type="button"
                                                 onClick={() => setModalOpen(false)}
-                                                className="btn btn-ghost hover:bg-white/5 text-zinc-400"
+                                                className="btn btn-ghost hover:bg-base-content/5 text-base-content/70"
                                             >
                                                 Cancel
                                             </button>
-                                            <button type="submit" className="btn bg-zinc-100 hover:bg-white text-zinc-900 border-none px-6">
+                                            <button type="submit" className="btn bg-primary hover:bg-primary/90 text-primary-content border-none px-6">
                                                 Save
                                             </button>
                                         </div>
@@ -4080,7 +4084,7 @@ export default function TasksPage() {
 
                                 {modalType === "MOVE_TO_LIST" && (
                                     <div className="space-y-2">
-                                        <p className="text-sm text-zinc-500 mb-4">Select a list to move this task to:</p>
+                                        <p className="text-sm text-base-content/50 mb-4">Select a list to move this task to:</p>
                                         {lists
                                             .filter((l) => l.id !== activeListId) // Don't show current list
                                             .map((list) => (
@@ -4095,9 +4099,9 @@ export default function TasksPage() {
                                                             toast.success(`Moved to "${list.name}"`);
                                                         }
                                                     }}
-                                                    className="w-full text-left px-4 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-colors text-zinc-200 font-medium flex items-center gap-3"
+                                                    className="w-full text-left px-4 py-3 bg-base-content/5 hover:bg-base-content/10 rounded-lg transition-colors text-base-content/80 font-medium flex items-center gap-3"
                                                 >
-                                                    <FolderPlus size={18} className="text-zinc-500" />
+                                                    <FolderPlus size={18} className="text-base-content/50" />
                                                     {list.name}
                                                 </button>
                                             ))}
@@ -4116,11 +4120,11 @@ export default function TasksPage() {
                         initial={{ opacity: 0, y: 20, scale: 0.9 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 20, scale: 0.9 }}
-                        className="fixed bottom-8 right-8 z-50 bg-zinc-900 rounded-2xl shadow-2xl border border-white/10 overflow-hidden"
+                        className="fixed bottom-8 right-8 z-50 bg-base-200 rounded-2xl shadow-2xl border border-base-content/10 overflow-hidden"
                     >
-                        <div className="flex items-center justify-between px-4 py-2 bg-black/30">
-                            <span className="text-sm font-bold text-zinc-300">{streamType === "youtube" ? "YouTube" : "Twitch"}</span>
-                            <button onClick={() => setShowYouTubePlayer(false)} className="text-zinc-500 hover:text-white">
+                        <div className="flex items-center justify-between px-4 py-2 bg-base-300/50">
+                            <span className="text-sm font-bold text-base-content/80">{streamType === "youtube" ? "YouTube" : "Twitch"}</span>
+                            <button onClick={() => setShowYouTubePlayer(false)} className="text-base-content/50 hover:text-base-content">
                                 <X size={16} />
                             </button>
                         </div>

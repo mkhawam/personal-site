@@ -1,44 +1,93 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 @plugin "daisyui" {
+    themes: false;
 }
 
-/* Override DaisyUI themes with a single professional dark theme */
+/* Bind Tailwind's font utilities to the Geist faces layout.tsx already loads.
+   Without this the site downloads Geist and then renders the fallback stack. */
+@theme {
+    --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/*
+ * Elevation contract (holds in BOTH themes):
+ *   base-100 = page background
+ *   base-200 = raised surface (cards, panels, inputs)
+ *   base-300 = highest elevation / hover / inset wells
+ * Note this inverts stock DaisyUI's dark convention on purpose, so a single
+ * rule works for light and dark alike.
+ */
+
 @plugin "daisyui/theme" {
-    name: "executive";
+    name: "midnight";
     default: true;
     prefersdark: true;
     color-scheme: "dark";
-    
-    /* Backgrounds: Zinc-950/900 */
-    --color-base-100: oklch(20.84% 0.008 17.911); /* Zinc 900ish */ /* Actually let's use hex for precision in tailwind config mostly, but here we map to variables */
-    /* Using OKLCH approximation of Zinc 950 (#09090b) */
-    --color-base-100: oklch(14.5% 0.005 264); 
-    --color-base-200: oklch(12% 0.005 264);
-    --color-base-300: oklch(10% 0.005 264);
-    
-    /* Text: Zinc-100 */
-    --color-base-content: oklch(98% 0 0);
-    
-    /* Primary: Clean White/Grey instead of Purple */
-    --color-primary: oklch(98% 0 0);
-    --color-primary-content: oklch(10% 0 0);
-    
-    /* Secondary/Accent: Subtle Zinc Grey instead of Green */
-    --color-secondary: oklch(45% 0 0);
-    --color-secondary-content: oklch(98% 0 0);
-    
-    --color-accent: oklch(98% 0 0);
-    --color-accent-content: oklch(10% 0 0);
-    
-    --color-neutral: oklch(20% 0.005 264);
-    --color-neutral-content: oklch(98% 0 0);
-    
-    --color-info: oklch(72.06% 0.191 231.6);
-    --color-success: oklch(64.8% 0.15 160);
-    --color-warning: oklch(84.71% 0.199 83.87);
-    --color-error: oklch(71.76% 0.221 22.18);
-    
+
+    --color-base-100: #0b1120; /* page */
+    --color-base-200: #131c2e; /* card */
+    --color-base-300: #1c2740; /* hover / inset */
+    --color-base-content: #e8eefc;
+
+    --color-primary: #38bdf8;
+    --color-primary-content: #08131f;
+
+    --color-secondary: #8b5cf6;
+    --color-secondary-content: #ffffff;
+
+    --color-accent: #38bdf8;
+    --color-accent-content: #08131f;
+
+    --color-neutral: #1c2740;
+    --color-neutral-content: #e8eefc;
+
+    --color-info: #38bdf8;
+    --color-info-content: #08131f;
+    --color-success: #22c55e;
+    --color-success-content: #04140a;
+    --color-warning: #f59e0b;
+    --color-warning-content: #1a1002;
+    --color-error: #f87171;
+    --color-error-content: #1f0707;
+
+    --radius-selector: 0.5rem;
+    --radius-field: 0.25rem;
+    --radius-box: 0.25rem;
+    --border: 1px;
+}
+
+@plugin "daisyui/theme" {
+    name: "daylight";
+    color-scheme: "light";
+
+    --color-base-100: #f8fafc; /* page */
+    --color-base-200: #ffffff; /* card */
+    --color-base-300: #e9eef5; /* hover / inset */
+    --color-base-content: #0f172a;
+
+    --color-primary: #0284c7;
+    --color-primary-content: #ffffff;
+
+    --color-secondary: #7c3aed;
+    --color-secondary-content: #ffffff;
+
+    --color-accent: #0284c7;
+    --color-accent-content: #ffffff;
+
+    --color-neutral: #e9eef5;
+    --color-neutral-content: #0f172a;
+
+    --color-info: #0284c7;
+    --color-info-content: #ffffff;
+    --color-success: #15803d;
+    --color-success-content: #ffffff;
+    --color-warning: #b45309;
+    --color-warning-content: #ffffff;
+    --color-error: #dc2626;
+    --color-error-content: #ffffff;
+
     --radius-selector: 0.5rem;
     --radius-field: 0.25rem;
     --radius-box: 0.25rem;
@@ -46,24 +95,64 @@
 }
 
 :root {
-    /* Hardcoded Zinc Palette for Consistency */
-    --background: #09090b; /* Zinc 950 */
-    --foreground: #f4f4f5; /* Zinc 100 */
+    /* Driven by the active DaisyUI theme, not hardcoded. */
+    --background: var(--color-base-100);
+    --foreground: var(--color-base-content);
 }
 
 body {
     background: var(--background);
     color: var(--foreground);
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: var(--font-sans);
 }
 
-/* Force Prose Link Color */
+/* CSS-driven entrance so content is visible in its final state even if JS never
+   runs. framer-motion's `initial` writes inline opacity:0, which hides
+   server-rendered copy when scripts are blocked or slow. */
+@keyframes rise {
+    from { opacity: 0; transform: translateY(0.75rem); }
+    to   { opacity: 1; transform: none; }
+}
+.animate-rise {
+    animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+    .animate-rise { animation: none; }
+}
+
+/* The theme toggle shows both glyphs and lets the active theme pick one, so the
+   correct icon is painted server-side with no post-hydration swap. */
+html[data-theme="midnight"] .theme-icon-light,
+html[data-theme="daylight"] .theme-icon-dark {
+    display: none;
+}
+
+/* Drive prose from theme tokens so `prose` works in both themes without
+   needing `prose-invert`. */
+.prose {
+    --tw-prose-body: var(--color-base-content);
+    --tw-prose-headings: var(--color-base-content);
+    --tw-prose-lead: var(--color-base-content);
+    --tw-prose-links: var(--color-primary);
+    --tw-prose-bold: var(--color-base-content);
+    --tw-prose-counters: var(--color-base-content);
+    --tw-prose-bullets: var(--color-base-content);
+    --tw-prose-hr: var(--color-base-300);
+    --tw-prose-quotes: var(--color-base-content);
+    --tw-prose-quote-borders: var(--color-base-300);
+    --tw-prose-captions: var(--color-base-content);
+    --tw-prose-code: var(--color-base-content);
+    --tw-prose-pre-code: var(--color-base-content);
+    --tw-prose-pre-bg: var(--color-base-200);
+    --tw-prose-th-borders: var(--color-base-300);
+    --tw-prose-td-borders: var(--color-base-300);
+}
 .prose a {
-    color: #3b82f6 !important; /* Blue-500 */
+    color: var(--color-primary) !important;
     text-decoration: underline;
 }
 .prose h1, .prose h2, .prose h3 {
-    color: #f4f4f5 !important;
+    color: var(--color-base-content) !important;
     font-weight: 700;
 }
 .prose ul {

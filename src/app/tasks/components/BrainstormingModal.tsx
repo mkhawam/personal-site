@@ -110,12 +110,12 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
     return (
         <div className="flex flex-col h-full overflow-hidden -mx-6 -mb-6 md:flex-row">
             {/* Mobile Tabs */}
-            <div className="flex md:hidden border-b border-white/5 bg-black/20">
+            <div className="flex md:hidden border-b border-base-content/5 bg-base-300/40">
                 <button
                     onClick={() => setActiveBrainstormTab("chat")}
                     className={clsx(
                         "flex-1 py-3 text-sm font-medium border-b-2 transition-colors",
-                        activeBrainstormTab === "chat" ? "border-emerald-500 text-emerald-400 bg-emerald-500/5" : "border-transparent text-zinc-500",
+                        activeBrainstormTab === "chat" ? "border-success text-success bg-success/5" : "border-transparent text-base-content/50",
                     )}
                 >
                     Chat
@@ -124,7 +124,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                     onClick={() => setActiveBrainstormTab("plan")}
                     className={clsx(
                         "flex-1 py-3 text-sm font-medium border-b-2 transition-colors",
-                        activeBrainstormTab === "plan" ? "border-emerald-500 text-emerald-400 bg-emerald-500/5" : "border-transparent text-zinc-500",
+                        activeBrainstormTab === "plan" ? "border-success text-success bg-success/5" : "border-transparent text-base-content/50",
                     )}
                 >
                     Tasks & Plan
@@ -134,7 +134,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
             {/* Left Column: Chat */}
             <div
                 className={clsx(
-                    "flex-1 flex flex-col border-r border-white/5 bg-black/5 p-6 min-w-0 h-full",
+                    "flex-1 flex flex-col border-r border-base-content/5 bg-base-300/20 p-6 min-w-0 h-full",
                     activeBrainstormTab === "chat" ? "flex" : "hidden md:flex",
                 )}
             >
@@ -142,7 +142,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                     <div className="flex-1" /> {/* Spacer to push messages down */}
                     <div className="flex flex-col space-y-4 pb-2">
                         {chatMessages.length === 0 && (
-                            <div className="flex-1 flex items-center justify-center text-zinc-500/50">
+                            <div className="flex-1 flex items-center justify-center text-base-content/30">
                                 <p className="text-sm">Start brainstorming...</p>
                             </div>
                         )}
@@ -158,8 +158,8 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                     className={clsx(
                                         "p-4 rounded-2xl text-base leading-relaxed break-words prose prose-sm max-w-none",
                                         msg.role === "user" ?
-                                            "bg-zinc-200 text-zinc-900 rounded-br-sm prose-p:text-zinc-900"
-                                        :   "bg-white/5 border border-white/5 text-zinc-300 rounded-bl-sm prose-invert",
+                                            "bg-primary/80 text-primary-content rounded-br-sm prose-p:text-primary-content"
+                                        :   "bg-base-content/5 border border-base-content/5 text-base-content/80 rounded-bl-sm",
                                     )}
                                 >
                                     <ReactMarkdown
@@ -170,7 +170,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                                         <div className="relative group/code my-2 max-w-full">
                                                             <code
                                                                 className={clsx(
-                                                                    "block bg-black/30 p-3 rounded-lg text-sm font-mono overflow-x-auto whitespace-pre-wrap md:whitespace-pre",
+                                                                    "block bg-base-300/50 p-3 rounded-lg text-sm font-mono overflow-x-auto whitespace-pre-wrap md:whitespace-pre",
                                                                     className,
                                                                 )}
                                                                 {...props}
@@ -178,16 +178,16 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                                                 {children}
                                                             </code>
                                                         </div>
-                                                    :   <code className="bg-black/30 px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
+                                                    :   <code className="bg-base-300/50 px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
                                                             {children}
                                                         </code>;
                                             },
                                             ul: ({ children }) => <ul className="list-disc pl-4 my-2 space-y-1">{children}</ul>,
                                             ol: ({ children }) => <ol className="list-decimal pl-4 my-2 space-y-1">{children}</ol>,
-                                            li: ({ children }) => <li className="marker:text-zinc-500">{children}</li>,
+                                            li: ({ children }) => <li className="marker:text-base-content/50">{children}</li>,
                                             p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
                                             a: ({ href, children }) => (
-                                                <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                                                <a href={href} target="_blank" rel="noopener noreferrer" className="text-info hover:underline">
                                                     {children}
                                                 </a>
                                             ),
@@ -199,10 +199,10 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                             </div>
                         ))}
                         {isChatTyping && (
-                            <div className="self-start flex items-center gap-2 p-3 bg-white/5 rounded-2xl rounded-bl-sm w-16">
-                                <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" />
+                            <div className="self-start flex items-center gap-2 p-3 bg-base-content/5 rounded-2xl rounded-bl-sm w-16">
+                                <div className="w-2 h-2 bg-base-content/50 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                <div className="w-2 h-2 bg-base-content/50 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                <div className="w-2 h-2 bg-base-content/50 rounded-full animate-bounce" />
                             </div>
                         )}
                         <div ref={messagesEndRef} />
@@ -211,25 +211,25 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
 
                 <form
                     onSubmit={handleSubmit}
-                    className="mt-4 flex flex-col gap-2 bg-zinc-800/50 border border-white/10 rounded-3xl p-2 focus-within:border-zinc-500/50 focus-within:bg-zinc-800 transition-all shadow-inner relative"
+                    className="mt-4 flex flex-col gap-2 bg-base-300/50 border border-base-content/10 rounded-3xl p-2 focus-within:border-base-content/30 focus-within:bg-base-300 transition-all shadow-inner relative"
                 >
                     {/* Context Pills */}
                     {(contextFile || contextUrl) && (
                         <div className="flex gap-2 px-3 pt-2">
                             {contextFile && (
-                                <div className="flex items-center gap-1 text-xs bg-white/10 text-zinc-200 px-2 py-1 rounded-full">
+                                <div className="flex items-center gap-1 text-xs bg-base-content/10 text-base-content/80 px-2 py-1 rounded-full">
                                     <FileText size={12} />
                                     <span className="max-w-[150px] truncate">{contextFile.name}</span>
-                                    <button type="button" onClick={() => setContextFile(null)} className="hover:text-red-400 ml-1">
+                                    <button type="button" onClick={() => setContextFile(null)} className="hover:text-error ml-1">
                                         <X size={12} />
                                     </button>
                                 </div>
                             )}
                             {contextUrl && (
-                                <div className="flex items-center gap-1 text-xs bg-blue-500/10 text-blue-300 px-2 py-1 rounded-full border border-blue-500/20">
+                                <div className="flex items-center gap-1 text-xs bg-info/10 text-info/80 px-2 py-1 rounded-full border border-info/20">
                                     <Globe size={12} />
                                     <span className="max-w-[150px] truncate">{contextUrl}</span>
-                                    <button type="button" onClick={() => setContextUrl("")} className="hover:text-red-400 ml-1">
+                                    <button type="button" onClick={() => setContextUrl("")} className="hover:text-error ml-1">
                                         <X size={12} />
                                     </button>
                                 </div>
@@ -240,13 +240,13 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                     {/* URL Input Bar */}
                     {showUrlInput && (
                         <div className="px-3 flex gap-2 items-center animate-in slide-in-from-bottom-2 fade-in">
-                            <Globe size={14} className="text-zinc-500" />
+                            <Globe size={14} className="text-base-content/50" />
                             <input
                                 type="url"
                                 value={contextUrl}
                                 onChange={(e) => setContextUrl(e.target.value)}
                                 placeholder="Paste URL (e.g. github repo, documentation)..."
-                                className="flex-1 bg-transparent text-sm text-zinc-200 focus:outline-none placeholder:text-zinc-600"
+                                className="flex-1 bg-transparent text-sm text-base-content/80 focus:outline-none placeholder:text-base-content/50"
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter") {
                                         e.preventDefault();
@@ -255,7 +255,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                 }}
                                 autoFocus
                             />
-                            <button type="button" onClick={() => setShowUrlInput(false)} className="text-zinc-500 hover:text-zinc-300">
+                            <button type="button" onClick={() => setShowUrlInput(false)} className="text-base-content/50 hover:text-base-content/80">
                                 <Check size={14} />
                             </button>
                         </div>
@@ -265,7 +265,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                         {/* Attachment Buttons */}
                         <div className="flex pb-2 pl-2 gap-1">
                             <label
-                                className="p-2 hover:bg-white/10 rounded-full text-zinc-500 hover:text-zinc-300 cursor-pointer transition-colors"
+                                className="p-2 hover:bg-base-content/10 rounded-full text-base-content/50 hover:text-base-content/80 cursor-pointer transition-colors"
                                 title="Attach File"
                             >
                                 <Paperclip size={18} />
@@ -294,8 +294,8 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                 onClick={() => setShowUrlInput(!showUrlInput)}
                                 className={clsx(
                                     "p-2 rounded-full transition-colors",
-                                    showUrlInput || contextUrl ? "text-blue-400 bg-blue-500/10" : (
-                                        "text-zinc-500 hover:text-zinc-300 hover:bg-white/10"
+                                    showUrlInput || contextUrl ? "text-info bg-info/10" : (
+                                        "text-base-content/50 hover:text-base-content/80 hover:bg-base-content/10"
                                     ),
                                 )}
                                 title="Add URL Context"
@@ -321,7 +321,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                 }
                             }}
                             placeholder={contextFile || contextUrl ? "Ask about this context..." : "Message AI Assistant..."}
-                            className="flex-1 bg-transparent text-base text-zinc-200 px-3 py-3 focus:outline-none placeholder:text-zinc-600 resize-none custom-scrollbar"
+                            className="flex-1 bg-transparent text-base text-base-content/80 px-3 py-3 focus:outline-none placeholder:text-base-content/50 resize-none custom-scrollbar"
                             rows={1}
                             style={{ minHeight: "48px", maxHeight: "150px" }}
                             autoFocus
@@ -332,8 +332,8 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                             className={clsx(
                                 "btn btn-circle btn-sm border-none transition-all mb-2 mr-2",
                                 (!modalInput.trim() && !contextFile) || isChatTyping ?
-                                    "bg-zinc-700 text-zinc-500"
-                                :   "bg-zinc-100 text-zinc-900 hover:bg-white hover:scale-105",
+                                    "bg-base-300 text-base-content/50"
+                                :   "bg-primary text-primary-content hover:bg-primary/90 hover:scale-105",
                             )}
                         >
                             <ArrowUpCircle size={20} />
@@ -345,7 +345,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
             {/* Right Column: Latest Tasks & Actions */}
             <div
                 className={clsx(
-                    "w-full md:w-[340px] md:shrink-0 flex flex-col bg-black/20 border-l border-white/5",
+                    "w-full md:w-[340px] md:shrink-0 flex flex-col bg-base-300/40 border-l border-base-content/5",
                     activeBrainstormTab === "plan" ? "flex" : "hidden md:flex",
                 )}
             >
@@ -357,7 +357,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
 
                     if (!latestMsgWithTasks || !latestMsgWithTasks.tasks) {
                         return (
-                            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-zinc-500">
+                            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-base-content/50">
                                 <Sparkles size={32} className="mb-4 opacity-20" />
                                 <p className="text-sm">Describe your goal, and I'll build a plan here.</p>
                             </div>
@@ -366,9 +366,9 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
 
                     return (
                         <>
-                            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
-                                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                            <div className="p-4 border-b border-base-content/5 flex justify-between items-center bg-base-content/5">
+                                <span className="text-xs font-bold text-base-content/70 uppercase tracking-wider flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
                                     Current Plan
                                 </span>
                                 <button
@@ -379,7 +379,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                         onClose(); // Optional: close modal? Or keep open. The original didn't close explicitly, just let user close?
                                         // Original code: setModalOpen(false) in the handler. Yes it closed.
                                     }}
-                                    className="text-xs bg-zinc-100 text-zinc-900 hover:bg-white px-3 py-1.5 rounded-lg transition-colors font-bold shadow-lg shadow-zinc-900/10"
+                                    className="text-xs bg-primary text-primary-content hover:bg-primary/90 px-3 py-1.5 rounded-lg transition-colors font-bold shadow-lg shadow-base-content/10"
                                 >
                                     Add Selected
                                 </button>
@@ -403,8 +403,8 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                         className={clsx(
                                             "p-3 rounded-xl border flex flex-col items-start gap-2 cursor-pointer transition-all group",
                                             task.selected ?
-                                                "bg-emerald-500/5 border-emerald-500/20"
-                                            :   "bg-transparent border-white/5 hover:bg-white/5",
+                                                "bg-success/5 border-success/20"
+                                            :   "bg-transparent border-base-content/5 hover:bg-base-content/5",
                                         )}
                                     >
                                         <div className="flex items-start gap-3 w-full">
@@ -412,8 +412,8 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                                 className={clsx(
                                                     "w-5 h-5 rounded-md border flex items-center justify-center mt-0.5 transition-all duration-200 shrink-0",
                                                     task.selected ?
-                                                        "bg-emerald-500 border-emerald-500 text-white shadow-sm"
-                                                    :   "border-zinc-700 bg-black/20 group-hover:border-zinc-500",
+                                                        "bg-success border-success text-white shadow-sm"
+                                                    :   "border-base-content/25 bg-base-300/40 group-hover:border-base-content/40",
                                                 )}
                                             >
                                                 {task.selected && <Check size={12} strokeWidth={3} />}
@@ -421,7 +421,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                             <span
                                                 className={clsx(
                                                     "text-sm leading-relaxed transition-colors",
-                                                    task.selected ? "text-zinc-200" : "text-zinc-500",
+                                                    task.selected ? "text-base-content/80" : "text-base-content/50",
                                                 )}
                                             >
                                                 {task.text}
@@ -432,8 +432,8 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                         {task.subtasks && task.subtasks.length > 0 && (
                                             <div className="pl-8 w-full space-y-1">
                                                 {(task.subtasks || []).map((sub: any, i: number) => (
-                                                    <div key={i} className="flex items-center gap-2 text-xs text-zinc-500">
-                                                        <div className="w-1 h-1 rounded-full bg-zinc-700" />
+                                                    <div key={i} className="flex items-center gap-2 text-xs text-base-content/50">
+                                                        <div className="w-1 h-1 rounded-full bg-base-300" />
                                                         <span>{sub}</span>
                                                     </div>
                                                 ))}

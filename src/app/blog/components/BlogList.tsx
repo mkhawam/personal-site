@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+import Link from "next/link";
 
 type Post = {
     slug: string;
@@ -35,17 +36,17 @@ export default function BlogList({ posts }: { posts: Post[] }) {
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-12"
             >
-                <h1 className="text-4xl md:text-6xl font-extrabold text-zinc-100 tracking-tight">
+                <h1 className="text-4xl md:text-6xl font-extrabold text-base-content tracking-tight">
                     Blog
                 </h1>
-                <h2 className="text-xl mt-4 text-zinc-500">Thoughts, guides, and rants.</h2>
+                <h2 className="text-xl mt-4 text-base-content/50">Thoughts, guides, and rants.</h2>
             </motion.div>
 
             <motion.div 
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-20 opacity-0"
+                className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-20"
             >
                 {posts.map((post) => (
                     <motion.div
@@ -53,7 +54,7 @@ export default function BlogList({ posts }: { posts: Post[] }) {
                         variants={item}
                         whileHover={{ y: -5, transition: { duration: 0.2 } }}
                         viewport={{ once: true }}
-                        className="group overflow-hidden rounded-3xl bg-zinc-900/50 border border-white/5 shadow-lg hover:shadow-2xl hover:border-white/20 flex flex-col md:flex-row h-full min-h-[250px]"
+                        className="group overflow-hidden rounded-3xl bg-base-200/50 border border-base-content/5 shadow-lg hover:shadow-2xl hover:border-base-content/20 flex flex-col md:flex-row h-full min-h-[250px]"
                     >
                         <div className="md:w-2/5 relative overflow-hidden bg-black/50">
                              {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -67,33 +68,34 @@ export default function BlogList({ posts }: { posts: Post[] }) {
 
                         <div className="p-6 md:w-3/5 flex flex-col">
                             <div className="mb-4">
-                                <h2 className="card-title text-2xl font-bold mb-2 text-zinc-100 group-hover:text-white transition-colors">
+                                <h2 className="card-title text-2xl font-bold mb-2 text-base-content group-hover:text-primary transition-colors">
                                     {post.title}
                                 </h2>
-                                <p className="text-xs font-mono text-zinc-500 uppercase tracking-widest">
+                                <p className="text-xs font-mono text-base-content/50 uppercase tracking-widest">
                                     {format(new Date(post.date), "MMMM dd, yyyy")} • {post.author}
                                 </p>
                             </div>
                             
-                            <p className="text-zinc-400 line-clamp-3 mb-4 flex-1">
+                            <p className="text-base-content/70 line-clamp-3 mb-4 flex-1">
                                 {post.description}
                             </p>
 
                             <div className="flex flex-wrap gap-2 mb-4">
                                 {post.tags.slice(0, 3).map((tag, index) => (
-                                    <span key={index} className="px-2 py-0.5 rounded text-xs bg-black/40 border border-white/5 text-zinc-500">
+                                    <span key={index} className="px-2 py-0.5 rounded text-xs bg-base-300/60 border border-base-content/5 text-base-content/50">
                                         {tag}
                                     </span>
                                 ))}
                             </div>
 
                             <div className="card-actions justify-end mt-auto">
-                                <a
+                                <Link
                                     href={`/blog/post/${post.slug}`}
-                                    className="text-sm font-bold text-accent hover:text-white transition-colors flex items-center gap-1"
+                                    className="text-sm font-bold text-accent hover:text-accent/70 transition-colors flex items-center gap-1"
+                                    aria-label={`Read ${post.title}`}
                                 >
                                     Read Article →
-                                </a>
+                                </Link>
                             </div>
                         </div>
                     </motion.div>

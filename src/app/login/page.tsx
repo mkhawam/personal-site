@@ -1,14 +1,16 @@
-'use client';
-
-import { Github } from 'lucide-react'; // Using Github icon as placeholder or generic Disc icon if available, but let's just use text or install react-icons/fa FaDiscord
 import { FaDiscord } from 'react-icons/fa';
+
+export const metadata = {
+  title: "Sign in",
+  robots: { index: false, follow: false },
+};
 
 export default function LoginPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[50vh] gap-8">
       <div className="text-center space-y-2">
         <h1 className="text-4xl font-bold tracking-tight">Welcome Back</h1>
-        <p className="text-zinc-500">Sign in to access your workflow</p>
+        <p className="text-base-content/50">Sign in to access your workflow</p>
       </div>
 
       <a
@@ -19,7 +21,7 @@ export default function LoginPage() {
         Login with Discord
       </a>
       
-      <p className="text-xs text-zinc-600 max-w-xs text-center">
+      <p className="text-xs text-base-content/50 max-w-xs text-center">
         Authentication restricted to authorized users only.
       </p>
     </div>

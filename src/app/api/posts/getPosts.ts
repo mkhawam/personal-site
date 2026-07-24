@@ -5,7 +5,8 @@ import { PostResponse } from "../../../types/blog";
 
 const postsDir = path.join(process.cwd(), "posts");
 
-export function getPosts() {
+/** Every post, newest first. Used by the sitemap, which must not be truncated. */
+export function getAllPosts(): PostResponse[] {
     const files = fs.readdirSync(postsDir);
     const posts: PostResponse[] = files.map((file) => {
         const content = fs.readFileSync(path.join(postsDir, file), "utf-8");
@@ -24,11 +25,10 @@ export function getPosts() {
         };
     });
 
-    // get initial posts
-    const initialPosts = posts
-        .sort((a, b) => {
-            return new Date(b.date).getTime() - new Date(a.date).getTime();
-        })
-        .slice(0, 10);
-    return initialPosts;
+    return posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+/** The first page of posts, for the blog index. */
+export function getPosts(): PostResponse[] {
+    return getAllPosts().slice(0, 10);
 }

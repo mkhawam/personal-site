@@ -35,6 +35,48 @@ export class Bash {
         return `${this.user.name}@${this.hostname}:${this.fs.pwd()}$ `;
     }
 
+    /**
+     * Built from the actual switch cases below plus the AccessoryBins registry,
+     * so `help` can't drift from what the shell really implements.
+     */
+    static readonly BUILTINS = [
+        "ls", "cd", "pwd", "mkdir", "rmdir", "rm", "touch", "cat", "echo",
+        "clear", "help", "uname", "whoami", "groups", "hostname", "history",
+        "id", "yes", "true", "false", "neofetch", "projects", "blog", "open",
+    ];
+
+    static neofetch(hostname: string): string {
+        return [
+            "        _    _                              ",
+            "  _ __ | | _| |__   __ ___      ____ _ _ __ ",
+            " | '  \\| |/ / '_ \\ / _` \\ \\ /\\ / / _` | '  \\",
+            " |_|_|_|_|\\_\\_.__/ \\__,_|\\_/\\_/ \\__,_|_|_|_|",
+            "",
+            `  root@${hostname}`,
+            "  -----------------------------------------",
+            "  Role   : Application Developer @ Rutgers",
+            "  Stack  : TypeScript · Python · Django · Next.js · Ansible",
+            "  Focus  : Platforms · Infra automation · Security",
+            "  Shell  : bash 5.0 (simulated)",
+            "  Links  : github.com/mkhawam · linkedin.com/in/mohamad-k",
+            "",
+            "  Try: projects · blog · cat resume.md · open github",
+        ].join("\n");
+    }
+
+    static commandNames(): string[] {
+        return [...Bash.BUILTINS, ...Object.keys(commands)];
+    }
+
+    getHistory(): string[] {
+        return this.history;
+    }
+
+    static help(): string {
+        const all = [...Bash.BUILTINS, ...Object.keys(commands)].sort();
+        return `Available commands: ${all.join(", ")}\n\nLooking for the CV? Try: cat resume.md`;
+    }
+
     async executeCommand(command: string): Promise<string | void | null> {
         // Simulate command execution
         this.history.push(command);
@@ -75,7 +117,7 @@ export class Bash {
             case "clear":
                 return null; // Clear the terminal output\
             case "help":
-                return `Available commands: ls, cd, pwd, mkdir, rmdir, rm, touch, cat, echo, clear, help , exit , uname, whoami, groups, hostname, yes, true, false`;
+                return Bash.help();
             case "yes":
                 return `y`;
             case "true":
@@ -94,6 +136,49 @@ export class Bash {
                 return this.history.join("\n");
             case "id":
                 return `uid=${this.user.id}(${this.user.name}) gid=${this.group.id}(${this.group.name})`;
+            case "neofetch":
+                return Bash.neofetch(this.hostname);
+            case "projects":
+                return [
+                    "Selected work — full detail at /projects (try: open projects)",
+                    "",
+                    "  codePost              grading platform · Django · React · Celery",
+                    "  Accessibility Scanner Flask · Next.js · Playwright · Axe",
+                    "  next-cas-client       published npm package · CAS SSO for Next.js",
+                    "  Jackal                Suricata network behaviour analysis",
+                    "  CompLock              SSH C2 for CCDC blue teams",
+                ].join("\n");
+            case "blog":
+                return [
+                    "Posts — read them at /blog (try: open blog)",
+                    "",
+                    "  OpenSSH Backdoor using Compression Library",
+                    "  Leaky Endpoints in Jersey CTF 2025",
+                    "  The Imposter Among Us",
+                    "  Limited Worldview",
+                    "  Code To Understand",
+                ].join("\n");
+            case "open": {
+                const targets: { [key: string]: string } = {
+                    github: "https://github.com/mkhawam",
+                    linkedin: "https://linkedin.com/in/mohamad-k",
+                    site: "https://mohamadk.com",
+                    projects: "/projects",
+                    playground: "/playground",
+                    blog: "/blog",
+                    resume: "/scripts/resume.pdf",
+                };
+                const key = (args[0] || "").toLowerCase();
+                const dest = targets[key] || (/^https?:\/\//.test(args[0] || "") ? args[0] : null);
+                if (!dest) {
+                    return `open: unknown target '${args[0] || ""}'. Try: ${Object.keys(targets).join(", ")}`;
+                }
+                if (typeof window !== "undefined") {
+                    if (dest.startsWith("/")) window.location.href = dest;
+                    else window.open(dest, "_blank", "noopener,noreferrer");
+                }
+                return `opening ${dest} ...`;
+            }
 
             default:
                 // Check if the command is a valid executable in the file system

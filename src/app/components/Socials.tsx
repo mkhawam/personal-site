@@ -36,7 +36,7 @@ export default function Socials() {
                     href={social.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`text-zinc-400 hover:text-zinc-100 transition-colors flex items-center`}
+                    className={`text-base-content/70 hover:text-base-content transition-colors flex items-center`}
                 >
                     {social.icon}
                     {/* <span className="hidden sm:inline">{social.name}</span> */}

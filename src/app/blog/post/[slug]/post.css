@@ -1,21 +1,22 @@
 /* post.css */
 /* Light theme */
-html[data-theme="cupcake"],
-html[data-theme="cupcake"] {
+html[data-theme="daylight"],
+html[data-theme="daylight"] {
     /* Paste contents of prism-light.css here */
     @import "prismjs/themes/prism.css"; /* or any other theme */
     /* @import url("https://unpkg.com/prismjs@1.30.0/themes/prism.css"); */
 }
 
 /* Dark theme */
-html[data-theme="forest"],
-html[data-theme="forest"] {
+html[data-theme="midnight"],
+html[data-theme="midnight"] {
     /* Paste contents of prism-dark.css here */
     /* @import url("https://unpkg.com/prismjs@1.30.0/themes/prism-twilight.css"); */
     @import "prismjs/themes/prism-twilight.css";
 }
 .blog pre {
-    background-color: var(--color-base-100);
+    /* base-200 = raised surface, so code blocks read against the page (base-100) */
+    background-color: var(--color-base-200);
     padding: 1em;
 }
 .blog p:has(strong) {

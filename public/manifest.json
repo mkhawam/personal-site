@@ -4,8 +4,8 @@
   "description": "A minimalist productivity app with Pomodoro timer, task management, and focus music",
   "start_url": "/tasks",
   "display": "standalone",
-  "background_color": "#09090b",
-  "theme_color": "#09090b",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
   "icons": [
     {
       "src": "/img/icon-192.png",
