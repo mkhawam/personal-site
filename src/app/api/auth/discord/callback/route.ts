@@ -1,17 +1,26 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
-import { signToken } from '@/lib/auth';
+import { AUTH_COOKIE_OPTIONS, safeReturnTo, signToken } from '@/lib/auth';
 import { sendErrorToDiscord } from '@/lib/discord';
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-const REDIRECT_URI = `${BASE_URL}/api/auth/discord/callback`;
 const ALLOWED_EMAILS = (process.env.ALLOWED_DISCORD_EMAILS || '').split(',').map(e => e.trim());
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
+export async function GET(request: NextRequest) {
+  const { searchParams } = request.nextUrl;
   const code = searchParams.get('code');
+
+  // Must match the login route's derivation byte-for-byte (token exchange
+  // validates redirect_uri) and fixes dev on https://localhost:3001.
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.nextUrl.origin;
+  const redirectUri = `${baseUrl}/api/auth/discord/callback`;
+
+  // Discord error bounce (user denied consent, etc.) → /login dead-end, never
+  // back to /tasks (which would loop through the proxy's auth redirect).
+  if (searchParams.get('error')) {
+    return NextResponse.redirect(new URL('/login?error=oauth', baseUrl));
+  }
 
   if (!code) {
     return NextResponse.json({ error: 'No code provided' }, { status: 400 });
@@ -27,7 +36,7 @@ export async function GET(request: Request) {
         client_secret: DISCORD_CLIENT_SECRET!,
         grant_type: 'authorization_code',
         code,
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: redirectUri,
       }),
     });
 
@@ -36,19 +45,19 @@ export async function GET(request: Request) {
     if (tokenData.error) {
       console.error('Discord Token Error:', tokenData);
       await sendErrorToDiscord(new Error(`Discord Token Error: ${JSON.stringify(tokenData)}`), "Auth Callback (Token Exchange)");
-      return NextResponse.json({ error: tokenData.error_description || 'Failed to extract token' }, { status: 400 });
+      return NextResponse.redirect(new URL('/login?error=oauth', baseUrl));
     }
 
     // 2. Fetch user profile
     const userResponse = await fetch('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
-    
+
     const userData = await userResponse.json();
-    
+
     // 3. Check whitelist (if Configured)
     if (ALLOWED_EMAILS.length > 0 && !ALLOWED_EMAILS.includes(userData.email)) {
-      return NextResponse.json({ error: 'User not authorized' }, { status: 403 });
+      return NextResponse.redirect(new URL('/login?error=unauthorized', baseUrl));
     }
 
     // 4. Create Session
@@ -56,21 +65,16 @@ export async function GET(request: Request) {
       id: userData.id,
       username: userData.username,
       email: userData.email,
-      avatar: userData.avatar 
-        ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png` 
+      avatar: userData.avatar
+        ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
         : null
     });
 
     const cookieStore = await cookies();
-    cookieStore.set('auth_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-      path: '/',
-    });
+    cookieStore.set('auth_token', token, AUTH_COOKIE_OPTIONS);
 
-    return NextResponse.redirect(`${BASE_URL}/tasks`);
+    // state carries returnTo; re-validate server-side, never trust the round-trip.
+    return NextResponse.redirect(new URL(safeReturnTo(searchParams.get('state')), baseUrl));
 
   } catch (err) {
     console.error('Auth Error:', err);

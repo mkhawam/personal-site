@@ -9,12 +9,16 @@ Usage:
     python tailor.py --job posting.txt                  # text file, '-' for stdin, or literal text
     python tailor.py --url https://example.com/job      # fetch the posting with claude (WebFetch)
     python tailor.py --search "Acme security engineer"  # find the posting with claude (WebSearch)
+    python tailor.py --general --pdf                    # regenerate the canonical resume.md/pdf
+                                                        # from the master (no model; uses the
+                                                        # `default: N` ranks in the meta lines)
 
 Options:
     --master PATH    master resume (default: resume.master.md next to this script)
-    --out NAME       output basename (default: resume.tailored) -> NAME.md / NAME.pdf / NAME.job.txt
+    --out NAME       output basename (default: resume.tailored; resume for --general)
+                     -> NAME.md / NAME.pdf / NAME.job.txt
     --model MODEL    model for claude -p (default: sonnet)
-    --projects N     max project entries on the tailored resume (default: 5)
+    --projects N     max project entries (default: 5; unlimited for --general)
     --pdf            also render NAME.pdf via md_to_pdf.py
 
 Requirements:
@@ -34,7 +38,7 @@ CLAUDE_TIMEOUT = 300  # seconds per claude -p call
 
 # Sections whose ### entries are selectable; anything else (Skills, Education)
 # is carried over as-is.
-ENTRY_SECTIONS = ("Experience", "Projects", "Leadership", "Writing")
+ENTRY_SECTIONS = ("Experience", "Projects", "Leadership", "Writing & Talks")
 
 META_RE = re.compile(r"<!--\s*id:\s*(?P<body>.*?)\s*-->")
 TODO_RE = re.compile(r"<!--\s*TODO:.*?-->\s*\n?")
@@ -83,12 +87,14 @@ def parse_master(md_path):
                 continue
             meta_parts = [p.strip() for p in meta_m.group("body").split("|")]
             entry_id = meta_parts[0]
-            tags, pin = [], False
+            tags, pin, default = [], False, None
             for part in meta_parts[1:]:
                 if part.startswith("tags:"):
                     tags = [t.strip().lower() for t in part[5:].split(",") if t.strip()]
                 elif part == "pin":
                     pin = True
+                elif part.startswith("default:"):
+                    default = int(part[8:].strip())
             bullets = META_RE.sub("", entry_body)
             bullets = TODO_RE.sub("", bullets).strip()
             entries[entry_id] = {
@@ -97,6 +103,7 @@ def parse_master(md_path):
                 "bullets": bullets,
                 "tags": tags,
                 "pin": pin,
+                "default": default,
             }
 
     return frontmatter, sections, section_order, entries
@@ -166,13 +173,14 @@ SELECTION_CONTRACT = (
     "You are a resume-tailoring selector. You are given a job posting and a catalog of "
     "resume entries, each with an id and verbatim bullets. Respond with ONLY a JSON object "
     "(no markdown fences, no prose):\n"
-    '{"summary": "...", "experience": [ids], "projects": [ids], "extras": [ids], '
+    '{"summary": "...", "projects": [ids], "extras": [ids], '
     '"skills_emphasis": ["term", ...]}\n'
     "Rules:\n"
-    "- Select and ORDER entry ids by relevance to this job. Never invent ids.\n"
+    "- Select and ORDER project ids by relevance to this job. Never invent ids.\n"
     "- You may NOT rewrite, merge, or invent bullets — selection and ordering only.\n"
-    "- 'summary' is the ONLY text you write: 2-3 sentences tailoring the candidate's real "
-    "background to this role. State only facts present in the catalog.\n"
+    "- 'summary' is the ONLY text you write: 2-3 sentences, at most 55 words, in punchy "
+    "resume style (no pronouns), tailoring the candidate's real background to this role. "
+    "State only facts present in the catalog.\n"
     "- 'extras' holds Leadership/Writing ids worth including (may be empty).\n"
     "- 'skills_emphasis' lists exact skill terms from the catalog's skills pool that this "
     "job values most, in priority order.\n"
@@ -194,8 +202,8 @@ def select_entries(job_text, entries, skills_pool, max_projects, model):
         f"JOB POSTING:\n{job_text.strip()}\n\n"
         f"RESUME CATALOG:\n" + "\n".join(catalog_lines) + "\n\n"
         f"SKILLS POOL:\n{skills_pool.strip()}\n\n"
-        f"Select at most {max_projects} project ids. Include every experience id unless one is "
-        f"clearly irrelevant to this job. Respond with the JSON object only."
+        f"Select at most {max_projects} project ids. (Experience entries are always included "
+        f"and are listed only as background for the summary.) Respond with the JSON object only."
     )
 
     raw = run_claude(prompt, model, system=SELECTION_CONTRACT)
@@ -212,6 +220,24 @@ def select_entries(job_text, entries, skills_pool, max_projects, model):
                              model, system=SELECTION_CONTRACT)
 
 
+def general_selection(entries):
+    """Deterministic default resume: entries carrying a `default: N` rank, in rank order."""
+    ranked = {"Projects": [], "extras": []}
+    for entry_id, e in entries.items():
+        if e["section"] == "Experience" or e["default"] is None:
+            continue
+        bucket = "Projects" if e["section"] == "Projects" else "extras"
+        ranked[bucket].append((e["default"], entry_id))
+    for bucket in ranked.values():
+        bucket.sort()
+    return {
+        "summary": None,  # keep the master summary
+        "projects": [i for _, i in ranked["Projects"]],
+        "extras": [i for _, i in ranked["extras"]],
+        "skills_emphasis": [],
+    }
+
+
 def fallback_selection(job_text, entries, max_projects):
     """Deterministic tag/keyword-overlap selection when the model call fails."""
     words = set(re.findall(r"[a-z][a-z0-9+./-]{1,}", job_text.lower()))
@@ -222,16 +248,17 @@ def fallback_selection(job_text, entries, max_projects):
                         if w in words)
         return tag_hits * 3 + text_hits
 
-    by_section = {"Experience": [], "Projects": [], "extras": []}
+    by_section = {"Projects": [], "extras": []}
     for entry_id, e in entries.items():
-        bucket = e["section"] if e["section"] in ("Experience", "Projects") else "extras"
+        if e["section"] == "Experience":
+            continue  # experience is always included, in master order
+        bucket = "Projects" if e["section"] == "Projects" else "extras"
         by_section[bucket].append((score(e), entry_id))
     for bucket in by_section.values():
         bucket.sort(key=lambda pair: -pair[0])
 
     return {
         "summary": None,  # keep the master summary
-        "experience": [i for _, i in by_section["Experience"]],
         "projects": [i for _, i in by_section["Projects"][:max_projects]],
         "extras": [i for s, i in by_section["extras"] if s > 0 or entries[i]["pin"]],
         "skills_emphasis": [],
@@ -252,14 +279,18 @@ def validate_selection(selection, entries, max_projects):
                 print(f"  Dropping unknown id from model output: {i}", file=sys.stderr)
         return out
 
-    experience = clean(selection.get("experience"), ("Experience",))
+    # Every experience entry is always included, in master (chronological) order —
+    # dropping roles would leave employment gaps.
+    experience = [i for i, e in entries.items() if e["section"] == "Experience"]
     projects = clean(selection.get("projects"), ("Projects",))[:max_projects]
-    extras = clean(selection.get("extras"), ("Leadership", "Writing"))
+    extras = clean(selection.get("extras"), ("Leadership", "Writing & Talks"))
 
-    # Pinned entries are always retained (prepended in master order if dropped).
+    # Pinned projects/extras are always retained (prepended in master order if dropped).
     for entry_id, e in entries.items():
-        target = {"Experience": experience, "Projects": projects}.get(e["section"], extras)
-        if e["pin"] and entry_id not in target:
+        if e["section"] == "Experience" or not e["pin"]:
+            continue
+        target = projects if e["section"] == "Projects" else extras
+        if entry_id not in target:
             target.insert(0, entry_id)
 
     summary = selection.get("summary")
@@ -292,7 +323,7 @@ def assemble(frontmatter, sections, entries, selection):
         e = entries[entry_id]
         return f"### {e['header']}\n\n{e['bullets']}"
 
-    parts = [frontmatter, f"## Summary\n\n{summary}"]
+    parts = [f"## Summary\n\n{summary}"]
     if selection["experience"]:
         parts.append("## Experience\n\n" + "\n\n".join(entry_block(i) for i in selection["experience"]))
     if skills:
@@ -302,11 +333,12 @@ def assemble(frontmatter, sections, entries, selection):
     if "Education" in sections:
         edu = TODO_RE.sub("", META_RE.sub("", sections["Education"])).strip()
         parts.append(f"## Education\n\n{edu}")
-    for section in ("Leadership", "Writing"):
+    for section in ("Leadership", "Writing & Talks"):
         ids = [i for i in selection["extras"] if entries[i]["section"] == section]
         if ids:
             parts.append(f"## {section}\n\n" + "\n\n".join(entry_block(i) for i in ids))
-    return "\n\n---\n\n".join(parts) + "\n"
+    out = frontmatter + "\n\n" + "\n\n---\n\n".join(parts) + "\n"
+    return re.sub(r"\n{3,}", "\n\n", out)
 
 
 # ── PDF rendering ───────────────────────────────────────────────────────────
@@ -336,16 +368,39 @@ def main():
     src.add_argument("--job", help="job description: a file path, '-' for stdin, or literal text")
     src.add_argument("--url", help="URL of the job posting (fetched with claude + WebFetch)")
     src.add_argument("--search", help="search query to find the posting (claude + WebSearch)")
+    src.add_argument("--general", action="store_true",
+                     help="regenerate the canonical resume from the master's `default:` ranks (no model)")
     ap.add_argument("--master", default=os.path.join(SCRIPT_DIR, "resume.master.md"))
-    ap.add_argument("--out", default=os.path.join(SCRIPT_DIR, "resume.tailored"),
-                    help="output basename (writes NAME.md / NAME.pdf / NAME.job.txt)")
+    ap.add_argument("--out", default=None,
+                    help="output basename (writes NAME.md / NAME.pdf / NAME.job.txt); "
+                         "defaults to resume.tailored, or resume for --general")
     ap.add_argument("--model", default="sonnet")
-    ap.add_argument("--projects", type=int, default=5, help="max project entries (default 5)")
+    ap.add_argument("--projects", type=int, default=None,
+                    help="max project entries (default 5; unlimited for --general)")
     ap.add_argument("--pdf", action="store_true", help="also render a PDF via md_to_pdf.py")
     args = ap.parse_args()
 
+    if args.out is None:
+        args.out = os.path.join(SCRIPT_DIR, "resume" if args.general else "resume.tailored")
+    if args.projects is None:
+        args.projects = 10_000 if args.general else 5
+
     if not os.path.isfile(args.master):
         sys.exit(f"Error: master resume not found: {args.master}")
+
+    if args.general:
+        frontmatter, sections, _, entries = parse_master(args.master)
+        selection = validate_selection(general_selection(entries), entries, args.projects)
+        print(f"General resume: {len(selection['experience'])} roles, "
+              f"{len(selection['projects'])} projects, {len(selection['extras'])} extras")
+        md_path = f"{args.out}.md"
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(assemble(frontmatter, sections, entries, selection))
+        print(f"Wrote {md_path} (generated from {os.path.basename(args.master)} — edit the master)")
+        if args.pdf:
+            render_pdf(md_path, f"{args.out}.pdf", selection, frontmatter, sections, entries)
+            print(f"Wrote {args.out}.pdf")
+        return
 
     job_text = fetch_job_text(args)
     if args.url or args.search:

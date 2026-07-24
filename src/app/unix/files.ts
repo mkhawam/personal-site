@@ -72,12 +72,15 @@ C-Tech — Computer Technician                     July 2019 - December 2021
 
 == SKILLS ==
 
-Languages:      Python, TypeScript, JavaScript, C, Java, Golang
-Frameworks:     React, Django, Flask, Next.js, Express, JupyterLab, Electron
-Data:           MariaDB, MongoDB, Redis, Celery, LevelDB
-Infrastructure: Docker, Ansible, Nginx, Linux, Proxmox, VMware, AWS,
+Languages:      Python, TypeScript, JavaScript, C, Java, Golang, PowerShell
+Frameworks:     React, Django, Flask, Next.js, Express, JupyterLab, Electron,
+                Vite
+Data:           MariaDB, MongoDB, Redis, Celery, LevelDB, S3
+Infrastructure: Docker, Ansible, Nginx, Linux, Proxmox, VMware, AWS, OpenStack,
                 GitHub Actions, Zabbix
-Other:          Git, Playwright, Tree-sitter, OpenCV, Ollama, Network Security
+Security:       Network Security, Suricata, pfSense, CAS/SAML, Kerberos, OWASP
+Other:          Git, Playwright, Puppeteer, Vitest, Tree-sitter, OpenCV,
+                MediaPipe, Ollama, WebContainers, WCAG Accessibility
 
 == PROJECTS ==
 
@@ -96,7 +99,7 @@ CompLock (November 2023 - Present)
   used by RUSEC in CCDC competitions. Cut password rotation across 30
   machines from 5 minutes to 30 seconds.
 
-mohamadk.com (2024 - Present)
+mohamadk.com (April 2025 - Present)
   Next.js 16 / React 19 portfolio with a markdown blog pipeline, PWA support,
   an in-browser WebContainers code playground running my published npm
   package, and a simulated Linux shell in TypeScript as the 404 page.
@@ -106,9 +109,10 @@ ts-declaration-json (October 2024)
   NPM package that parses TypeScript modules and returns declarations as
   JSON, enabling automated React component generation.
 
-Drone Project (January 2023 - May 2023)
-  OpenCV vision algorithms guiding a drone along generated paths, achieving
-  90% search precision with 10x range increase via cellular communication.
+Ticket Collector — HackRU 2023 (February 2023)
+  Maverick Track award winner. Autonomous robot that traverses train aisles
+  to collect tickets and count passengers for NJ Transit, using OpenCV facial
+  recognition and QR-code ticket validation on Raspberry Pi and Arduino.
 
 == EDUCATION ==
 
@@ -121,6 +125,8 @@ B.A. Computer Science, Rutgers University                      May 2025
 Vice President, RUSecurity                   January 2023 - May 2025
   * Directed network administration for CCDC; team placed 4th in 2024.
   * Led club infrastructure setup using Proxmox and VMware ESXi.
+  * Led development of the club's BlackBox machine environment with Wazuh
+    detection rules and the ToolBox hardening toolkit for CCDC prep.
 `;
 
 export const README_MD = `# personal-site

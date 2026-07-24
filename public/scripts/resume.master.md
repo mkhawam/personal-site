@@ -74,26 +74,25 @@ Application developer at Rutgers University with experience spanning full-stack 
 ## Projects
 
 ### [AppTracker](https://github.com/mkhawam/AppTracker) <span class="date">2025</span>
-<!-- id: proj-apptracker | tags: typescript, llm, ai, email, automation, discord, mongodb, backend -->
+<!-- id: proj-apptracker | tags: typescript, llm, ai, email, automation, discord, mongodb, backend | default: 1 -->
 
 - Built a TypeScript application that tracks job applications by reading incoming emails via IMAP, classifying them with a Bayesian classifier, and generating status updates using Ollama AI models.
 - Integrated Discord bot notifications and MongoDB storage to provide real-time application status updates.
 
 ### [Jackal](https://github.com/mkhawam/Jackal) <span class="date">November 2024</span>
-<!-- id: proj-jackal | tags: security, network-security, suricata, data, mongodb, node, react, full-stack -->
+<!-- id: proj-jackal | tags: security, network-security, suricata, data, mongodb, node, react, full-stack | default: 2 -->
 
 - Developed a Node.js-based frontend for Suricata network log analysis, enabling the review of 1M+ logs per day with interactive web-based graph visualizations.
 - Built a queue system supporting ingestion of 1000+ events per second and a MongoDB pipeline with sub-100ms query latency for terabytes of logs.
 
 ### [CompLock](https://github.com/rusec/CompLock) <span class="date">November 2023 - Present</span>
-<!-- id: proj-complock | tags: security, blue-team, c2, ssh, cli, typescript, devops -->
+<!-- id: proj-complock | tags: security, blue-team, c2, ssh, cli, typescript, devops | default: 3 -->
 
 - Developed SSH command and control software for networked computers in TypeScript, leveraging LevelDB and SSH2, utilized by RUSEC in CCDC competitions.
 - Reduced password rotation on 30 machines from 5 minutes to 30 seconds with automated testing via GitHub Actions and Mocha.
 
-### [NetLock](https://github.com/rusec/NetLock) <span class="date">2024</span>
+### [NetLock](https://github.com/rusec/NetLock) <span class="date">July 2024 - 2025</span>
 <!-- id: proj-netlock | tags: security, blue-team, c2, siem, node, express, mongodb, backend -->
-<!-- TODO: confirm date -->
 
 - Built a SIEM / command-and-control server for blue-team competition use (Node.js, Express, MongoDB), designed for rapid deployment with minimal end-user setup.
 - Implemented HTTPS beacons that report host events to a central server, giving defenders live visibility into network activity across the competition landscape.
@@ -110,28 +109,25 @@ Application developer at Rutgers University with experience spanning full-stack 
 - Built a web accessibility auditing platform: a Flask API and Next.js interface drive Playwright and Axe scans through Celery workers across university domains.
 - Stores per-page results with screenshots so remediation progress is measurable over time.
 
-### [mohamadk.com](https://mohamadk.com) <span class="date">2024 - Present</span>
-<!-- id: proj-portfolio | tags: next, react, typescript, full-stack, frontend, pwa, ai, webcontainers, design -->
-<!-- TODO: confirm start year -->
+### [mohamadk.com](https://mohamadk.com) <span class="date">April 2025 - Present</span>
+<!-- id: proj-portfolio | tags: next, react, typescript, full-stack, frontend, pwa, ai, webcontainers, design | default: 4 -->
 
 - Designed and built a Next.js 16 / React 19 portfolio and blog with a markdown publishing pipeline, PWA support, server-resolved theming, and a keyboard command palette.
 - Engineered an in-browser code playground with WebContainers that boots a Node.js runtime client-side to run my published ts-declaration-json package live, with no server execution.
 - Implemented a simulated Linux shell in TypeScript (custom filesystem, user system, and coreutils) served as the site's 404 page, plus Spotify OAuth with token refresh and an AI task-planning agent with tool calling.
 
 ### [ts-declaration-json](https://github.com/mkhawam/ts-declaration-json) <span class="date">October 2024</span>
-<!-- id: proj-ts-declaration-json | tags: typescript, npm, open-source, tooling, codegen -->
+<!-- id: proj-ts-declaration-json | tags: typescript, npm, open-source, tooling, codegen | default: 5 -->
 
 - Created an NPM package that parses TypeScript modules and returns declarations as JSON, enabling automated React component generation with parallel child processes.
 
-### [pfSense API](https://github.com/mkhawam/pfsense-api) <span class="date">2023</span>
+### [pfSense API](https://github.com/mkhawam/pfsense-api) <span class="date">November 2024</span>
 <!-- id: proj-pfsense-api | tags: security, firewall, automation, api, networking -->
-<!-- TODO: confirm date -->
 
 - Built an API for pfSense that automates instance configuration, exposing create, read, update, and delete operations for firewall rules, extending jaredhendrickson13's package.
 
-### [Windows Cloud-Init Script](https://github.com/mkhawam/cloud-init) <span class="date">2023</span>
+### [Windows Cloud-Init Script](https://github.com/mkhawam/cloud-init) <span class="date">March 2025</span>
 <!-- id: proj-cloud-init | tags: windows, powershell, cloud, openstack, proxmox, automation, infrastructure -->
-<!-- TODO: confirm date -->
 
 - Wrote an OpenStack cloud-init script for Windows that automates configuration of Windows instances on OpenStack and Proxmox with PowerShell.
 
@@ -140,11 +136,36 @@ Application developer at Rutgers University with experience spanning full-stack 
 
 - Implemented OpenCV vision algorithms to guide a drone along computer-generated paths, achieving 90% search precision with 10x range increase via cellular communication.
 
-### [JobApps](https://github.com/mkhawam/JobApps) <span class="date">2022</span>
+### [JobApps](https://github.com/mkhawam/JobApps) <span class="date">February 2024</span>
 <!-- id: proj-jobapps | tags: typescript, react, node, express, leveldb, full-stack, web -->
-<!-- TODO: confirm date -->
 
 - Built a web application for tracking job applications with a TypeScript/React frontend and an Express + LevelDB backend, predating tools like Simplify.
+
+### [Puncta Detector](https://github.com/mkhawam/Puncta-Detector) <span class="date">March 2024</span>
+<!-- id: proj-puncta | tags: python, computer-vision, image-analysis, research, cli -->
+
+- Built a Python CLI tool that identifies puncta in fluorescence microscopy images using configurable brightness-level analysis, for research lab image processing.
+
+### [RUSEC ToolBox](https://github.com/rusec/ToolBox) <span class="date">November 2024 - Present</span>
+<!-- id: proj-toolbox | tags: security, blue-team, hardening, python, windows, linux, ccdc -->
+
+- Lead contributor to RUSEC's blue-team hardening toolkit: Linux and Windows hardening scripts, firewall configuration automation, and LOLBin mitigation used in competition preparation.
+
+### [Apache Guacamole — contributor](https://github.com/apache/guacamole-server/pull/696) <span class="date">2026</span>
+<!-- id: proj-oss-guacamole | tags: c, open-source, rdp, protocol, systems, remote-access -->
+
+- Contributed RDPSND Wave2 (SNDC_WAVE2) PDU support to Apache Guacamole's RDP sound channel in C (GUACAMOLE-2306, PR under review).
+
+### [JJava (Jupyter Java kernel) — contributor](https://github.com/dflib/jjava/pull/122) <span class="date">2026</span>
+<!-- id: proj-oss-jjava | tags: java, jupyter, open-source, notebooks, education-tech -->
+
+- Contributed interactive Swing & JavaFX rendering and static image rendering of GUI components in notebooks to JJava, the Jupyter kernel for Java (PRs under review).
+
+### [Ticket Collector — HackRU 2023](https://devpost.com/software/ticket-collector) <span class="date">February 2023</span>
+<!-- id: proj-hackru | tags: python, opencv, computer-vision, robotics, hardware, hackathon, award | default: 6 -->
+
+- Won the Maverick Track award at HackRU Spring 2023 with a team of four, building an autonomous robot that traverses train aisles to collect tickets and count passengers for NJ Transit.
+- Implemented OpenCV facial recognition and QR-code ticket validation on Raspberry Pi and Arduino, offloading processing to a web streaming service.
 
 ---
 
@@ -160,16 +181,22 @@ Application developer at Rutgers University with experience spanning full-stack 
 ## Leadership
 
 ### Vice President, <em>RUSecurity</em> <span class="date">January 2023 - May 2025</span>
-<!-- id: lead-rusec | tags: security, blue-team, ccdc, infrastructure, leadership, proxmox, vmware | pin -->
+<!-- id: lead-rusec | tags: security, blue-team, ccdc, infrastructure, leadership, proxmox, vmware | pin | default: 1 -->
 
 - Directed network administration for CCDC, with the team placing 4th in 2024.
 - Led club infrastructure setup using Proxmox and VMware ESXi, yielding a 70% increase in technical competency.
+- Led development of the club's BlackBox machine environment with Wazuh detection rules and the ToolBox hardening toolkit used for CCDC preparation.
 
 ---
 
-## Writing
+## Writing & Talks
 
 ### [Technical Blog](https://mohamadk.com/blog) <span class="date">2024 - Present</span>
 <!-- id: writing-blog | tags: writing, security, software-design, communication -->
 
 - Write about software design and security at mohamadk.com/blog — including a technical breakdown of the xz/liblzma OpenSSH backdoor (CVE-2024-3094), a Jersey CTF write-up on broken access control (OWASP A01), and essays on code readability and architecture.
+
+### [RU CyberCon 2025 — OWASP Top 10](https://github.com/rusec/owasp_website) <span class="date">April 2025</span>
+<!-- id: talk-cybercon | tags: security, owasp, talk, communication, next -->
+
+- Presented the OWASP Top 10 vulnerabilities at RU CyberCon 2025, building an interactive Next.js demonstration site to accompany the talk.

@@ -24,12 +24,10 @@ import {
     Flag,
     Paperclip,
     ExternalLink,
-    File,
     Globe,
     Image as ImageIcon,
     Video,
     FileCode,
-    Disc,
     Download,
     Upload,
     Eye,
@@ -55,8 +53,6 @@ import {
     Clock,
     Menu,
     Timer,
-    MoreHorizontal,
-    ArrowUpCircle,
     BarChart3,
     FolderInput,
 } from "lucide-react";
@@ -74,6 +70,7 @@ import {
     FaSlack,
 } from "react-icons/fa";
 import { toast } from "sonner";
+import { addDays, addWeeks, format, formatDistanceToNow } from "date-fns";
 import clsx from "clsx";
 import ReactMarkdown from "react-markdown";
 import confetti from "canvas-confetti";
@@ -83,46 +80,16 @@ import { generateSummary } from "@/lib/ai";
 import BrainstormingModal from "./components/BrainstormingModal";
 import SpotifyWidget from "./components/SpotifyWidget";
 import TaskTagsMenu from "./components/TaskTagsMenu";
-
-type SubTask = {
-    id: string;
-    text: string;
-    completed: boolean;
-};
-
-type Attachment = {
-    id: string;
-    name: string;
-    url: string;
-    type: "link";
-};
+import TaskActionSheet from "./components/TaskActionSheet";
+import MobileTaskCard from "./components/MobileTaskCard";
+import AnchorPopover from "./components/AnchorPopover";
+import { mergeLists, mergeTasks } from "./lib/merge";
+import { parseQuickAdd } from "./lib/quickAdd";
+import { TASK_TAGS, type Task, type TaskList } from "./types";
 
 type ChatMessage = {
     role: "user" | "assistant" | "system";
     content: string;
-};
-
-type TaskList = {
-    id: string;
-    name: string;
-};
-
-type Task = {
-    id: string;
-    listId?: string;
-    text: string;
-    completed: boolean;
-    subtasks: SubTask[];
-    notes?: string;
-    archived?: boolean;
-    priority?: "low" | "medium" | "high";
-    attachments?: Attachment[];
-    dueDate?: string;
-    estimatedPomos?: number;
-    actualPomos?: number;
-    recurrence?: "daily" | "weekly" | "monthly" | null;
-    lastCompletedDate?: string;
-    tags?: string[];
 };
 
 const SOUNDS = {
@@ -130,14 +97,6 @@ const SOUNDS = {
     digital: "https://assets.mixkit.co/active_storage/sfx/2864/2864-preview.mp3",
     nature: "https://assets.mixkit.co/active_storage/sfx/2434/2434-preview.mp3",
 };
-
-const TASK_TAGS = [
-    { id: "work", label: "Work", color: "bg-blue-500" },
-    { id: "personal", label: "Personal", color: "bg-green-500" },
-    { id: "urgent", label: "Urgent", color: "bg-red-500" },
-    { id: "ideas", label: "Ideas", color: "bg-purple-500" },
-    { id: "learning", label: "Learning", color: "bg-amber-500" },
-];
 
 const RADIO_STATIONS = [
     { name: "Lo-fi Hip Hop", url: "https://streams.ilovemusic.de/iloveradio17.mp3", color: "bg-purple-500" },
@@ -165,6 +124,10 @@ export default function TasksPage() {
     // Tag picker UI (portal-based to avoid clipping inside scroll containers)
     const [openTagMenuTaskId, setOpenTagMenuTaskId] = useState<string | null>(null);
     const [tagMenuAnchorEl, setTagMenuAnchorEl] = useState<HTMLElement | null>(null);
+
+    // Lightweight anchored editors for desktop task rows (replaces the DUE_DATE /
+    // MOVE_TO_LIST / ESTIMATE modals for the common one-field edits)
+    const [popover, setPopover] = useState<{ type: "due" | "move" | "estimate"; taskId: string; anchorEl: HTMLElement } | null>(null);
 
     // Modal State
     const [modalOpen, setModalOpen] = useState(false);
@@ -203,12 +166,14 @@ export default function TasksPage() {
     const [isSyncing, setIsSyncing] = useState(false);
     const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
     const [syncSalt, setSyncSalt] = useState<string | null>(null);
+    const [syncStatus, setSyncStatus] = useState<"disabled" | "synced" | "syncing" | "dirty" | "error">("disabled");
 
     // User State
     const [user, setUser] = useState<{ username: string; avatar: string | null } | null>(null);
 
     // Mobile State
     const [mobileTab, setMobileTab] = useState<"tasks" | "focus" | "notes" | "menu">("tasks");
+    const [sheetTaskId, setSheetTaskId] = useState<string | null>(null);
 
     useEffect(() => {
         fetch("/api/auth/me")
@@ -276,8 +241,6 @@ export default function TasksPage() {
     const [activeNoteId, setActiveNoteId] = useState("default");
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
 
-    const [addingSubtaskId, setAddingSubtaskId] = useState<string | null>(null);
-    const [newSubtaskText, setNewSubtaskText] = useState("");
     const [savedLinks, setSavedLinks] = useState<{ id: string; title: string; url: string; createdAt: string }[]>([]);
     const [newLinkTitle, setNewLinkTitle] = useState("");
     const [newLinkUrl, setNewLinkUrl] = useState("");
@@ -286,6 +249,7 @@ export default function TasksPage() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const musicRef = useRef<HTMLAudioElement | null>(null);
     const modalInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+    const addTaskInputRef = useRef<HTMLInputElement>(null); // "n" shortcut target — never find inputs by placeholder text
 
     // --- Effects ---
 
@@ -331,7 +295,13 @@ export default function TasksPage() {
 
                 // Increment pomos on current task
                 if (currentTaskId) {
-                    setTasks((prev) => prev.map((t) => (t.id === currentTaskId ? { ...t, actualPomos: (t.actualPomos || 0) + 1 } : t)));
+                    setTasks((prev) =>
+                        prev.map((t) =>
+                            t.id === currentTaskId ?
+                                { ...t, actualPomos: (t.actualPomos || 0) + 1, updatedAt: new Date().toISOString() }
+                            :   t,
+                        ),
+                    );
                 }
 
                 // Log History
@@ -377,30 +347,38 @@ export default function TasksPage() {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
+            // Tombstones older than 30 days have propagated to any other device by now
+            const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
             // Migration and recurring task reset
-            const migratedTasks = loadedTasks.map((t: Task) => {
-                let task = {
-                    ...t,
-                    listId: t.listId || "default",
-                };
+            const migratedTasks = loadedTasks
+                .filter((t: Task) => !t.deletedAt || Date.now() - new Date(t.deletedAt).getTime() < TOMBSTONE_TTL_MS)
+                .map((t: Task) => {
+                    let task = {
+                        ...t,
+                        listId: t.listId || "default",
+                    };
 
-                // Reset recurring tasks if needed
-                if (task.recurrence && task.completed && task.lastCompletedDate) {
-                    const lastCompleted = new Date(task.lastCompletedDate + "T00:00:00");
-                    const daysSince = Math.floor((today.getTime() - lastCompleted.getTime()) / (1000 * 60 * 60 * 24));
+                    // Reset recurring tasks if needed
+                    if (task.recurrence && task.completed && task.lastCompletedDate) {
+                        const lastCompleted = new Date(task.lastCompletedDate + "T00:00:00");
+                        const daysSince = Math.floor((today.getTime() - lastCompleted.getTime()) / (1000 * 60 * 60 * 24));
 
-                    let shouldReset = false;
-                    if (task.recurrence === "daily" && daysSince >= 1) shouldReset = true;
-                    if (task.recurrence === "weekly" && daysSince >= 7) shouldReset = true;
-                    if (task.recurrence === "monthly" && daysSince >= 30) shouldReset = true;
+                        let shouldReset = false;
+                        if (task.recurrence === "daily" && daysSince >= 1) shouldReset = true;
+                        if (task.recurrence === "weekly" && daysSince >= 7) shouldReset = true;
+                        if (task.recurrence === "monthly" && daysSince >= 30) shouldReset = true;
 
-                    if (shouldReset) {
-                        task = { ...task, completed: false, actualPomos: 0 };
+                        if (shouldReset) {
+                            // Real data change — stamp it so the reset wins the sync merge.
+                            // The plain migration path above must NOT stamp, or every load
+                            // would look like a local edit.
+                            task = { ...task, completed: false, actualPomos: 0, updatedAt: new Date().toISOString() };
+                        }
                     }
-                }
 
-                return task;
-            });
+                    return task;
+                });
             setTasks(migratedTasks);
         }
 
@@ -530,7 +508,7 @@ export default function TasksPage() {
                     break;
                 case "n":
                     e.preventDefault();
-                    document.querySelector<HTMLInputElement>('input[placeholder="What\'s your focus today?"]')?.focus();
+                    addTaskInputRef.current?.focus();
                     break;
                 case "?":
                     openModal(null, "SHORTCUTS");
@@ -557,6 +535,9 @@ export default function TasksPage() {
 
     const addTask = (text: string, initialSubtasks: string[] = []) => {
         if (!text.trim()) return;
+        // Quick-add syntax: "#tag !high @tomorrow" tokens become task fields
+        const parsed = parseQuickAdd(text, TASK_TAGS);
+        if (!parsed.text) return;
         const id = Date.now().toString(36) + Math.random().toString(36).substr(2);
         const subtasksObjs = initialSubtasks.map((t) => ({
             id: Math.random().toString(36),
@@ -567,12 +548,15 @@ export default function TasksPage() {
         setTasks((prev) => [
             {
                 id,
-                text: text.trim(),
+                text: parsed.text,
                 completed: false,
                 subtasks: subtasksObjs,
-                priority: "medium",
+                priority: parsed.priority || "medium",
+                tags: parsed.tags,
+                dueDate: parsed.dueDate,
                 attachments: [],
                 listId: activeListId, // Tag with active list
+                updatedAt: new Date().toISOString(),
             },
             ...prev,
         ]);
@@ -585,96 +569,99 @@ export default function TasksPage() {
         setNewTaskText("");
     };
 
-    const toggleTask = (id: string) => {
-        setTasks(
-            tasks.map((t) => {
-                if (t.id === id) {
-                    const isCompleting = !t.completed;
-                    if (isCompleting) {
-                        confetti({
-                            particleCount: 100,
-                            spread: 70,
-                            origin: { y: 0.6 },
-                            colors: ["#27272a", "#52525b", "#e4e4e7", "#f4f4f5"],
-                            disableForReducedMotion: true,
-                        });
-
-                        // Clear focus if this was the current task
-                        if (currentTaskId === id) {
-                            setCurrentTaskId(null);
-                        }
-
-                        // Log Task Completion
-                        const today = new Date().toISOString().split("T")[0];
-                        setFocusHistory((prev) => {
-                            const existing = prev.find((h) => h.date === today);
-                            if (existing) {
-                                return prev.map((h) => (h.date === today ? { ...h, tasksCompleted: (h.tasksCompleted || 0) + 1 } : h));
-                            }
-                            return [...prev, { date: today, minutes: 0, tasksCompleted: 1 }];
-                        });
-                    }
-                    // Track lastCompletedDate for recurring tasks
-                    const today = new Date().toISOString().split("T")[0];
-                    return { ...t, completed: !t.completed, lastCompletedDate: isCompleting ? today : t.lastCompletedDate };
-                }
-                return t;
-            }),
+    // Single mutation path for task edits: functional update (no stale closures)
+    // + updatedAt stamp so the sync merge can do per-task last-write-wins.
+    const touchTask = (id: string, patch: Partial<Task> | ((t: Task) => Partial<Task>)) => {
+        setTasks((prev) =>
+            prev.map((t) =>
+                t.id === id ?
+                    { ...t, ...(typeof patch === "function" ? patch(t) : patch), updatedAt: new Date().toISOString() }
+                :   t,
+            ),
         );
+    };
+
+    const toggleTask = (id: string) => {
+        const task = tasks.find((t) => t.id === id);
+        if (!task) return;
+        const isCompleting = !task.completed;
+
+        if (isCompleting) {
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ["#27272a", "#52525b", "#e4e4e7", "#f4f4f5"],
+                disableForReducedMotion: true,
+            });
+
+            // Clear focus if this was the current task
+            if (currentTaskId === id) {
+                setCurrentTaskId(null);
+            }
+
+            // Log Task Completion
+            const today = new Date().toISOString().split("T")[0];
+            setFocusHistory((prev) => {
+                const existing = prev.find((h) => h.date === today);
+                if (existing) {
+                    return prev.map((h) => (h.date === today ? { ...h, tasksCompleted: (h.tasksCompleted || 0) + 1 } : h));
+                }
+                return [...prev, { date: today, minutes: 0, tasksCompleted: 1 }];
+            });
+        }
+
+        // Track lastCompletedDate for recurring tasks
+        const today = new Date().toISOString().split("T")[0];
+        touchTask(id, (t) => ({ completed: !t.completed, lastCompletedDate: isCompleting ? today : t.lastCompletedDate }));
     };
 
     const cyclePriority = (id: string) => {
-        setTasks(
-            tasks.map((t) => {
-                if (t.id === id) {
-                    const current = t.priority || "medium";
-                    let next: "low" | "medium" | "high" = "medium";
-                    if (current === "low") next = "medium";
-                    if (current === "medium") next = "high";
-                    if (current === "high") next = "low";
-                    return { ...t, priority: next };
-                }
-                return t;
-            }),
-        );
+        touchTask(id, (t) => {
+            const current = t.priority || "medium";
+            let next: "low" | "medium" | "high" = "medium";
+            if (current === "low") next = "medium";
+            if (current === "medium") next = "high";
+            if (current === "high") next = "low";
+            return { priority: next };
+        });
     };
 
     const cycleRecurrence = (id: string) => {
-        setTasks(
-            tasks.map((t) => {
-                if (t.id === id) {
-                    const order: (typeof t.recurrence)[] = [null, "daily", "weekly", "monthly"];
-                    const currentIndex = order.indexOf(t.recurrence || null);
-                    const next = order[(currentIndex + 1) % order.length];
-                    const label = next ? next : "none";
-                    toast.info(`Recurrence: ${label}`);
-                    return { ...t, recurrence: next };
-                }
-                return t;
-            }),
-        );
+        const task = tasks.find((t) => t.id === id);
+        if (!task) return;
+        const order: (typeof task.recurrence)[] = [null, "daily", "weekly", "monthly"];
+        const next = order[(order.indexOf(task.recurrence || null) + 1) % order.length];
+        toast.info(`Recurrence: ${next ? next : "none"}`);
+        touchTask(id, { recurrence: next });
     };
 
     const toggleTag = (taskId: string, tagId: string) => {
-        setTasks(
-            tasks.map((t) => {
-                if (t.id === taskId) {
-                    const currentTags = t.tags || [];
-                    if (currentTags.includes(tagId)) {
-                        return { ...t, tags: currentTags.filter((tag) => tag !== tagId) };
-                    } else {
-                        return { ...t, tags: [...currentTags, tagId] };
-                    }
-                }
-                return t;
-            }),
-        );
+        touchTask(taskId, (t) => {
+            const currentTags = t.tags || [];
+            return {
+                tags: currentTags.includes(tagId) ? currentTags.filter((tag) => tag !== tagId) : [...currentTags, tagId],
+            };
+        });
     };
 
     const [searchQuery, setSearchQuery] = useState("");
 
+    const restoreTask = (id: string) => {
+        // Fresh updatedAt so the restore beats an already-synced tombstone.
+        touchTask(id, { deletedAt: undefined });
+    };
+
+    // Soft delete: tombstone instead of removing, so sync propagates the delete
+    // instead of resurrecting the task, and Undo is always possible.
     const deleteTask = (id: string) => {
-        setTasks(tasks.filter((t) => t.id !== id));
+        touchTask(id, { deletedAt: new Date().toISOString() });
+        toast("Task Deleted", {
+            action: {
+                label: "Undo",
+                onClick: () => restoreTask(id),
+            },
+        });
     };
 
     const deleteList = (id: string) => {
@@ -683,8 +670,10 @@ export default function TasksPage() {
         // confirm?
         if (!confirm("Are you sure? All tasks in this list will be deleted.")) return;
 
-        setLists(lists.filter((l) => l.id !== id));
-        setTasks(tasks.filter((t) => t.listId !== id));
+        setLists((prev) => prev.filter((l) => l.id !== id));
+        // Tombstone the list's tasks (a hard filter would let sync resurrect them)
+        const now = new Date().toISOString();
+        setTasks((prev) => prev.map((t) => (t.listId === id ? { ...t, deletedAt: now, updatedAt: now } : t)));
 
         if (activeListId === id) {
             setActiveListId("default");
@@ -693,7 +682,7 @@ export default function TasksPage() {
     };
 
     const archiveTask = (id: string) => {
-        setTasks(tasks.map((t) => (t.id === id ? { ...t, archived: true } : t)));
+        touchTask(id, { archived: true });
         toast("Task Archived", {
             action: {
                 label: "Undo",
@@ -703,7 +692,7 @@ export default function TasksPage() {
     };
 
     const unarchiveTask = (id: string) => {
-        setTasks(tasks.map((t) => (t.id === id ? { ...t, archived: false } : t)));
+        touchTask(id, { archived: false });
     };
 
     const openModal = (
@@ -781,26 +770,12 @@ export default function TasksPage() {
         if (modalType === "SUBTASK") {
             if (!modalInput.trim()) return;
             const subId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-            setTasks(
-                tasks.map((task) => {
-                    if (task.id === activeTaskID) {
-                        return {
-                            ...task,
-                            subtasks: [...task.subtasks, { id: subId, text: modalInput.trim(), completed: false }],
-                        };
-                    }
-                    return task;
-                }),
-            );
+            const text = modalInput.trim();
+            touchTask(activeTaskID!, (task) => ({
+                subtasks: [...task.subtasks, { id: subId, text, completed: false }],
+            }));
         } else if (modalType === "NOTE") {
-            setTasks(
-                tasks.map((task) => {
-                    if (task.id === activeTaskID) {
-                        return { ...task, notes: modalInput.trim() };
-                    }
-                    return task;
-                }),
-            );
+            touchTask(activeTaskID!, { notes: modalInput.trim() });
         } else if (modalType === "ATTACHMENT") {
             if (!modalInput.trim()) return;
             const attId = Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -814,74 +789,44 @@ export default function TasksPage() {
                 }
             }
 
-            setTasks(
-                tasks.map((task) => {
-                    if (task.id === activeTaskID) {
-                        return {
-                            ...task,
-                            attachments: [...(task.attachments || []), { id: attId, name, url: modalInput.trim(), type: "link" }],
-                        };
-                    }
-                    return task;
-                }),
-            );
+            const url = modalInput.trim();
+            touchTask(activeTaskID!, (task) => ({
+                attachments: [...(task.attachments || []), { id: attId, name, url, type: "link" as const }],
+            }));
             toast.success("Link Attached");
         } else if (modalType === "EDIT_TASK") {
             if (!modalInput.trim()) return;
-            setTasks(tasks.map((task) => (task.id === activeTaskID ? { ...task, text: modalInput.trim() } : task)));
+            touchTask(activeTaskID!, { text: modalInput.trim() });
             toast.success("Task Updated");
         }
         setModalOpen(false);
     };
 
     const toggleSubTask = (taskId: string, subTaskId: string) => {
-        setTasks(
-            tasks.map((task) => {
-                if (task.id === taskId) {
-                    return {
-                        ...task,
-                        subtasks: (task.subtasks || []).map((st: any) => (st.id === subTaskId ? { ...st, completed: !st.completed } : st)),
-                    };
-                }
-                return task;
-            }),
-        );
+        touchTask(taskId, (task) => ({
+            subtasks: (task.subtasks || []).map((st) => (st.id === subTaskId ? { ...st, completed: !st.completed } : st)),
+        }));
     };
 
     const deleteSubTask = (taskId: string, subTaskId: string) => {
-        setTasks(
-            tasks.map((task) => {
-                if (task.id === taskId) {
-                    return {
-                        ...task,
-                        subtasks: (task.subtasks || []).filter((st: any) => st.id !== subTaskId),
-                    };
-                }
-                return task;
-            }),
-        );
+        touchTask(taskId, (task) => ({
+            subtasks: (task.subtasks || []).filter((st) => st.id !== subTaskId),
+        }));
     };
 
     const deleteAttachment = (taskId: string, attId: string) => {
-        setTasks(
-            tasks.map((task) => {
-                if (task.id === taskId) {
-                    return {
-                        ...task,
-                        attachments: (task.attachments || []).filter((a) => a.id !== attId),
-                    };
-                }
-                return task;
-            }),
-        );
+        touchTask(taskId, (task) => ({
+            attachments: (task.attachments || []).filter((a) => a.id !== attId),
+        }));
     };
 
     const toggleMinimize = () => {
         setIsTimerMinimized(!isTimerMinimized);
     };
 
-    // Filter tasks by active list
-    const currentListTasks = tasks.filter((t) => (t.listId || "default") === activeListId);
+    // Filter tasks by active list (tombstoned tasks are hidden everywhere)
+    const currentListTasks = tasks.filter((t) => !t.deletedAt && (t.listId || "default") === activeListId);
+    const deletedTasks = tasks.filter((t) => t.deletedAt);
 
     const searchFilter = (t: Task) => {
         if (!searchQuery.trim()) return true;
@@ -904,8 +849,35 @@ export default function TasksPage() {
     };
 
     const handleReorder = (newActiveTasks: Task[]) => {
-        setTasks([...newActiveTasks, ...completedTasks, ...archivedTasks]);
+        // Splice the reordered tasks back into their previous slots in the full
+        // array — building it from the filtered views would drop every task
+        // outside the current list/search. No updatedAt stamp: order is not
+        // per-task state, and stamping all of them would spam the sync merge.
+        setTasks((prev) => {
+            const ids = new Set(newActiveTasks.map((t) => t.id));
+            let i = 0;
+            return prev.map((t) => (ids.has(t.id) ? newActiveTasks[i++] : t));
+        });
     };
+
+    // Explicit reorder for mobile (no drag gesture — it would fight swipe-x and scroll)
+    const moveTask = (id: string, dir: -1 | 1) => {
+        setTasks((prev) => {
+            const active = prev.filter((t) => !t.deletedAt && (t.listId || "default") === activeListId && !t.completed && !t.archived);
+            const idx = active.findIndex((t) => t.id === id);
+            const swapWith = active[idx + dir];
+            if (idx === -1 || !swapWith) return prev;
+            // Swap the two tasks' slots in the full array (same technique as handleReorder)
+            const i1 = prev.findIndex((t) => t.id === id);
+            const i2 = prev.findIndex((t) => t.id === swapWith.id);
+            const next = [...prev];
+            [next[i1], next[i2]] = [next[i2], next[i1]];
+            return next;
+        });
+    };
+
+    const sheetTask = (sheetTaskId && tasks.find((t) => t.id === sheetTaskId && !t.deletedAt)) || null;
+    const popoverTask = (popover && tasks.find((t) => t.id === popover.taskId && !t.deletedAt)) || null;
 
     const getTotalTime = () => {
         if (mode === "work") return pomoSettings.work * 60;
@@ -1095,10 +1067,10 @@ export default function TasksPage() {
                 key = await deriveKey(password, salt);
                 try {
                     const decrypted = await decryptData(serverData.encryptedData, serverData.iv, key);
-                    // Merge logic: Server wins
+                    // Merge (per-task LWW) so unlocking sync never clobbers local work
                     if (decrypted) {
-                        if (decrypted.tasks) setTasks(decrypted.tasks);
-                        if (decrypted.lists) setLists(decrypted.lists);
+                        if (decrypted.tasks) setTasks((prev) => mergeTasks(prev, decrypted.tasks));
+                        if (decrypted.lists) setLists((prev) => mergeLists(prev, decrypted.lists));
                         if (decrypted.activeListId) setActiveListId(decrypted.activeListId);
                         if (decrypted.savedLinks) setSavedLinks(decrypted.savedLinks);
                         if (decrypted.notePages) setNotePages(decrypted.notePages);
@@ -1161,14 +1133,37 @@ export default function TasksPage() {
     }, [lastSyncTime]);
 
     const syncInitialized = useRef(false);
-    const ignoreSync = useRef(false);
+
+    // Mirror of the synced slice of state so interval/async callbacks always
+    // see fresh values (the old code read stale closures on every poll).
+    const syncStateRef = useRef({ tasks, lists, activeListId, savedLinks, notePages, pomoSettings });
+    useEffect(() => {
+        syncStateRef.current = { tasks, lists, activeListId, savedLinks, notePages, pomoSettings };
+    }, [tasks, lists, activeListId, savedLinks, notePages, pomoSettings]);
+
+    // Echo suppression: snapshot of exactly what was last pushed or merged.
+    // The push effect skips when state matches this — no timers, no races.
+    // Volatile timer state (timeLeft/mode) is deliberately excluded.
+    const lastSyncedSnapshot = useRef<string | null>(null);
+    const snapshotOf = (d: typeof syncStateRef.current) => JSON.stringify(d);
+    const isDirty = () => lastSyncedSnapshot.current !== null && snapshotOf(syncStateRef.current) !== lastSyncedSnapshot.current;
+
+    // Quiet error policy: one toast when sync breaks, one when it recovers.
+    const consecutiveFailures = useRef(0);
+    const reportSyncFailure = () => {
+        consecutiveFailures.current += 1;
+        setSyncStatus("error");
+        if (consecutiveFailures.current === 1) toast.warning("Sync paused — will retry");
+    };
+    const reportSyncSuccess = () => {
+        if (consecutiveFailures.current > 0) toast.success("Sync restored");
+        consecutiveFailures.current = 0;
+    };
 
     const pullSync = async (key: CryptoKey, saltStr: string, force = false) => {
-        console.log("Initiating Pull Sync...", { force });
         try {
             // Add timestamp to prevent Next.js/Browser caching
             const res = await fetch(`/api/sync?t=${Date.now()}`, { cache: "no-store" });
-            console.log("Pull Sync Response Status:", res.status);
 
             if (res.status === 401) {
                 console.warn("Pull Sync: Not authenticated");
@@ -1178,6 +1173,7 @@ export default function TasksPage() {
 
             if (!res.ok) {
                 console.error("Pull Sync Error Response", res.status, res.statusText);
+                reportSyncFailure();
                 return;
             }
 
@@ -1185,13 +1181,13 @@ export default function TasksPage() {
 
             // If no data on server, mark as initialized so we can push our local data
             if (data.empty) {
-                console.log("Server data empty. Marking initialized.");
                 syncInitialized.current = true;
                 return;
             }
 
             if (!data.encryptedData || !data.iv) {
                 console.error("Invalid sync data format received");
+                reportSyncFailure();
                 return;
             }
 
@@ -1200,61 +1196,70 @@ export default function TasksPage() {
             // Use ref to get latest time inside interval
             // Bypass check if forced (Conflict Resolution)
             if (!force && lastSyncTimeRef.current && remoteTime <= lastSyncTimeRef.current) {
-                console.log("Local data matches or is newer than remote. Skipping apply.");
                 syncInitialized.current = true; // We are up to date
+                reportSyncSuccess();
+                setSyncStatus((prev) => (prev === "dirty" || prev === "syncing" ? prev : "synced"));
                 return;
             }
 
-            console.log("Decrypting remote data...");
             const decrypted = await decryptData(data.encryptedData, data.iv, key);
 
             // Validate structure
             if (!decrypted.tasks || !decrypted.lists) {
                 console.error("Decrypted data invalid structure");
+                reportSyncFailure();
                 return;
             }
 
-            console.log("Applying remote sync changes...", decrypted);
+            // Merge instead of replace: per-task LWW keeps local edits that the
+            // remote blob doesn't know about yet (they push on the next debounce).
+            const local = syncStateRef.current;
+            const mergedTasks = mergeTasks(local.tasks, decrypted.tasks);
+            const mergedLists = mergeLists(local.lists, decrypted.lists);
+            const localClean = !isDirty();
 
-            // Apply updates (Last Write Wins) - SET FLAG TO IGNORE ECHO PUSH
-            ignoreSync.current = true;
+            setTasks(mergedTasks);
+            setLists(mergedLists);
+            // Notes/links/settings have no per-item timestamps — apply remote
+            // only when local has no unsynced changes (documented trade-off).
+            if (decrypted.activeListId && localClean) setActiveListId(decrypted.activeListId);
+            if (decrypted.savedLinks && localClean) setSavedLinks(decrypted.savedLinks);
+            if (decrypted.notePages && localClean) setNotePages(decrypted.notePages);
+            if (decrypted.settings?.pomoSettings && localClean) setPomoSettings(decrypted.settings.pomoSettings);
 
-            setTasks(decrypted.tasks);
-            setLists(decrypted.lists);
-            if (decrypted.activeListId) setActiveListId(decrypted.activeListId);
-            if (decrypted.savedLinks) setSavedLinks(decrypted.savedLinks);
-            if (decrypted.notePages) setNotePages(decrypted.notePages);
-            if (decrypted.settings?.pomoSettings) setPomoSettings(decrypted.settings.pomoSettings);
+            // Snapshot from the values in hand (state updates are async). If the
+            // merge kept local-only edits, the snapshot differs from state and
+            // the push effect fires naturally, completing conflict resolution.
+            lastSyncedSnapshot.current = snapshotOf({
+                tasks: decrypted.tasks,
+                lists: decrypted.lists,
+                activeListId: decrypted.activeListId ?? local.activeListId,
+                savedLinks: localClean ? (decrypted.savedLinks ?? local.savedLinks) : local.savedLinks,
+                notePages: localClean ? (decrypted.notePages ?? local.notePages) : local.notePages,
+                pomoSettings: localClean ? (decrypted.settings?.pomoSettings ?? local.pomoSettings) : local.pomoSettings,
+            });
 
             setLastSyncTime(remoteTime);
             syncInitialized.current = true; // Mark as initialized after successful sync
-
-            // Reset the ignore flag after a short delay to allow all effects to fire and be ignored
-            setTimeout(() => {
-                ignoreSync.current = false;
-                console.log("Echo prevention lock released.");
-            }, 1000);
-
-            toast.success("Sync updated from cloud");
+            reportSyncSuccess();
+            setSyncStatus("synced");
         } catch (e) {
             console.error("Pull Sync Exception", e);
-            toast.error("Debug: Pull Exception " + e);
+            reportSyncFailure();
         }
     };
 
     const performSync = async (key: CryptoKey, saltStr: string) => {
         if (!key) return;
 
+        const current = syncStateRef.current;
         const dataToEncrypt = {
-            tasks,
-            lists,
-            activeListId,
-            savedLinks,
-            notePages,
-            settings: { timeLeft, mode, isTimerMinimized, pomoSettings },
+            ...current,
+            settings: { timeLeft, mode, isTimerMinimized, pomoSettings: current.pomoSettings },
             updatedAt: new Date().toISOString(),
         };
 
+        setSyncStatus("syncing");
         const { cipherText, iv } = await encryptData(dataToEncrypt, key);
 
         const res = await fetch("/api/sync", {
@@ -1271,18 +1276,10 @@ export default function TasksPage() {
             }),
         });
 
-        console.log("Sync Push Status:", res.status);
-
         if (res.status === 409) {
-            console.warn("Sync Conflict Detected: Server has newer data.");
-            toast.warning("Remote Changes Detected", {
-                description: "Merging updates from other devices...",
-                duration: 3000,
-            });
-
-            // Automatically trigger pull to resolve
-            // We await this to ensure we don't try to push again immediately
-            // Force pull to ignore local timestamp checks
+            // Server has newer data — pull merges it in; the still-dirty snapshot
+            // re-triggers the push, resolving the conflict in one round trip.
+            console.warn("Sync Conflict Detected: Server has newer data. Merging...");
             await pullSync(key, saltStr, true);
             return;
         }
@@ -1290,23 +1287,20 @@ export default function TasksPage() {
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             console.error("Sync Push Error:", err);
-            // Don't throw, just toast
-            toast.error(`Sync Failed: ${res.status}`);
+            reportSyncFailure();
             return;
         }
 
-        // Only update lastSyncTime if push was successful and NO CONFLICT
+        // Push accepted — this exact payload is now the server state.
+        lastSyncedSnapshot.current = snapshotOf(current);
         setLastSyncTime(new Date());
+        reportSyncSuccess();
+        setSyncStatus("synced");
     };
 
     // Auto-Sync Effect (Push)
     useEffect(() => {
         if (!syncKey || isSyncing || !syncSalt) return;
-
-        // Prevent echo: If this update was caused by pullSync, don't push it back
-        if (ignoreSync.current) {
-            return;
-        }
 
         // Only allow push if we have successfully synced with server at least once
         // This prevents overwriting server data with stale local data on initial load
@@ -1314,13 +1308,23 @@ export default function TasksPage() {
             return;
         }
 
+        // Echo prevention: skip if state matches what was last pushed/merged
+        if (lastSyncedSnapshot.current !== null && snapshotOf({ tasks, lists, activeListId, savedLinks, notePages, pomoSettings }) === lastSyncedSnapshot.current) {
+            return;
+        }
+
+        setSyncStatus("dirty");
         const timeoutId = setTimeout(() => {
-            // toast.info("Sync: Auto-Saving..."); // Debug Toast
             performSync(syncKey, syncSalt);
         }, 5000); // Debounce 5s
 
         return () => clearTimeout(timeoutId);
     }, [tasks, lists, activeListId, savedLinks, notePages, pomoSettings, syncKey, syncSalt]);
+
+    // Baseline status tracks whether sync is unlocked at all
+    useEffect(() => {
+        setSyncStatus(syncKey ? "synced" : "disabled");
+    }, [syncKey]);
 
     // Polling Effect (Pull)
     useEffect(() => {
@@ -1337,7 +1341,25 @@ export default function TasksPage() {
     }, [syncKey, syncSalt]);
 
     if (!isLoaded) {
-        return <div className="min-h-full w-full bg-base-100" />;
+        // Skeleton matching each layout's silhouette so hydration doesn't jump
+        return (
+            <div className="min-h-full w-full p-4 md:p-12 bg-base-100">
+                <div className="hidden md:grid md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                        <div className="skeleton h-12 w-64" />
+                        {[...Array(5)].map((_, i) => (
+                            <div key={i} className="skeleton h-16 rounded-xl" />
+                        ))}
+                    </div>
+                    <div className="skeleton h-96 rounded-3xl" />
+                </div>
+                <div className="md:hidden space-y-3 pt-16">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="skeleton h-20 rounded-2xl" />
+                    ))}
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -1402,7 +1424,7 @@ export default function TasksPage() {
                                                                     "p-1.5 rounded-md transition-colors",
                                                                     activeListId === list.id ?
                                                                         "text-base-content/50 hover:text-error hover:bg-primary/80"
-                                                                    :   "text-base-content/50 hover:text-error hover:bg-base-content/10 opacity-0 group-hover/item:opacity-100",
+                                                                    :   "text-base-content/50 hover:text-error hover:bg-base-content/10 opacity-100 md:opacity-0 md:group-hover/item:opacity-100",
                                                                 )}
                                                                 title="Delete List"
                                                             >
@@ -1502,14 +1524,19 @@ export default function TasksPage() {
                                     }}
                                     className={clsx(
                                         "btn btn-circle btn-ghost hover:bg-base-content/10 relative",
-                                        isSyncing ? "text-secondary animate-pulse"
+                                        syncStatus === "syncing" || isSyncing ? "text-secondary animate-pulse"
+                                        : syncStatus === "error" ? "text-error"
+                                        : syncStatus === "dirty" ? "text-info"
                                         : syncKey && user ? "text-success"
                                         : syncKey && !user ? "text-warning"
                                         : "text-base-content/50",
                                     )}
                                     title={
-                                        isSyncing ? "Syncing..."
-                                        : syncKey && user ? "Encrypted Sync Active"
+                                        syncStatus === "syncing" || isSyncing ? "Syncing..."
+                                        : syncStatus === "error" ? "Sync paused — retrying"
+                                        : syncStatus === "dirty" ? "Unsynced changes — saving shortly"
+                                        : syncKey && user ?
+                                            `Encrypted Sync Active${lastSyncTime ? ` — synced ${formatDistanceToNow(lastSyncTime, { addSuffix: true })}` : ""}`
                                         : syncKey && !user ? "Session expired — click to login"
                                         : "Sync Disabled — click to login"
                                     }
@@ -1518,7 +1545,10 @@ export default function TasksPage() {
                                     {syncKey && (
                                         <span className={clsx(
                                             "absolute bottom-2 right-2 w-2 h-2 rounded-full border border-base-100",
-                                            user ? "bg-success" : "bg-warning"
+                                            syncStatus === "error" ? "bg-error"
+                                            : syncStatus === "dirty" ? "bg-info"
+                                            : user ? "bg-success"
+                                            : "bg-warning"
                                         )}></span>
                                     )}
                                 </button>
@@ -2174,8 +2204,10 @@ export default function TasksPage() {
 
                                 <form onSubmit={handleAddTask} className="relative mb-6 group">
                                     <input
+                                        ref={addTaskInputRef}
                                         type="text"
                                         placeholder="What's your focus today?"
+                                        title="Quick add: #tag !priority @due — e.g. 'Ship blog post #work !high @fri'"
                                         className="w-full bg-transparent text-xl md:text-2xl font-medium text-base-content placeholder:text-base-content/50 border-b-2 border-base-content/5 py-4 focus:outline-none focus:border-primary transition-colors pl-2"
                                         value={newTaskText}
                                         onChange={(e) => setNewTaskText(e.target.value)}
@@ -2241,9 +2273,7 @@ export default function TasksPage() {
                                                                 onBlur={(e) => {
                                                                     const newText = e.target.value.trim();
                                                                     if (newText && newText !== task.text) {
-                                                                        setTasks((prev) =>
-                                                                            prev.map((t) => (t.id === task.id ? { ...t, text: newText } : t)),
-                                                                        );
+                                                                        touchTask(task.id, { text: newText });
                                                                         toast.success("Task updated");
                                                                     }
                                                                     setEditingTaskId(null);
@@ -2366,12 +2396,7 @@ export default function TasksPage() {
 
                                                             {/* Pomodoro Badge - Clickable to set estimate */}
                                                             <button
-                                                                onClick={() => {
-                                                                    setActiveTaskID(task.id);
-                                                                    setModalInput(task.estimatedPomos?.toString() || "");
-                                                                    setModalType("ESTIMATE");
-                                                                    setModalOpen(true);
-                                                                }}
+                                                                onClick={(e) => setPopover({ type: "estimate", taskId: task.id, anchorEl: e.currentTarget })}
                                                                 className="flex items-center gap-1 px-2 py-1 bg-base-content/5 hover:bg-base-content/10 rounded-lg text-xs font-mono transition-colors"
                                                                 title="Set pomodoro estimate"
                                                             >
@@ -2383,12 +2408,7 @@ export default function TasksPage() {
 
                                                             {/* Due Date Button */}
                                                             <button
-                                                                onClick={() => {
-                                                                    setActiveTaskID(task.id);
-                                                                    setModalInput(task.dueDate || "");
-                                                                    setModalType("DUE_DATE");
-                                                                    setModalOpen(true);
-                                                                }}
+                                                                onClick={(e) => setPopover({ type: "due", taskId: task.id, anchorEl: e.currentTarget })}
                                                                 className={clsx(
                                                                     "flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors",
                                                                     task.dueDate ?
@@ -2424,11 +2444,7 @@ export default function TasksPage() {
                                                             {/* Move to List - Only show if multiple lists */}
                                                             {lists.length > 1 && (
                                                                 <button
-                                                                    onClick={() => {
-                                                                        setActiveTaskID(task.id);
-                                                                        setModalType("MOVE_TO_LIST");
-                                                                        setModalOpen(true);
-                                                                    }}
+                                                                    onClick={(e) => setPopover({ type: "move", taskId: task.id, anchorEl: e.currentTarget })}
                                                                     className="p-2 text-base-content/50 hover:text-base-content hover:bg-base-content/10 rounded-lg"
                                                                     title="Move to another list"
                                                                 >
@@ -2497,14 +2513,18 @@ export default function TasksPage() {
                                                                     <CornerDownRight size={14} className="text-base-content/30" />
                                                                     <button
                                                                         onClick={() => toggleSubTask(task.id, sub.id)}
-                                                                        className={clsx(
-                                                                            "w-4 h-4 rounded border flex items-center justify-center transition-colors flex-shrink-0",
-                                                                            sub.completed ? "bg-base-content/40 border-base-content/40" : (
-                                                                                "border-base-content/25 hover:border-base-content/40"
-                                                                            ),
-                                                                        )}
+                                                                        className="p-2 -m-2 flex items-center justify-center flex-shrink-0"
                                                                     >
-                                                                        {sub.completed && <Check size={10} className="text-base-100" />}
+                                                                        <span
+                                                                            className={clsx(
+                                                                                "w-4 h-4 rounded border flex items-center justify-center transition-colors",
+                                                                                sub.completed ? "bg-base-content/40 border-base-content/40" : (
+                                                                                    "border-base-content/25 hover:border-base-content/40"
+                                                                                ),
+                                                                            )}
+                                                                        >
+                                                                            {sub.completed && <Check size={10} className="text-base-100" />}
+                                                                        </span>
                                                                     </button>
                                                                     <span
                                                                         className={clsx(
@@ -2536,20 +2556,9 @@ export default function TasksPage() {
                                                                     if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
                                                                         const text = (e.target as HTMLInputElement).value.trim();
                                                                         const subId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-                                                                        setTasks((prev) =>
-                                                                            prev.map((t) => {
-                                                                                if (t.id === task.id) {
-                                                                                    return {
-                                                                                        ...t,
-                                                                                        subtasks: [
-                                                                                            ...t.subtasks,
-                                                                                            { id: subId, text, completed: false },
-                                                                                        ],
-                                                                                    };
-                                                                                }
-                                                                                return t;
-                                                                            }),
-                                                                        );
+                                                                        touchTask(task.id, (t) => ({
+                                                                            subtasks: [...t.subtasks, { id: subId, text, completed: false }],
+                                                                        }));
                                                                         (e.target as HTMLInputElement).value = "";
                                                                     }
                                                                 }}
@@ -2576,7 +2585,7 @@ export default function TasksPage() {
                                                                     </a>
                                                                     <button
                                                                         onClick={() => deleteAttachment(task.id, att.id)}
-                                                                        className="opacity-0 group-hover:opacity-100 text-base-content/50 hover:text-error"
+                                                                        className="opacity-100 md:opacity-0 md:group-hover:opacity-100 text-base-content/50 hover:text-error p-2 -m-1"
                                                                     >
                                                                         <X size={12} />
                                                                     </button>
@@ -2584,7 +2593,7 @@ export default function TasksPage() {
                                                             ))}
                                                             <button
                                                                 onClick={() => openModal(task.id, "ATTACHMENT")}
-                                                                className="opacity-0 group-hover/list:opacity-100 transition-opacity flex items-center justify-center w-6 h-6 rounded-full bg-base-300 border border-base-content/10 text-base-content/50 hover:text-base-content hover:bg-base-300/70"
+                                                                className="opacity-100 md:opacity-0 md:group-hover/list:opacity-100 transition-opacity flex items-center justify-center w-6 h-6 rounded-full bg-base-300 border border-base-content/10 text-base-content/50 hover:text-base-content hover:bg-base-300/70"
                                                                 title="Add another link"
                                                             >
                                                                 <Plus size={12} />
@@ -2731,6 +2740,27 @@ export default function TasksPage() {
                     </h1>
                     <div className="flex items-center gap-2">
                         {/* Mobile Header Actions */}
+                        <button
+                            onClick={() => {
+                                if (!user) {
+                                    router.push("/api/auth/discord/login");
+                                    return;
+                                }
+                                openModal(null, "SYNC");
+                            }}
+                            className={clsx(
+                                "btn btn-ghost btn-circle btn-sm",
+                                syncStatus === "syncing" ? "text-secondary animate-pulse"
+                                : syncStatus === "error" ? "text-error"
+                                : syncStatus === "dirty" ? "text-info"
+                                : syncKey && user ? "text-success"
+                                : syncKey && !user ? "text-warning"
+                                : "text-base-content/50",
+                            )}
+                            aria-label="Sync status"
+                        >
+                            <Cloud size={20} />
+                        </button>
                         <button onClick={() => openModal(null, "SETTINGS")} className="btn btn-ghost btn-circle btn-sm">
                             <Settings size={20} />
                         </button>
@@ -2797,169 +2827,20 @@ export default function TasksPage() {
                                                 exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
                                                 className="relative group"
                                             >
-                                                {/* Trash Background Layer */}
-                                                <div className="absolute inset-0 bg-error/20 rounded-2xl flex items-center justify-end px-6 z-0">
-                                                    <Trash2 className="text-error" />
-                                                </div>
-
-                                                {/* Swipeable Task Card */}
-                                                <motion.div
-                                                    drag="x"
-                                                    dragConstraints={{ left: -100, right: 0 }}
-                                                    onDragEnd={(e, info) => {
-                                                        if (info.offset.x < -80) {
-                                                            deleteTask(task.id);
-                                                        }
+                                                <MobileTaskCard
+                                                    task={task}
+                                                    isFocused={currentTaskId === task.id}
+                                                    onToggle={() => toggleTask(task.id)}
+                                                    onDelete={() => deleteTask(task.id)}
+                                                    onOpenSheet={() => setSheetTaskId(task.id)}
+                                                    onToggleSubtask={(subId) => toggleSubTask(task.id, subId)}
+                                                    onAddSubtask={(text) => {
+                                                        const subId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+                                                        touchTask(task.id, (t) => ({
+                                                            subtasks: [...(t.subtasks || []), { id: subId, text, completed: false }],
+                                                        }));
                                                     }}
-                                                    whileDrag={{ scale: 1.02 }}
-                                                    onClick={() => toggleTask(task.id)}
-                                                    className="relative p-4 bg-base-200 border border-base-content/5 rounded-2xl flex items-start gap-4 active:bg-base-300 transition-all z-10"
-                                                    style={{ touchAction: "pan-y" }} // Important for scrolling while dragging
-                                                >
-                                                    <div
-                                                        className={clsx(
-                                                            "w-6 h-6 mt-0.5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                                                            task.completed ? "bg-success border-success" : "border-base-content/40",
-                                                        )}
-                                                    >
-                                                        {task.completed && <Check size={14} className="text-success-content" />}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <span
-                                                            className={clsx(
-                                                                "text-lg block truncate",
-                                                                task.completed ? "text-base-content/50 line-through" : "text-base-content",
-                                                            )}
-                                                        >
-                                                            {task.text}
-                                                        </span>
-
-                                                        {/* Subtasks Rendering */}
-                                                        {task.subtasks && task.subtasks.length > 0 && (
-                                                            <div className="mt-2 space-y-1">
-                                                                {(task.subtasks || []).map((st: any) => (
-                                                                    <div
-                                                                        key={st.id}
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setTasks((prev) =>
-                                                                                prev.map((t) => {
-                                                                                    if (t.id !== task.id) return t;
-                                                                                    return {
-                                                                                        ...t,
-                                                                                        subtasks: t.subtasks?.map((s) =>
-                                                                                            s.id === st.id ? { ...s, completed: !s.completed } : s,
-                                                                                        ),
-                                                                                    };
-                                                                                }),
-                                                                            );
-                                                                        }}
-                                                                        className="flex items-center gap-2 text-sm text-base-content/70 py-1 cursor-pointer active:opacity-70"
-                                                                    >
-                                                                        <div
-                                                                            className={clsx(
-                                                                                "w-3 h-3 rounded-full border flex items-center justify-center transition-colors",
-                                                                                st.completed ? "bg-base-content/40 border-base-content/40" : "border-base-content/40",
-                                                                            )}
-                                                                        >
-                                                                            {st.completed && <Check size={8} className="text-base-100" />}
-                                                                        </div>
-                                                                        <span
-                                                                            className={clsx(
-                                                                                "transition-opacity",
-                                                                                st.completed && "line-through opacity-50",
-                                                                            )}
-                                                                        >
-                                                                            {st.text}
-                                                                        </span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-
-                                                        {/* Quick Add Subtask Button */}
-                                                        {addingSubtaskId === task.id ?
-                                                            <form
-                                                                onSubmit={(e) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    if (newSubtaskText.trim()) {
-                                                                        setTasks((prev) =>
-                                                                            prev.map((t) => {
-                                                                                if (t.id !== task.id) return t;
-                                                                                return {
-                                                                                    ...t,
-                                                                                    subtasks: [
-                                                                                        ...(t.subtasks || []),
-                                                                                        {
-                                                                                            id: Date.now().toString(36),
-                                                                                            text: newSubtaskText.trim(),
-                                                                                            completed: false,
-                                                                                        },
-                                                                                    ],
-                                                                                };
-                                                                            }),
-                                                                        );
-                                                                        setNewSubtaskText("");
-                                                                        // Keep adding mode open for multiple entry? Or close? User preference 'better' usually means fast entry. Let's keep it open.
-                                                                        // setAddingSubtaskId(null);
-                                                                    } else {
-                                                                        setAddingSubtaskId(null);
-                                                                    }
-                                                                }}
-                                                                className="mt-2 flex items-center gap-2"
-                                                            >
-                                                                <div className="w-3 h-3 rounded-full border border-base-content/40 flex-shrink-0" />
-                                                                <input
-                                                                    type="text"
-                                                                    autoFocus
-                                                                    value={newSubtaskText}
-                                                                    onChange={(e) => setNewSubtaskText(e.target.value)}
-                                                                    onBlur={() => {
-                                                                        // Delay slightly to allow Submit click
-                                                                        setTimeout(() => {
-                                                                            if (!newSubtaskText.trim()) setAddingSubtaskId(null);
-                                                                        }, 100);
-                                                                    }}
-                                                                    placeholder="New subtask..."
-                                                                    className="bg-transparent text-sm text-base-content/80 focus:outline-none flex-1 placeholder:text-base-content/50"
-                                                                />
-                                                                <button type="submit" className="text-base-content/70 p-1">
-                                                                    <ArrowUpCircle size={20} />
-                                                                </button>
-                                                            </form>
-                                                        :   <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setAddingSubtaskId(task.id);
-                                                                    setNewSubtaskText("");
-                                                                }}
-                                                                className="mt-2 flex items-center gap-2 text-xs text-base-content/50 hover:text-base-content/80 py-1"
-                                                            >
-                                                                <Plus size={12} className="text-base-content/50" />
-                                                                Add subtask
-                                                            </button>
-                                                        }
-
-                                                        {task.estimatedPomos && (
-                                                            <div className="flex items-center gap-1 mt-1 text-xs text-base-content/50">
-                                                                <Flame size={12} className="text-warning" />
-                                                                <span>
-                                                                    {task.actualPomos || 0}/{task.estimatedPomos}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            openModal(task.id, "EDIT_TASK");
-                                                        }}
-                                                        className="p-2 text-base-content/50 hover:text-base-content/80"
-                                                    >
-                                                        <MoreHorizontal size={20} />
-                                                    </button>
-                                                </motion.div>
+                                                />
                                             </motion.div>
                                         ))}
                                     </AnimatePresence>
@@ -2990,23 +2871,27 @@ export default function TasksPage() {
                                                         {completedTasks.map((task) => (
                                                             <div
                                                                 key={task.id}
-                                                                onClick={() => toggleTask(task.id)}
-                                                                className="relative p-4 bg-base-200/50 border border-base-content/5 rounded-2xl flex items-start gap-4 active:bg-base-300 transition-colors"
+                                                                className="relative p-4 bg-base-200/50 border border-base-content/5 rounded-2xl flex items-start gap-3 transition-colors"
                                                             >
-                                                                <div className="w-6 h-6 mt-0.5 rounded-full border-2 border-success bg-success flex items-center justify-center flex-shrink-0">
-                                                                    <Check size={14} className="text-success-content" />
-                                                                </div>
+                                                                {/* Checkbox is the only un-complete target */}
+                                                                <button
+                                                                    onClick={() => toggleTask(task.id)}
+                                                                    className="w-11 h-11 -m-2.5 mt-[-7px] flex items-center justify-center flex-shrink-0"
+                                                                    aria-label="Mark incomplete"
+                                                                >
+                                                                    <span className="w-6 h-6 rounded-full border-2 border-success bg-success flex items-center justify-center">
+                                                                        <Check size={14} className="text-success-content" />
+                                                                    </span>
+                                                                </button>
                                                                 <div className="flex-1 min-w-0">
                                                                     <span className="text-lg block truncate text-base-content/50 line-through">
                                                                         {task.text}
                                                                     </span>
                                                                 </div>
                                                                 <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        deleteTask(task.id);
-                                                                    }}
-                                                                    className="p-2 text-base-content/50 hover:text-error"
+                                                                    onClick={() => deleteTask(task.id)}
+                                                                    className="w-11 h-11 -m-1.5 flex items-center justify-center text-base-content/50 hover:text-error"
+                                                                    aria-label="Delete task"
                                                                 >
                                                                     <Trash2 size={18} />
                                                                 </button>
@@ -3073,16 +2958,22 @@ export default function TasksPage() {
                             </div>
 
                             <div className="flex gap-2">
-                                {["work", "break"].map((m) => (
+                                {(
+                                    [
+                                        { id: "work", label: "Focus" },
+                                        { id: "break", label: "Break" },
+                                        { id: "longBreak", label: "Long Break" },
+                                    ] as const
+                                ).map((m) => (
                                     <button
-                                        key={m}
-                                        onClick={() => switchMode(m as any)}
+                                        key={m.id}
+                                        onClick={() => switchMode(m.id)}
                                         className={clsx(
-                                            "px-6 py-2 rounded-full font-medium capitalize",
-                                            mode === m ? "bg-base-content/10 text-base-content border border-base-content/20" : "text-base-content/50",
+                                            "px-5 py-2 rounded-full font-medium",
+                                            mode === m.id ? "bg-base-content/10 text-base-content border border-base-content/20" : "text-base-content/50",
                                         )}
                                     >
-                                        {m}
+                                        {m.label}
                                     </button>
                                 ))}
                             </div>
@@ -3246,6 +3137,142 @@ export default function TasksPage() {
             {/* Hidden Audio Elements */}
             <audio ref={musicRef} src={RADIO_STATIONS[currentStation]?.url || RADIO_STATIONS[0].url} loop />
 
+            {/* Desktop anchored editors (due date / move / estimate) */}
+            <AnchorPopover
+                open={!!popover && !!popoverTask}
+                anchorEl={popover?.anchorEl ?? null}
+                onClose={() => setPopover(null)}
+                width={popover?.type === "due" ? 260 : 220}
+                maxHeight={320}
+            >
+                {popover?.type === "due" && popoverTask && (
+                    <div className="space-y-2 p-1">
+                        <div className="flex flex-wrap gap-1.5">
+                            {[
+                                { label: "Today", value: format(new Date(), "yyyy-MM-dd") },
+                                { label: "Tomorrow", value: format(addDays(new Date(), 1), "yyyy-MM-dd") },
+                                { label: "Next week", value: format(addWeeks(new Date(), 1), "yyyy-MM-dd") },
+                            ].map((c) => (
+                                <button
+                                    key={c.label}
+                                    onClick={() => {
+                                        touchTask(popoverTask.id, { dueDate: c.value });
+                                        setPopover(null);
+                                    }}
+                                    className={clsx(
+                                        "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                                        popoverTask.dueDate === c.value ?
+                                            "bg-primary text-primary-content"
+                                        :   "bg-base-content/5 text-base-content/70 hover:bg-base-content/10",
+                                    )}
+                                >
+                                    {c.label}
+                                </button>
+                            ))}
+                            {popoverTask.dueDate && (
+                                <button
+                                    onClick={() => {
+                                        touchTask(popoverTask.id, { dueDate: undefined });
+                                        setPopover(null);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-base-content/5 text-error hover:bg-error/10"
+                                >
+                                    Clear
+                                </button>
+                            )}
+                        </div>
+                        <input
+                            type="date"
+                            value={popoverTask.dueDate || ""}
+                            onChange={(e) => touchTask(popoverTask.id, { dueDate: e.target.value || undefined })}
+                            className="w-full bg-base-300/40 text-sm text-base-content border border-base-content/10 rounded-lg p-2 focus:outline-none focus:border-base-content/40"
+                        />
+                    </div>
+                )}
+                {popover?.type === "move" && popoverTask && (
+                    <div className="space-y-1">
+                        {lists
+                            .filter((l) => l.id !== (popoverTask.listId || "default"))
+                            .map((list) => (
+                                <button
+                                    key={list.id}
+                                    onClick={() => {
+                                        touchTask(popoverTask.id, { listId: list.id });
+                                        setPopover(null);
+                                        toast.success(`Moved to "${list.name}"`);
+                                    }}
+                                    className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-base-content/70 hover:bg-base-content/5 hover:text-base-content flex items-center gap-2"
+                                >
+                                    <FolderInput size={14} className="text-base-content/50" />
+                                    {list.name}
+                                </button>
+                            ))}
+                    </div>
+                )}
+                {popover?.type === "estimate" && popoverTask && (
+                    <div className="flex items-center justify-between gap-2 p-1">
+                        <button
+                            onClick={() => touchTask(popoverTask.id, { estimatedPomos: Math.max(0, (popoverTask.estimatedPomos || 0) - 1) || undefined })}
+                            className="w-9 h-9 rounded-lg bg-base-content/5 hover:bg-base-content/10 text-base-content text-lg font-bold"
+                        >
+                            −
+                        </button>
+                        <div className="text-sm font-mono text-base-content">
+                            🍅 {popoverTask.actualPomos || 0}/{popoverTask.estimatedPomos || "?"}
+                        </div>
+                        <button
+                            onClick={() => touchTask(popoverTask.id, { estimatedPomos: (popoverTask.estimatedPomos || 0) + 1 })}
+                            className="w-9 h-9 rounded-lg bg-base-content/5 hover:bg-base-content/10 text-base-content text-lg font-bold"
+                        >
+                            +
+                        </button>
+                    </div>
+                )}
+            </AnchorPopover>
+
+            {/* Mobile Task Action Sheet */}
+            <TaskActionSheet
+                task={sheetTask}
+                lists={lists}
+                tags={TASK_TAGS}
+                isFocused={sheetTask ? currentTaskId === sheetTask.id : false}
+                onClose={() => setSheetTaskId(null)}
+                onUpdate={(patch) => sheetTask && touchTask(sheetTask.id, patch)}
+                onToggleTag={(tagId) => sheetTask && toggleTag(sheetTask.id, tagId)}
+                onDelete={() => {
+                    if (sheetTask) {
+                        deleteTask(sheetTask.id);
+                        setSheetTaskId(null);
+                    }
+                }}
+                onArchive={() => {
+                    if (sheetTask) {
+                        archiveTask(sheetTask.id);
+                        setSheetTaskId(null);
+                    }
+                }}
+                onToggleFocus={() => sheetTask && setCurrentTaskId(currentTaskId === sheetTask.id ? null : sheetTask.id)}
+                onMove={(dir) => sheetTask && moveTask(sheetTask.id, dir)}
+                onOpenNotes={() => {
+                    if (sheetTask) {
+                        setSheetTaskId(null);
+                        openModal(sheetTask.id, "NOTE");
+                    }
+                }}
+                onOpenAttachment={() => {
+                    if (sheetTask) {
+                        setSheetTaskId(null);
+                        openModal(sheetTask.id, "ATTACHMENT");
+                    }
+                }}
+                onOpenSubtask={() => {
+                    if (sheetTask) {
+                        setSheetTaskId(null);
+                        openModal(sheetTask.id, "SUBTASK");
+                    }
+                }}
+            />
+
             {/* Global Modal */}
             <AnimatePresence>
                 {modalOpen && (
@@ -3331,7 +3358,7 @@ export default function TasksPage() {
                                                         <button
                                                             onClick={() => deleteTask(task.id)}
                                                             className="p-2 hover:bg-error/20 rounded text-error/50 hover:text-error"
-                                                            title="Delete Forever"
+                                                            title="Delete"
                                                         >
                                                             <Trash2 size={14} />
                                                         </button>
@@ -3339,6 +3366,30 @@ export default function TasksPage() {
                                                 ))}
                                             </div>
                                         }
+
+                                        {/* Recently Deleted (tombstones, purged after 30 days) */}
+                                        {deletedTasks.length > 0 && (
+                                            <div className="pt-4 border-t border-base-content/5">
+                                                <h4 className="text-sm font-bold text-base-content/50 uppercase mb-3">Recently Deleted</h4>
+                                                <div className="space-y-2">
+                                                    {deletedTasks.map((task) => (
+                                                        <div
+                                                            key={task.id}
+                                                            className="flex items-center gap-3 p-3 bg-error/5 rounded-lg border border-error/10"
+                                                        >
+                                                            <span className="flex-1 text-base-content/50 line-through text-sm">{task.text}</span>
+                                                            <button
+                                                                onClick={() => restoreTask(task.id)}
+                                                                className="p-2 hover:bg-base-content/10 rounded text-base-content/50 hover:text-base-content"
+                                                                title="Restore"
+                                                            >
+                                                                <RotateCw size={14} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
@@ -3672,41 +3723,13 @@ export default function TasksPage() {
                                                             )}
                                                             <button
                                                                 type="button"
-                                                                onClick={() => {
-                                                                    // Trigger a full re-sync (download)
-                                                                    setModalType("SYNC"); // Re-enter password or just re-run setup if we stored password?
-                                                                    // Ideally we should just verify, but we can't get password back easily.
-                                                                    // Let's just prompt to re-enter for manual pull, OR better, check if we can pull with existing key.
-                                                                    // Actually we have valid key in syncKey.
-                                                                    // We can just pull.
+                                                                onClick={async () => {
+                                                                    // Merge-safe forced pull with the key already in memory
+                                                                    if (!syncKey || !syncSalt) return;
                                                                     setIsSyncing(true);
-                                                                    fetch("/api/sync")
-                                                                        .then((r) => r.json())
-                                                                        .then(async (serverData) => {
-                                                                            if (serverData.encryptedData && syncKey) {
-                                                                                try {
-                                                                                    const decrypted = await decryptData(
-                                                                                        serverData.encryptedData,
-                                                                                        serverData.iv,
-                                                                                        syncKey,
-                                                                                    );
-                                                                                    if (decrypted) {
-                                                                                        setTasks(decrypted.tasks || []);
-                                                                                        setLists(decrypted.lists || []);
-                                                                                        if (decrypted.activeListId)
-                                                                                            setActiveListId(decrypted.activeListId);
-                                                                                        setSavedLinks(decrypted.savedLinks || []);
-                                                                                        setNotePages(decrypted.notePages || []);
-                                                                                        // ... settings ...
-                                                                                        setLastSyncTime(new Date());
-                                                                                        toast.success("Pulled latest data");
-                                                                                    }
-                                                                                } catch (e) {
-                                                                                    toast.error("Decryption failed");
-                                                                                }
-                                                                            }
-                                                                            setIsSyncing(false);
-                                                                        });
+                                                                    await pullSync(syncKey, syncSalt, true);
+                                                                    setIsSyncing(false);
+                                                                    toast.success("Pulled latest data");
                                                                 }}
                                                                 title="Pull latest from server"
                                                                 className="p-1 hover:bg-success/20 rounded-full transition-colors"
@@ -3982,9 +4005,7 @@ export default function TasksPage() {
                                         onSubmit={(e) => {
                                             e.preventDefault();
                                             if (activeTaskID) {
-                                                setTasks((prev) =>
-                                                    prev.map((t) => (t.id === activeTaskID ? { ...t, dueDate: modalInput || undefined } : t)),
-                                                );
+                                                touchTask(activeTaskID, { dueDate: modalInput || undefined });
                                                 setModalOpen(false);
                                                 toast.success(modalInput ? "Due date set!" : "Due date cleared");
                                             }
@@ -4003,9 +4024,7 @@ export default function TasksPage() {
                                                 onClick={() => {
                                                     setModalInput("");
                                                     if (activeTaskID) {
-                                                        setTasks((prev) =>
-                                                            prev.map((t) => (t.id === activeTaskID ? { ...t, dueDate: undefined } : t)),
-                                                        );
+                                                        touchTask(activeTaskID, { dueDate: undefined });
                                                     }
                                                     setModalOpen(false);
                                                     toast.info("Due date cleared");
@@ -4036,11 +4055,7 @@ export default function TasksPage() {
                                             e.preventDefault();
                                             if (activeTaskID) {
                                                 const estimate = parseInt(modalInput) || 0;
-                                                setTasks((prev) =>
-                                                    prev.map((t) =>
-                                                        t.id === activeTaskID ? { ...t, estimatedPomos: estimate > 0 ? estimate : undefined } : t,
-                                                    ),
-                                                );
+                                                touchTask(activeTaskID, { estimatedPomos: estimate > 0 ? estimate : undefined });
                                                 setModalOpen(false);
                                                 toast.success(estimate > 0 ? `Estimated ${estimate} pomodoros` : "Estimate cleared");
                                             }
@@ -4092,9 +4107,7 @@ export default function TasksPage() {
                                                     key={list.id}
                                                     onClick={() => {
                                                         if (activeTaskID) {
-                                                            setTasks((prev) =>
-                                                                prev.map((t) => (t.id === activeTaskID ? { ...t, listId: list.id } : t)),
-                                                            );
+                                                            touchTask(activeTaskID, { listId: list.id });
                                                             setModalOpen(false);
                                                             toast.success(`Moved to "${list.name}"`);
                                                         }
