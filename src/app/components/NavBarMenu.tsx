@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Briefcase, BookOpen, CheckSquare, FileText, Mail, TerminalSquare } from 'lucide-react';
+import { Home, Briefcase, BookOpen, CheckSquare, FileText, Lock, Mail, TerminalSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 
@@ -22,7 +22,10 @@ export function NavBarMenu({ isAuthed = false }: { isAuthed?: boolean }) {
 
   return (
     <ul className="flex flex-col gap-2 p-4 w-full">
-      {navItems.filter((item) => !item.authOnly || isAuthed).map((item) => {
+      {/* authOnly items stay visible when logged out — clicking one runs the silent
+          OAuth round-trip (the proxy redirects through Discord and back). Hiding them
+          left no path to /tasks after a logout. */}
+      {navItems.map((item) => {
         const isActive = 
           item.path === '/' 
             ? pathname === '/'
@@ -47,6 +50,7 @@ export function NavBarMenu({ isAuthed = false }: { isAuthed?: boolean }) {
               )}>
                 <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
                 <span className="text-base">{item.name}</span>
+                {item.authOnly && !isAuthed && <Lock size={12} className="ml-auto text-base-content/40" aria-label="Requires sign-in" />}
               </div>
             </Link>
           </li>
