@@ -7,8 +7,10 @@ import {
     Briefcase,
     TerminalSquare,
     BookOpen,
+    CheckSquare,
     FileText,
     Mail,
+    Plus,
     SunMoon,
     CornerDownLeft,
     Search,
@@ -49,6 +51,7 @@ const COMMANDS: Command[] = [
     { id: "playground", label: "Open the Playground", hint: "/playground", keywords: "run webcontainer node terminal repl demo", icon: TerminalSquare, run: go("/playground") },
     { id: "blog", label: "Read the Blog", hint: "/blog", keywords: "writing posts articles security", icon: BookOpen, run: go("/blog") },
     { id: "cv", label: "Open the CV (shell)", hint: "/cv", keywords: "resume cv terminal shell easter egg", icon: FileText, run: go("/cv") },
+    { id: "tasks", label: "Go to Tasks", hint: "/tasks", keywords: "tasks todo workflow today pomodoro focus", icon: CheckSquare, run: go("/tasks") },
     { id: "theme", label: "Toggle light / dark", hint: "midnight ⇄ daylight", keywords: "theme dark light mode color", icon: SunMoon, run: toggleTheme },
     { id: "github", label: "Open GitHub", hint: "github.com/mkhawam", keywords: "github code source open", icon: FaGithub, run: open("https://github.com/mkhawam") },
     { id: "linkedin", label: "Open LinkedIn", hint: "linkedin.com/in/mohamad-k", keywords: "linkedin contact", icon: FaLinkedin, run: open("https://linkedin.com/in/mohamad-k") },
@@ -64,14 +67,36 @@ export default function CommandPalette() {
     const activeItemRef = useRef<HTMLButtonElement | null>(null);
 
     const results = useMemo(() => {
-        const q = query.trim().toLowerCase();
+        const raw = query.trim();
+
+        // Quick capture: task text becomes /tasks?add=… and flows through the
+        // quick-add parser there, so "#tag !high @fri" tokens work from anywhere.
+        // encodeURIComponent is mandatory — a bare "#work" would become a URL fragment.
+        const makeAddCommand = (text: string): Command => ({
+            id: "add-task",
+            label: `Add task: "${text}"`,
+            hint: "supports #tag !high @fri",
+            keywords: "",
+            icon: Plus,
+            run: ({ router }) => router.push(`/tasks?add=${encodeURIComponent(text)}`),
+        });
+
+        // "+" prefix = explicit capture, palette shows only the add command
+        if (raw.startsWith("+")) {
+            const text = raw.slice(1).trim();
+            return text ? [makeAddCommand(text)] : [];
+        }
+
+        const q = raw.toLowerCase();
         if (!q) return COMMANDS;
-        return COMMANDS.filter(
+        const matches = COMMANDS.filter(
             (c) =>
                 c.label.toLowerCase().includes(q) ||
                 c.keywords.includes(q) ||
                 c.hint.toLowerCase().includes(q),
         );
+        // No match → the query is probably a task; always offer capture as the last row
+        return matches.length === 0 ? [makeAddCommand(raw)] : [...matches, makeAddCommand(raw)];
     }, [query]);
 
     const close = useCallback(() => {

@@ -12,6 +12,7 @@ type Props = {
     lists: TaskList[];
     tags: TaskTag[];
     isFocused: boolean;
+    canReorder?: boolean; // false while a sort mode or the Today view controls ordering
     onClose: () => void;
     onUpdate: (patch: Partial<Task>) => void;
     onToggleTag: (tagId: string) => void;
@@ -46,6 +47,7 @@ export default function TaskActionSheet({
     lists,
     tags,
     isFocused,
+    canReorder = true,
     onClose,
     onUpdate,
     onToggleTag,
@@ -235,7 +237,7 @@ export default function TaskActionSheet({
                             </div>
 
                             {/* Focus + reorder */}
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className={clsx("grid gap-2", canReorder ? "grid-cols-3" : "grid-cols-1")}>
                                 <button
                                     onClick={onToggleFocus}
                                     className={clsx(
@@ -246,20 +248,24 @@ export default function TaskActionSheet({
                                     <Target size={16} />
                                     {isFocused ? "Focused" : "Focus"}
                                 </button>
-                                <button
-                                    onClick={() => onMove(-1)}
-                                    className="min-h-12 rounded-xl bg-base-content/5 text-base-content/60 text-sm font-medium flex items-center justify-center gap-2"
-                                >
-                                    <ArrowUp size={16} />
-                                    Move up
-                                </button>
-                                <button
-                                    onClick={() => onMove(1)}
-                                    className="min-h-12 rounded-xl bg-base-content/5 text-base-content/60 text-sm font-medium flex items-center justify-center gap-2"
-                                >
-                                    <ArrowDown size={16} />
-                                    Move down
-                                </button>
+                                {canReorder && (
+                                    <>
+                                        <button
+                                            onClick={() => onMove(-1)}
+                                            className="min-h-12 rounded-xl bg-base-content/5 text-base-content/60 text-sm font-medium flex items-center justify-center gap-2"
+                                        >
+                                            <ArrowUp size={16} />
+                                            Move up
+                                        </button>
+                                        <button
+                                            onClick={() => onMove(1)}
+                                            className="min-h-12 rounded-xl bg-base-content/5 text-base-content/60 text-sm font-medium flex items-center justify-center gap-2"
+                                        >
+                                            <ArrowDown size={16} />
+                                            Move down
+                                        </button>
+                                    </>
+                                )}
                             </div>
 
                             {/* Move to list */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { motion, Reorder, AnimatePresence } from "framer-motion";
 import {
     Play,
@@ -45,6 +45,8 @@ import {
     VolumeX,
     Move,
     Search,
+    Sun,
+    ArrowUpDown,
     Tag,
     Lock,
     Cloud,
@@ -52,7 +54,6 @@ import {
     Home,
     Clock,
     Menu,
-    Timer,
     BarChart3,
     FolderInput,
 } from "lucide-react";
@@ -75,14 +76,17 @@ import clsx from "clsx";
 import ReactMarkdown from "react-markdown";
 import confetti from "canvas-confetti";
 import { deriveKey, encryptData, decryptData, exportKey, importJWK } from "@/lib/client-crypto";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { generateSummary } from "@/lib/ai";
 import BrainstormingModal from "./components/BrainstormingModal";
 import SpotifyWidget from "./components/SpotifyWidget";
 import TaskTagsMenu from "./components/TaskTagsMenu";
 import TaskActionSheet from "./components/TaskActionSheet";
 import MobileTaskCard from "./components/MobileTaskCard";
+import NoteEditor from "./components/NoteEditor";
+import StatsExtras from "./components/StatsExtras";
 import AnchorPopover from "./components/AnchorPopover";
+import { localToday, nextOccurrence } from "./lib/dates";
 import { mergeLists, mergeTasks } from "./lib/merge";
 import { parseQuickAdd } from "./lib/quickAdd";
 import { TASK_TAGS, type Task, type TaskList } from "./types";
@@ -91,6 +95,10 @@ type ChatMessage = {
     role: "user" | "assistant" | "system";
     content: string;
 };
+
+// Virtual cross-list "Today" view id — can't collide with real list ids
+// (those are Date.now().toString(36)).
+const TODAY_LIST_ID = "__today__";
 
 const SOUNDS = {
     bell: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3",
@@ -113,8 +121,19 @@ const DEFAULT_SETTINGS = {
     sound: "bell" as keyof typeof SOUNDS,
 };
 
+// useSearchParams needs a Suspense boundary in Next 16; the inner component
+// renders its own skeleton until isLoaded, so a null fallback is fine.
 export default function TasksPage() {
+    return (
+        <Suspense fallback={null}>
+            <TasksPageInner />
+        </Suspense>
+    );
+}
+
+function TasksPageInner() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     // --- State ---
     const [tasks, setTasks] = useState<Task[]>([]);
     const [lists, setLists] = useState<TaskList[]>([{ id: "default", name: "My Tasks" }]);
@@ -125,8 +144,7 @@ export default function TasksPage() {
     const [openTagMenuTaskId, setOpenTagMenuTaskId] = useState<string | null>(null);
     const [tagMenuAnchorEl, setTagMenuAnchorEl] = useState<HTMLElement | null>(null);
 
-    // Lightweight anchored editors for desktop task rows (replaces the DUE_DATE /
-    // MOVE_TO_LIST / ESTIMATE modals for the common one-field edits)
+    // Lightweight anchored editors for desktop task rows (due date / move / estimate)
     const [popover, setPopover] = useState<{ type: "due" | "move" | "estimate"; taskId: string; anchorEl: HTMLElement } | null>(null);
 
     // Modal State
@@ -143,11 +161,7 @@ export default function TasksPage() {
         | "SHORTCUTS"
         | "STATS"
         | "NEW_LIST"
-        | "DUE_DATE"
-        | "ESTIMATE"
-        | "MOVE_TO_LIST"
         | "SYNC"
-        | "EDIT_TASK"
     >("SUBTASK");
     const [modalInput, setModalInput] = useState("");
     const [attachmentName, setAttachmentName] = useState(""); // Separate state for attachment name
@@ -245,11 +259,17 @@ export default function TasksPage() {
     const [newLinkTitle, setNewLinkTitle] = useState("");
     const [newLinkUrl, setNewLinkUrl] = useState("");
     const [showCompleted, setShowCompleted] = useState(false);
+    // View-only ordering; underlying array order is untouched so "manual" restores it.
+    // Per-device preference (workflow-settings localStorage, not synced).
+    const [sortMode, setSortMode] = useState<"manual" | "priority" | "due">("manual");
+    const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const musicRef = useRef<HTMLAudioElement | null>(null);
     const modalInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
     const addTaskInputRef = useRef<HTMLInputElement>(null); // "n" shortcut target — never find inputs by placeholder text
+    const searchInputRef = useRef<HTMLInputElement>(null); // "/" shortcut target (desktop search)
+    const mobileAddInputRef = useRef<HTMLInputElement>(null); // ?capture=1 focus target on mobile
 
     // --- Effects ---
 
@@ -365,9 +385,16 @@ export default function TasksPage() {
                         const daysSince = Math.floor((today.getTime() - lastCompleted.getTime()) / (1000 * 60 * 60 * 24));
 
                         let shouldReset = false;
-                        if (task.recurrence === "daily" && daysSince >= 1) shouldReset = true;
-                        if (task.recurrence === "weekly" && daysSince >= 7) shouldReset = true;
-                        if (task.recurrence === "monthly" && daysSince >= 30) shouldReset = true;
+                        if (task.dueDate) {
+                            // dueDate advanced to the next occurrence at completion,
+                            // so "due date arrived" IS the next-period trigger — and
+                            // it handles monthly correctly (calendar month, not 30d).
+                            shouldReset = task.dueDate <= localToday();
+                        } else {
+                            if (task.recurrence === "daily" && daysSince >= 1) shouldReset = true;
+                            if (task.recurrence === "weekly" && daysSince >= 7) shouldReset = true;
+                            if (task.recurrence === "monthly" && daysSince >= 30) shouldReset = true;
+                        }
 
                         if (shouldReset) {
                             // Real data change — stamp it so the reset wins the sync merge.
@@ -402,6 +429,7 @@ export default function TasksPage() {
             setTimeLeft(parsed.timeLeft || DEFAULT_SETTINGS.work * 60);
             setMode(parsed.mode || "work");
             setIsTimerMinimized(parsed.isTimerMinimized || false);
+            if (parsed.sortMode) setSortMode(parsed.sortMode);
         }
 
         // Load Notes & Links
@@ -454,10 +482,11 @@ export default function TasksPage() {
                     pomoSettings,
                     sessionsCompleted,
                     focusHistory,
+                    sortMode,
                 }),
             );
         }
-    }, [timeLeft, mode, isTimerMinimized, pomoSettings, sessionsCompleted, focusHistory, isLoaded]);
+    }, [timeLeft, mode, isTimerMinimized, pomoSettings, sessionsCompleted, focusHistory, sortMode, isLoaded]);
 
     // --- Handlers ---
     const requestNotificationPermission = async () => {
@@ -510,6 +539,24 @@ export default function TasksPage() {
                     e.preventDefault();
                     addTaskInputRef.current?.focus();
                     break;
+                case "/":
+                    e.preventDefault();
+                    setActiveTab("tasks");
+                    searchInputRef.current?.focus();
+                    break;
+                case "t":
+                    setActiveListId(TODAY_LIST_ID);
+                    setActiveTab("tasks");
+                    setMobileTab("tasks");
+                    break;
+                case "[":
+                case "]": {
+                    const cycle = [TODAY_LIST_ID, ...lists.map((l) => l.id)];
+                    const idx = Math.max(0, cycle.indexOf(activeListId));
+                    const next = cycle[(idx + (e.key === "]" ? 1 : cycle.length - 1)) % cycle.length];
+                    setActiveListId(next);
+                    break;
+                }
                 case "?":
                     openModal(null, "SHORTCUTS");
                     break;
@@ -523,7 +570,7 @@ export default function TasksPage() {
         window.addEventListener("keydown", handleKeyDown);
 
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [toggleTimer, modalOpen, isZenMode]);
+    }, [toggleTimer, modalOpen, isZenMode, lists, activeListId]);
 
     const switchMode = (m: "work" | "break" | "longBreak") => {
         setMode(m);
@@ -545,6 +592,8 @@ export default function TasksPage() {
             completed: false,
         }));
 
+        // Adding "to Today" means due today, filed in the default list
+        const inToday = activeListId === TODAY_LIST_ID;
         setTasks((prev) => [
             {
                 id,
@@ -553,9 +602,9 @@ export default function TasksPage() {
                 subtasks: subtasksObjs,
                 priority: parsed.priority || "medium",
                 tags: parsed.tags,
-                dueDate: parsed.dueDate,
+                dueDate: parsed.dueDate || (inToday ? localToday() : undefined),
                 attachments: [],
-                listId: activeListId, // Tag with active list
+                listId: inToday ? "default" : activeListId, // Tag with active list
                 updatedAt: new Date().toISOString(),
             },
             ...prev,
@@ -611,9 +660,19 @@ export default function TasksPage() {
             });
         }
 
-        // Track lastCompletedDate for recurring tasks
-        const today = new Date().toISOString().split("T")[0];
-        touchTask(id, (t) => ({ completed: !t.completed, lastCompletedDate: isCompleting ? today : t.lastCompletedDate }));
+        // Track lastCompletedDate for recurring tasks. LOCAL date — the load-time
+        // reset parses this as local, so a UTC stamp is off by one in the evening.
+        const today = localToday();
+        touchTask(id, (t) => ({
+            completed: !t.completed,
+            lastCompletedDate: isCompleting ? today : t.lastCompletedDate,
+            // Completing a recurring task rolls its due date to the next future
+            // occurrence (it leaves Today immediately). Un-completing does not
+            // rewind; the same-day guard stops a toggle-off/on double advance.
+            ...(isCompleting && t.recurrence && t.dueDate && t.lastCompletedDate !== today ?
+                { dueDate: nextOccurrence(t.dueDate, t.recurrence, today) }
+            :   {}),
+        }));
     };
 
     const cyclePriority = (id: string) => {
@@ -707,11 +766,7 @@ export default function TasksPage() {
             | "SHORTCUTS"
             | "STATS"
             | "NEW_LIST"
-            | "DUE_DATE"
-            | "ESTIMATE"
-            | "MOVE_TO_LIST"
-            | "SYNC"
-            | "EDIT_TASK",
+            | "SYNC",
     ) => {
         setActiveTaskID(taskId);
         setModalType(type);
@@ -724,9 +779,6 @@ export default function TasksPage() {
             setModalInput(task?.notes || "");
         } else if (type === "SETTINGS") {
             setSettingsForm(pomoSettings);
-        } else if (type === "EDIT_TASK" && taskId) {
-            const task = tasks.find((t) => t.id === taskId);
-            setModalInput(task?.text || "");
         } else {
             setModalInput("");
             setAttachmentName("");
@@ -794,10 +846,6 @@ export default function TasksPage() {
                 attachments: [...(task.attachments || []), { id: attId, name, url, type: "link" as const }],
             }));
             toast.success("Link Attached");
-        } else if (modalType === "EDIT_TASK") {
-            if (!modalInput.trim()) return;
-            touchTask(activeTaskID!, { text: modalInput.trim() });
-            toast.success("Task Updated");
         }
         setModalOpen(false);
     };
@@ -824,9 +872,22 @@ export default function TasksPage() {
         setIsTimerMinimized(!isTimerMinimized);
     };
 
+    // "Today" is a virtual cross-list view: overdue + due-today tasks from every
+    // list, plus pending undated recurring tasks. Derived only — nothing stored.
+    const todayStr = localToday();
+    const isTodayTask = (t: Task) =>
+        !t.deletedAt &&
+        !t.archived &&
+        ((!!t.dueDate && t.dueDate <= todayStr) || (!t.dueDate && !!t.recurrence && !t.completed));
+
     // Filter tasks by active list (tombstoned tasks are hidden everywhere)
-    const currentListTasks = tasks.filter((t) => !t.deletedAt && (t.listId || "default") === activeListId);
+    const currentListTasks =
+        activeListId === TODAY_LIST_ID ?
+            tasks.filter(isTodayTask)
+        :   tasks.filter((t) => !t.deletedAt && (t.listId || "default") === activeListId);
     const deletedTasks = tasks.filter((t) => t.deletedAt);
+    const todayCount = tasks.filter((t) => isTodayTask(t) && !t.completed).length;
+    const listNameById = new Map(lists.map((l) => [l.id, l.name]));
 
     const searchFilter = (t: Task) => {
         if (!searchQuery.trim()) return true;
@@ -842,6 +903,22 @@ export default function TasksPage() {
 
     // Sorting: High > Medium > Low
     const priorityOrder = { high: 3, medium: 2, low: 1 };
+    // View-only ordering. Today always sorts by due date (manual order is
+    // meaningless across lists); elsewhere sortMode applies. Stable sort keeps
+    // manual order for ties, and "manual" returns the array untouched.
+    const byPriority = (a: Task, b: Task) => priorityOrder[b.priority ?? "medium"] - priorityOrder[a.priority ?? "medium"];
+    const byDue = (a: Task, b: Task) => {
+        const ad = a.dueDate ?? "9999";
+        const bd = b.dueDate ?? "9999";
+        return ad < bd ? -1 : ad > bd ? 1 : byPriority(a, b);
+    };
+    const displayTasks =
+        activeListId === TODAY_LIST_ID ? [...activeTasks].sort(byDue)
+        : sortMode === "priority" ? [...activeTasks].sort(byPriority)
+        : sortMode === "due" ? [...activeTasks].sort(byDue)
+        : activeTasks;
+    const reorderDisabled = sortMode !== "manual" || activeListId === TODAY_LIST_ID;
+
     const getSubtaskProgress = (t: Task) => {
         if (!t.subtasks || t.subtasks.length === 0) return 0;
         const completed = t.subtasks.filter((s) => s.completed).length;
@@ -862,6 +939,7 @@ export default function TasksPage() {
 
     // Explicit reorder for mobile (no drag gesture — it would fight swipe-x and scroll)
     const moveTask = (id: string, dir: -1 | 1) => {
+        if (activeListId === TODAY_LIST_ID) return; // Today is due-date ordered; entry points are hidden
         setTasks((prev) => {
             const active = prev.filter((t) => !t.deletedAt && (t.listId || "default") === activeListId && !t.completed && !t.archived);
             const idx = active.findIndex((t) => t.id === id);
@@ -1326,6 +1404,36 @@ export default function TasksPage() {
         setSyncStatus(syncKey ? "synced" : "disabled");
     }, [syncKey]);
 
+    // Quick capture entry points: /tasks?add=<text> (command palette) creates a
+    // task through the quick-add parser; /tasks?capture=1 (PWA shortcut) focuses
+    // the add input. Must wait for isLoaded — the load effect replaces tasks
+    // state, so anything added before it would be lost.
+    const consumedAdd = useRef<string | null>(null);
+    useEffect(() => {
+        if (!isLoaded) return;
+        const add = searchParams.get("add");
+        const capture = searchParams.get("capture");
+        if (!add && !capture) {
+            consumedAdd.current = null; // param gone — repeating the same text later works
+            return;
+        }
+        if (add) {
+            if (consumedAdd.current === add) return; // strict-mode double-invoke guard
+            consumedAdd.current = add;
+            addTask(add);
+        }
+        if (capture) {
+            setActiveTab("tasks");
+            setMobileTab("tasks");
+            setTimeout(() => {
+                const desktop = window.matchMedia("(min-width: 768px)").matches;
+                (desktop ? addTaskInputRef : mobileAddInputRef).current?.focus();
+            }, 50);
+        }
+        router.replace("/tasks", { scroll: false });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, isLoaded]);
+
     // Polling Effect (Pull)
     useEffect(() => {
         if (!syncKey || !syncSalt) return;
@@ -1376,7 +1484,7 @@ export default function TasksPage() {
                             <div className="relative">
                                 <button onClick={() => setIsListDropdownOpen(!isListDropdownOpen)} className="flex items-center gap-2 group">
                                     <h1 className="text-3xl md:text-5xl font-extrabold text-base-content tracking-tight">
-                                        {lists.find((l) => l.id === activeListId)?.name || "My Tasks"}
+                                        {activeListId === TODAY_LIST_ID ? "Today" : lists.find((l) => l.id === activeListId)?.name || "My Tasks"}
                                     </h1>
                                     <ChevronDown
                                         size={24}
@@ -1395,6 +1503,38 @@ export default function TasksPage() {
                                             className="absolute top-full left-0 mt-2 w-64 bg-base-200 border border-base-content/10 rounded-xl shadow-2xl z-50 overflow-hidden"
                                         >
                                             <div className="p-2 space-y-1">
+                                                {/* Virtual Today view — pinned, cross-list, no delete */}
+                                                <div
+                                                    className={clsx(
+                                                        "group/item w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors font-medium",
+                                                        activeListId === TODAY_LIST_ID ?
+                                                            "bg-primary text-primary-content"
+                                                        :   "text-base-content/70 hover:bg-base-content/5 hover:text-base-content",
+                                                    )}
+                                                >
+                                                    <button
+                                                        onClick={() => {
+                                                            setActiveListId(TODAY_LIST_ID);
+                                                            setIsListDropdownOpen(false);
+                                                        }}
+                                                        className="flex-1 text-left flex items-center gap-2"
+                                                    >
+                                                        <Sun size={16} />
+                                                        Today
+                                                        {todayCount > 0 && (
+                                                            <span
+                                                                className={clsx(
+                                                                    "ml-auto text-xs font-bold px-2 py-0.5 rounded-full",
+                                                                    activeListId === TODAY_LIST_ID ?
+                                                                        "bg-primary-content/20"
+                                                                    :   "bg-base-content/10 text-base-content/70",
+                                                                )}
+                                                            >
+                                                                {todayCount}
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                </div>
                                                 {lists.map((list) => (
                                                     <div
                                                         key={list.id}
@@ -2040,15 +2180,12 @@ export default function TasksPage() {
 
                                     return (
                                         <>
-                                            <textarea
-                                                value={activePage?.content || ""}
-                                                onChange={(e) =>
-                                                    setNotePages(
-                                                        notePages.map((p) => (p.id === activeNoteId ? { ...p, content: e.target.value } : p)),
-                                                    )
+                                            <NoteEditor
+                                                variant="desktop"
+                                                content={activePage?.content || ""}
+                                                onChange={(c) =>
+                                                    setNotePages(notePages.map((p) => (p.id === activeNoteId ? { ...p, content: c } : p)))
                                                 }
-                                                placeholder="Write your notes here... (Markdown supported)"
-                                                className="flex-1 w-full bg-transparent text-base-content/80 p-4 focus:outline-none resize-none font-mono text-sm leading-relaxed"
                                             />
                                             <div className="p-3 border-t border-base-content/10 text-xs text-base-content/50 text-center">
                                                 Auto-saved • {activePage?.content.length || 0} characters
@@ -2186,6 +2323,7 @@ export default function TasksPage() {
                                 <div className="relative mb-4">
                                     <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
                                     <input
+                                        ref={searchInputRef}
                                         type="text"
                                         placeholder="Search tasks..."
                                         value={searchQuery}
@@ -2220,20 +2358,49 @@ export default function TasksPage() {
                                     </button>
                                 </form>
 
-                                <h2 className="text-xl font-bold text-base-content mb-4 px-2">Active Tasks</h2>
+                                <div className="flex items-center justify-between mb-4 px-2">
+                                    <h2 className="text-xl font-bold text-base-content">Active Tasks</h2>
+                                    {/* Sort control — hidden in Today (always due-date ordered there) */}
+                                    {activeListId !== TODAY_LIST_ID && (
+                                        <div className="flex items-center gap-1 bg-base-content/5 rounded-lg p-1" title="Sort tasks">
+                                            <ArrowUpDown size={14} className="text-base-content/40 ml-1.5 mr-0.5" />
+                                            {(
+                                                [
+                                                    { id: "manual", label: "Manual" },
+                                                    { id: "priority", label: "Priority" },
+                                                    { id: "due", label: "Due" },
+                                                ] as const
+                                            ).map((m) => (
+                                                <button
+                                                    key={m.id}
+                                                    onClick={() => setSortMode(m.id)}
+                                                    className={clsx(
+                                                        "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                                                        sortMode === m.id ?
+                                                            "bg-base-300 text-base-content shadow-sm"
+                                                        :   "text-base-content/50 hover:text-base-content/80",
+                                                    )}
+                                                >
+                                                    {m.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Scrollable Task List */}
                             <div className="flex-1 overflow-y-auto overflow-x-visible px-3 py-2 custom-scrollbar min-h-0">
-                                <Reorder.Group axis="y" values={activeTasks} onReorder={handleReorder} className="space-y-3 pb-8">
+                                <Reorder.Group axis="y" values={displayTasks} onReorder={reorderDisabled ? () => {} : handleReorder} className="space-y-3 pb-8">
                                     <AnimatePresence initial={false}>
-                                        {activeTasks.map((task) => {
+                                        {displayTasks.map((task) => {
                                             const prog = getSubtaskProgress(task);
 
                                             return (
                                                 <Reorder.Item
                                                     key={task.id}
                                                     value={task}
+                                                    dragListener={!reorderDisabled}
                                                     initial={{ opacity: 0, y: 10 }}
                                                     animate={{ opacity: 1, y: 0, transition: { duration: 0.3 } }}
                                                     exit={{ opacity: 0, height: 0, marginBottom: 0, transition: { duration: 0.2 } }}
@@ -2255,9 +2422,11 @@ export default function TasksPage() {
                                                     )}
 
                                                     <div className="flex items-center gap-4 relative z-10">
-                                                        <div className="cursor-grab active:cursor-grabbing text-base-content/50 hover:text-base-content/70">
-                                                            <GripVertical size={18} />
-                                                        </div>
+                                                        {!reorderDisabled && (
+                                                            <div className="cursor-grab active:cursor-grabbing text-base-content/50 hover:text-base-content/70">
+                                                                <GripVertical size={18} />
+                                                            </div>
+                                                        )}
 
                                                         <button
                                                             onClick={() => toggleTask(task.id)}
@@ -2296,6 +2465,12 @@ export default function TasksPage() {
                                                                 >
                                                                     {task.text}
                                                                 </span>
+                                                                {/* In the cross-list Today view, show which list a task belongs to */}
+                                                                {activeListId === TODAY_LIST_ID && (
+                                                                    <span className="self-start px-2 py-0.5 rounded-md text-[11px] font-medium border bg-base-content/5 text-base-content/50 border-base-content/10">
+                                                                        {listNameById.get(task.listId || "default") ?? "My Tasks"}
+                                                                    </span>
+                                                                )}
                                                                 {task.tags && task.tags.length > 0 && (
                                                                     <div className="flex flex-wrap gap-1">
                                                                         {task.tags.map((tagId) => {
@@ -2733,7 +2908,8 @@ export default function TasksPage() {
                 {/* Mobile Header */}
                 <div className="p-4 flex items-center justify-between shrink-0">
                     <h1 className="text-2xl font-bold text-base-content">
-                        {mobileTab === "tasks" && "My Tasks"}
+                        {mobileTab === "tasks" &&
+                            (activeListId === TODAY_LIST_ID ? "Today" : lists.find((l) => l.id === activeListId)?.name || "My Tasks")}
                         {mobileTab === "focus" && "Focus Timer"}
                         {mobileTab === "notes" && "Notes"}
                         {mobileTab === "menu" && "Menu"}
@@ -2776,6 +2952,28 @@ export default function TasksPage() {
                                 <div className="space-y-4">
                                     {/* Mobile List Selector */}
                                     <div className="flex gap-2 bg-base-content/5 p-1 rounded-xl overflow-x-auto scrollbar-hide">
+                                        <button
+                                            onClick={() => setActiveListId(TODAY_LIST_ID)}
+                                            className={clsx(
+                                                "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-1.5",
+                                                activeListId === TODAY_LIST_ID ?
+                                                    "bg-primary text-primary-content"
+                                                :   "text-base-content/50 hover:bg-base-content/5 hover:text-base-content/80",
+                                            )}
+                                        >
+                                            <Sun size={14} />
+                                            Today
+                                            {todayCount > 0 && (
+                                                <span
+                                                    className={clsx(
+                                                        "text-[11px] font-bold px-1.5 py-0.5 rounded-full",
+                                                        activeListId === TODAY_LIST_ID ? "bg-primary-content/20" : "bg-base-content/10",
+                                                    )}
+                                                >
+                                                    {todayCount}
+                                                </span>
+                                            )}
+                                        </button>
                                         {lists.map((list) => (
                                             <button
                                                 key={list.id}
@@ -2796,15 +2994,75 @@ export default function TasksPage() {
                                         >
                                             <Plus size={16} />
                                         </button>
+                                        <div className="flex-1" />
+                                        {activeListId !== TODAY_LIST_ID && (
+                                            <button
+                                                onClick={() => {
+                                                    const next =
+                                                        sortMode === "manual" ? "priority"
+                                                        : sortMode === "priority" ? "due"
+                                                        : "manual";
+                                                    setSortMode(next);
+                                                    toast.info(`Sort: ${next === "manual" ? "Manual" : next === "priority" ? "Priority" : "Due date"}`);
+                                                }}
+                                                className={clsx(
+                                                    "px-3 py-2 rounded-lg transition-colors",
+                                                    sortMode !== "manual" ? "text-primary" : "text-base-content/50",
+                                                )}
+                                                aria-label="Cycle sort mode"
+                                            >
+                                                <ArrowUpDown size={16} />
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => {
+                                                if (mobileSearchOpen) setSearchQuery(""); // collapsing must clear the invisible filter
+                                                setMobileSearchOpen(!mobileSearchOpen);
+                                            }}
+                                            className={clsx(
+                                                "px-3 py-2 rounded-lg transition-colors",
+                                                searchQuery.trim() ? "text-primary"
+                                                : mobileSearchOpen ? "text-base-content"
+                                                : "text-base-content/50",
+                                            )}
+                                            aria-label="Search tasks"
+                                        >
+                                            <Search size={16} />
+                                        </button>
                                     </div>
+
+                                    {/* Collapsible Search */}
+                                    {mobileSearchOpen && (
+                                        <div className="relative">
+                                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
+                                            <input
+                                                type="text"
+                                                placeholder="Search tasks..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                autoFocus
+                                                className="w-full bg-base-content/5 text-base-content/80 pl-9 pr-9 py-2.5 rounded-xl border border-base-content/10 focus:outline-none focus:border-base-content/40 text-sm"
+                                            />
+                                            {searchQuery && (
+                                                <button
+                                                    onClick={() => setSearchQuery("")}
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-base-content/50"
+                                                    aria-label="Clear search"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Task Input */}
                                     <form onSubmit={handleAddTask} className="flex gap-2">
                                         <input
+                                            ref={mobileAddInputRef}
                                             type="text"
                                             value={newTaskText}
                                             onChange={(e) => setNewTaskText(e.target.value)}
-                                            placeholder="Add a task..."
+                                            placeholder="Add task… #tag !high @fri"
                                             className="flex-1 bg-base-content/5 border border-base-content/10 rounded-xl px-4 py-3 text-base-content focus:outline-none focus:border-base-content/40"
                                         />
                                         <button type="submit" className="bg-primary text-primary-content rounded-xl px-4 font-bold">
@@ -2818,7 +3076,7 @@ export default function TasksPage() {
                             <div className="flex-1 overflow-y-auto p-4 pt-4 scrollbar-hide overscroll-none pb-24">
                                 <div className="space-y-3">
                                     <AnimatePresence>
-                                        {activeTasks.map((task) => (
+                                        {displayTasks.map((task) => (
                                             <motion.div
                                                 key={task.id}
                                                 layout
@@ -2829,6 +3087,11 @@ export default function TasksPage() {
                                             >
                                                 <MobileTaskCard
                                                     task={task}
+                                                    listName={
+                                                        activeListId === TODAY_LIST_ID ?
+                                                            (listNameById.get(task.listId || "default") ?? "My Tasks")
+                                                        :   undefined
+                                                    }
                                                     isFocused={currentTaskId === task.id}
                                                     onToggle={() => toggleTask(task.id)}
                                                     onDelete={() => deleteTask(task.id)}
@@ -2844,7 +3107,11 @@ export default function TasksPage() {
                                             </motion.div>
                                         ))}
                                     </AnimatePresence>
-                                    {activeTasks.length === 0 && <div className="text-center py-20 text-base-content/50">No active tasks</div>}
+                                    {displayTasks.length === 0 && (
+                                        <div className="text-center py-20 text-base-content/50">
+                                            {activeListId === TODAY_LIST_ID ? "Nothing due today 🎉" : "No active tasks"}
+                                        </div>
+                                    )}
 
                                     {/* Completed Tasks (Mobile) */}
                                     {completedTasks.length > 0 && (
@@ -3010,11 +3277,10 @@ export default function TasksPage() {
                                 </button>
                             </div>
 
-                            <textarea
-                                className="flex-1 w-full bg-transparent text-base-content/80 resize-none focus:outline-none text-lg leading-relaxed p-2"
-                                placeholder="Type your notes..."
-                                value={notePages.find((n) => n.id === activeNoteId)?.content || ""}
-                                onChange={(e) => setNotePages(notePages.map((p) => (p.id === activeNoteId ? { ...p, content: e.target.value } : p)))}
+                            <NoteEditor
+                                variant="mobile"
+                                content={notePages.find((n) => n.id === activeNoteId)?.content || ""}
+                                onChange={(c) => setNotePages(notePages.map((p) => (p.id === activeNoteId ? { ...p, content: c } : p)))}
                             />
                         </div>
                     )}
@@ -3235,6 +3501,7 @@ export default function TasksPage() {
                 task={sheetTask}
                 lists={lists}
                 tags={TASK_TAGS}
+                canReorder={!reorderDisabled}
                 isFocused={sheetTask ? currentTaskId === sheetTask.id : false}
                 onClose={() => setSheetTaskId(null)}
                 onUpdate={(patch) => sheetTask && touchTask(sheetTask.id, patch)}
@@ -3312,23 +3579,16 @@ export default function TasksPage() {
                                         {modalType === "SHORTCUTS" && <Keyboard size={20} className="text-base-content" />}
                                         {modalType === "STATS" && <BarChart3 size={20} />}
                                         {modalType === "NEW_LIST" && <FolderPlus size={20} />}
-                                        {modalType === "MOVE_TO_LIST" && <FolderInput size={20} />}
-                                        {modalType === "DUE_DATE" && <Calendar size={20} />}
-                                        {modalType === "ESTIMATE" && <Timer size={20} />}
                                         <h3 className="text-xl font-bold text-base-content">
                                             {modalType === "SUBTASK" && "Add Subtask"}
                                             {modalType === "NOTE" && "Notes"}
                                             {modalType === "BRAINSTORM" && "AI Assistant"}
-                                            {modalType === "EDIT_TASK" && "Edit Task"}
                                             {modalType === "SETTINGS" && "Timer Settings"}
                                             {modalType === "ARCHIVE" && "Archived Tasks"}
                                             {modalType === "ATTACHMENT" && "Add Link Attachment"}
                                             {modalType === "SHORTCUTS" && "Keyboard Shortcuts"}
                                             {modalType === "STATS" && "Productivity Stats & Summary"}
                                             {modalType === "NEW_LIST" && "Create New List"}
-                                            {modalType === "DUE_DATE" && "Set Due Date"}
-                                            {modalType === "ESTIMATE" && "Set Pomodoro Estimate"}
-                                            {modalType === "MOVE_TO_LIST" && "Move to List"}
                                         </h3>
                                     </div>
                                     <button type="button" onClick={() => setModalOpen(false)} className="text-base-content/50 hover:text-base-content">
@@ -3390,79 +3650,6 @@ export default function TasksPage() {
                                                 </div>
                                             </div>
                                         )}
-                                    </div>
-                                )}
-
-                                {modalType === "EDIT_TASK" && (
-                                    <div className="space-y-6">
-                                        <form onSubmit={handleModalSubmit}>
-                                            <input
-                                                ref={modalInputRef as any}
-                                                type="text"
-                                                value={modalInput}
-                                                onChange={(e) => setModalInput(e.target.value)}
-                                                className="w-full bg-base-300/40 text-lg text-base-content border border-base-content/10 rounded-xl p-4 focus:outline-none focus:border-base-content/40 transition-colors"
-                                                autoFocus
-                                            />
-                                            <div className="flex justify-end gap-3 mt-4">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setModalOpen(false)}
-                                                    className="btn btn-ghost hover:bg-base-content/5 text-base-content/70"
-                                                >
-                                                    Cancel
-                                                </button>
-                                                <button type="submit" className="btn bg-primary hover:bg-primary/90 text-primary-content border-none px-6">
-                                                    Save Rename
-                                                </button>
-                                            </div>
-                                        </form>
-
-                                        <div className="border-t border-base-content/10 pt-6">
-                                            <h4 className="text-sm font-bold text-base-content/50 uppercase mb-3">Quick Actions</h4>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <button
-                                                    onClick={() => setModalType("SUBTASK")}
-                                                    className="p-3 bg-base-content/5 hover:bg-base-content/10 rounded-xl flex items-center gap-3 text-base-content/80 transition-colors"
-                                                >
-                                                    <div className="p-2 bg-info/20 text-info rounded-lg">
-                                                        <Check size={16} />
-                                                    </div>
-                                                    <span className="font-medium">Add Subtasks</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        const task = tasks.find((t) => t.id === activeTaskID);
-                                                        setModalInput(task?.notes || "");
-                                                        setModalType("NOTE");
-                                                    }}
-                                                    className="p-3 bg-base-content/5 hover:bg-base-content/10 rounded-xl flex items-center gap-3 text-base-content/80 transition-colors"
-                                                >
-                                                    <div className="p-2 bg-warning/20 text-warning rounded-lg">
-                                                        <FileText size={16} />
-                                                    </div>
-                                                    <span className="font-medium">Edit Notes</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => setModalType("ATTACHMENT")}
-                                                    className="p-3 bg-base-content/5 hover:bg-base-content/10 rounded-xl flex items-center gap-3 text-base-content/80 transition-colors"
-                                                >
-                                                    <div className="p-2 bg-secondary/20 text-secondary rounded-lg">
-                                                        <Paperclip size={16} />
-                                                    </div>
-                                                    <span className="font-medium">Attach Link</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => setModalType("DUE_DATE")}
-                                                    className="p-3 bg-base-content/5 hover:bg-base-content/10 rounded-xl flex items-center gap-3 text-base-content/80 transition-colors"
-                                                >
-                                                    <div className="p-2 bg-error/20 text-error rounded-lg">
-                                                        <Calendar size={16} />
-                                                    </div>
-                                                    <span className="font-medium">Set Due Date</span>
-                                                </button>
-                                            </div>
-                                        </div>
                                     </div>
                                 )}
 
@@ -3792,6 +3979,25 @@ export default function TasksPage() {
                                                 <kbd className="kbd kbd-lg bg-base-300 text-base-content border-base-content/10 mb-2">?</kbd>
                                                 <span className="text-sm text-base-content/70">Shortcuts</span>
                                             </div>
+                                            <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5 flex flex-col items-center text-center">
+                                                <kbd className="kbd kbd-lg bg-base-300 text-base-content border-base-content/10 mb-2">/</kbd>
+                                                <span className="text-sm text-base-content/70">Search Tasks</span>
+                                            </div>
+                                            <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5 flex flex-col items-center text-center">
+                                                <kbd className="kbd kbd-lg bg-base-300 text-base-content border-base-content/10 mb-2">T</kbd>
+                                                <span className="text-sm text-base-content/70">Today View</span>
+                                            </div>
+                                            <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5 flex flex-col items-center text-center">
+                                                <div className="flex gap-1 mb-2">
+                                                    <kbd className="kbd kbd-lg bg-base-300 text-base-content border-base-content/10">[</kbd>
+                                                    <kbd className="kbd kbd-lg bg-base-300 text-base-content border-base-content/10">]</kbd>
+                                                </div>
+                                                <span className="text-sm text-base-content/70">Prev / Next List</span>
+                                            </div>
+                                            <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5 flex flex-col items-center text-center">
+                                                <kbd className="kbd kbd-lg bg-base-300 text-base-content border-base-content/10 mb-2">⌘K</kbd>
+                                                <span className="text-sm text-base-content/70">Command Palette</span>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -3872,6 +4078,8 @@ export default function TasksPage() {
                                                 <div className="text-2xl md:text-3xl font-extrabold text-base-content">{sessionsCompleted}</div>
                                             </div>
                                         </div>
+
+                                        <StatsExtras tasks={tasks} lists={lists} />
 
                                         <div className="p-6 bg-base-content/5 rounded-2xl border border-base-content/5">
                                             <h4 className="text-lg font-bold text-base-content/80 mb-6">Last 7 Days</h4>
@@ -3998,127 +4206,6 @@ export default function TasksPage() {
                                             </button>
                                         </div>
                                     </form>
-                                )}
-
-                                {modalType === "DUE_DATE" && (
-                                    <form
-                                        onSubmit={(e) => {
-                                            e.preventDefault();
-                                            if (activeTaskID) {
-                                                touchTask(activeTaskID, { dueDate: modalInput || undefined });
-                                                setModalOpen(false);
-                                                toast.success(modalInput ? "Due date set!" : "Due date cleared");
-                                            }
-                                        }}
-                                    >
-                                        <input
-                                            type="date"
-                                            value={modalInput}
-                                            onChange={(e) => setModalInput(e.target.value)}
-                                            className="w-full bg-base-300/40 text-lg text-base-content border border-base-content/10 rounded-xl p-4 focus:outline-none focus:border-base-content/40 transition-colors"
-                                            autoFocus
-                                        />
-                                        <div className="flex justify-between gap-3 mt-6">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setModalInput("");
-                                                    if (activeTaskID) {
-                                                        touchTask(activeTaskID, { dueDate: undefined });
-                                                    }
-                                                    setModalOpen(false);
-                                                    toast.info("Due date cleared");
-                                                }}
-                                                className="btn btn-ghost hover:bg-error/20 text-error"
-                                            >
-                                                Clear Date
-                                            </button>
-                                            <div className="flex gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setModalOpen(false)}
-                                                    className="btn btn-ghost hover:bg-base-content/5 text-base-content/70"
-                                                >
-                                                    Cancel
-                                                </button>
-                                                <button type="submit" className="btn bg-primary hover:bg-primary/90 text-primary-content border-none px-6">
-                                                    Save
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                )}
-
-                                {modalType === "ESTIMATE" && (
-                                    <form
-                                        onSubmit={(e) => {
-                                            e.preventDefault();
-                                            if (activeTaskID) {
-                                                const estimate = parseInt(modalInput) || 0;
-                                                touchTask(activeTaskID, { estimatedPomos: estimate > 0 ? estimate : undefined });
-                                                setModalOpen(false);
-                                                toast.success(estimate > 0 ? `Estimated ${estimate} pomodoros` : "Estimate cleared");
-                                            }
-                                        }}
-                                    >
-                                        <div className="text-center mb-4">
-                                            <p className="text-sm text-base-content/50">How many pomodoros do you think this task will take?</p>
-                                        </div>
-                                        <div className="flex items-center justify-center gap-4">
-                                            <button
-                                                type="button"
-                                                onClick={() => setModalInput(String(Math.max(0, (parseInt(modalInput) || 0) - 1)))}
-                                                className="btn btn-circle btn-lg btn-ghost text-base-content/70 hover:text-base-content"
-                                            >
-                                                -
-                                            </button>
-                                            <div className="text-6xl font-bold text-base-content w-24 text-center">{modalInput || "0"}</div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setModalInput(String((parseInt(modalInput) || 0) + 1))}
-                                                className="btn btn-circle btn-lg btn-ghost text-base-content/70 hover:text-base-content"
-                                            >
-                                                +
-                                            </button>
-                                        </div>
-                                        <div className="text-center mt-2 text-sm text-base-content/50">🍅 = {pomoSettings.work} minutes</div>
-                                        <div className="flex justify-end gap-3 mt-6">
-                                            <button
-                                                type="button"
-                                                onClick={() => setModalOpen(false)}
-                                                className="btn btn-ghost hover:bg-base-content/5 text-base-content/70"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button type="submit" className="btn bg-primary hover:bg-primary/90 text-primary-content border-none px-6">
-                                                Save
-                                            </button>
-                                        </div>
-                                    </form>
-                                )}
-
-                                {modalType === "MOVE_TO_LIST" && (
-                                    <div className="space-y-2">
-                                        <p className="text-sm text-base-content/50 mb-4">Select a list to move this task to:</p>
-                                        {lists
-                                            .filter((l) => l.id !== activeListId) // Don't show current list
-                                            .map((list) => (
-                                                <button
-                                                    key={list.id}
-                                                    onClick={() => {
-                                                        if (activeTaskID) {
-                                                            touchTask(activeTaskID, { listId: list.id });
-                                                            setModalOpen(false);
-                                                            toast.success(`Moved to "${list.name}"`);
-                                                        }
-                                                    }}
-                                                    className="w-full text-left px-4 py-3 bg-base-content/5 hover:bg-base-content/10 rounded-lg transition-colors text-base-content/80 font-medium flex items-center gap-3"
-                                                >
-                                                    <FolderPlus size={18} className="text-base-content/50" />
-                                                    {list.name}
-                                                </button>
-                                            ))}
-                                    </div>
                                 )}
                             </div>
                         </motion.div>

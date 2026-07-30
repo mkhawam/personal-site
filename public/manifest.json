@@ -17,5 +17,19 @@
       "sizes": "512x512",
       "type": "image/png"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "New task",
+      "short_name": "New task",
+      "description": "Jump straight to the task input",
+      "url": "/tasks?capture=1",
+      "icons": [
+        {
+          "src": "/img/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }

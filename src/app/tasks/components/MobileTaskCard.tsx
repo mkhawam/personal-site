@@ -9,6 +9,7 @@ import { TASK_TAGS, type Task } from "../types";
 type Props = {
     task: Task;
     isFocused: boolean;
+    listName?: string; // shown in the cross-list Today view
     onToggle: () => void;
     onDelete: () => void;
     onOpenSheet: () => void;
@@ -25,7 +26,7 @@ function dueDateChipClass(dueDate: string) {
     return "bg-base-content/5 text-base-content/60";
 }
 
-export default function MobileTaskCard({ task, isFocused, onToggle, onDelete, onOpenSheet, onToggleSubtask, onAddSubtask }: Props) {
+export default function MobileTaskCard({ task, isFocused, listName, onToggle, onDelete, onOpenSheet, onToggleSubtask, onAddSubtask }: Props) {
     const [addingSubtask, setAddingSubtask] = useState(false);
     const [subtaskDraft, setSubtaskDraft] = useState("");
 
@@ -100,8 +101,13 @@ export default function MobileTaskCard({ task, isFocused, onToggle, onDelete, on
                     </span>
 
                     {/* Metadata chips — everything the sheet can set is visible here */}
-                    {(task.dueDate || priorityChip || task.recurrence || task.tags?.length || task.estimatedPomos) ?
+                    {(listName || task.dueDate || priorityChip || task.recurrence || task.tags?.length || task.estimatedPomos) ?
                         <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                            {listName && (
+                                <span className="px-1.5 py-0.5 rounded-md text-[11px] font-medium bg-base-content/5 text-base-content/50 border border-base-content/10">
+                                    {listName}
+                                </span>
+                            )}
                             {priorityChip && <Flag size={12} className={priorityChip} fill={task.priority === "high" ? "currentColor" : "none"} />}
                             {task.recurrence && <Repeat size={12} className="text-info" />}
                             {task.dueDate && (

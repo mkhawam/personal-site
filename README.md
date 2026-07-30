@@ -18,9 +18,19 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## AI (Ollama) setup
 
-This project’s `/api/ai` route can call an Ollama server (see `src/lib/agent/core.ts`).
+This project’s `/api/ai` route calls the Gemini API when a key is configured, and falls back to an Ollama server otherwise (see `src/lib/agent/core.ts`).
 
-### Local development
+### Gemini (recommended for deployments)
+
+Set in the deployment environment (server-only — never `NEXT_PUBLIC_*`):
+
+- `GEMINI_API_KEY=<AI Studio API key>` — presence of this switches the provider to Gemini
+- `GEMINI_MODEL=gemini-3.6-flash` (optional; pick any Flash/Flash-Lite tier)
+- `GEMINI_TIMEOUT_MS=30000` (optional)
+
+Unset `GEMINI_API_KEY` to fall back to Ollama (home-network use).
+
+### Ollama fallback / local development
 
 1. Run Ollama locally.
 2. Create `.env.local` (or copy from `.env.example`) and set:

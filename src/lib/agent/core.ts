@@ -89,7 +89,7 @@ export async function runAgentLoop(initialMessages: ChatMessage[]): Promise<Agen
         console.log(`[Agent] Turn ${turn}`);
 
         // 1. Call LLM (Text Mode)
-        const responseText = await callOllama(coreMessages);
+        const responseText = await callModel(coreMessages);
 
         // Check for THOUGHTs in the response to log them
         const thoughtMatch = responseText.match(/THOUGHT:\s*(.*)/);
@@ -180,16 +180,131 @@ export async function runAgentLoop(initialMessages: ChatMessage[]): Promise<Agen
     return { text: "I reached my limit for research steps. Here is what I have so far.", tasks: finalTasks, process: processLog };
 }
 
-// Low-level Ollama call
-async function callOllama(messages: ChatMessage[]): Promise<string> {
-    const prompt =
+// Both providers get the identical flattened text-protocol prompt, so the
+// THOUGHT:/TOOL_CALL: parsing above is provider-agnostic.
+function flattenMessages(messages: ChatMessage[]): string {
+    return (
         messages
             .map((m) => {
                 if (m.role === "system") return `System: ${m.content}`;
                 if (m.role === "user") return `User: ${m.content}`;
                 return `Assistant: ${m.content}`;
             })
-            .join("\n\n") + "\n\nAssistant:";
+            .join("\n\n") + "\n\nAssistant:"
+    );
+}
+
+// Provider dispatch: Gemini when a key is configured, else Ollama
+// (home-network fallback — works offline, needs the home server up).
+async function callModel(messages: ChatMessage[]): Promise<string> {
+    return process.env.GEMINI_API_KEY ? callGemini(messages) : callOllama(messages);
+}
+
+// Low-level Gemini call — plain REST, no SDK. Server-only env: GEMINI_API_KEY,
+// GEMINI_MODEL, GEMINI_TIMEOUT_MS (never NEXT_PUBLIC_*).
+async function callGemini(messages: ChatMessage[]): Promise<string> {
+    const key = process.env.GEMINI_API_KEY!;
+    const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+
+    const controller = new AbortController();
+    // More headroom than Ollama's 15s — Flash on long agent prompts can exceed it
+    const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS || 30000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    let res: Response;
+    try {
+        res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                // Header, not ?key= — keeps the key out of URLs and logs
+                "x-goog-api-key": key,
+            },
+            body: JSON.stringify({
+                contents: [{ role: "user", parts: [{ text: flattenMessages(messages) }] }],
+                generationConfig: {
+                    stopSequences: ["User:", "System:"],
+                    maxOutputTokens: 2048,
+                },
+            }),
+            signal: controller.signal,
+        });
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        throw new AIProviderError(`Failed to reach the Gemini API: ${message}`, {
+            status: 503,
+            code: "GEMINI_UNREACHABLE",
+            details: { model },
+        });
+    } finally {
+        clearTimeout(timeoutId);
+    }
+
+    const data = (await res.json().catch(() => null)) as unknown;
+
+    if (!res.ok) {
+        let upstreamMessage: string | undefined;
+        if (isRecord(data) && isRecord(data.error) && typeof data.error.message === "string") {
+            upstreamMessage = data.error.message;
+        }
+        const status =
+            res.status === 429 ? 429
+            : [400, 401, 403].includes(res.status) ? 502
+            : 502;
+        const code =
+            res.status === 429 ? "GEMINI_RATE_LIMITED"
+            : [400, 401, 403].includes(res.status) ? "GEMINI_BAD_REQUEST"
+            : "GEMINI_BAD_RESPONSE";
+        throw new AIProviderError(`Gemini request failed with status ${res.status}${upstreamMessage ? ` — ${upstreamMessage}` : ""}`, {
+            status,
+            code,
+            details: {
+                model,
+                upstreamStatus: res.status,
+                upstreamMessage,
+                bodySnippet: JSON.stringify(data)?.slice(0, 500),
+            },
+        });
+    }
+
+    if (!isRecord(data)) {
+        throw new AIProviderError("Gemini returned an unexpected response shape.", { status: 502, code: "GEMINI_INVALID_JSON", details: { model } });
+    }
+
+    // Safety block: promptFeedback.blockReason, or a candidate with empty parts
+    // and finishReason SAFETY — treat both as blocked.
+    const promptFeedback = isRecord(data.promptFeedback) ? data.promptFeedback : undefined;
+    if (promptFeedback?.blockReason) {
+        throw new AIProviderError(`Gemini blocked the prompt (${String(promptFeedback.blockReason)}).`, {
+            status: 502,
+            code: "GEMINI_BLOCKED",
+            details: { model, blockReason: promptFeedback.blockReason },
+        });
+    }
+
+    const candidates = Array.isArray(data.candidates) ? data.candidates : [];
+    const first = isRecord(candidates[0]) ? candidates[0] : undefined;
+    const content = first && isRecord(first.content) ? first.content : undefined;
+    const parts = content && Array.isArray(content.parts) ? content.parts : [];
+    const text = parts
+        .map((p: unknown) => (isRecord(p) && typeof p.text === "string" ? p.text : ""))
+        .join("")
+        .trim();
+
+    if (!text) {
+        throw new AIProviderError("Gemini returned an empty response.", {
+            status: 502,
+            code: "GEMINI_EMPTY",
+            details: { model, finishReason: first?.finishReason },
+        });
+    }
+
+    return text;
+}
+
+// Low-level Ollama call
+async function callOllama(messages: ChatMessage[]): Promise<string> {
+    const prompt = flattenMessages(messages);
 
     const configuredBaseUrl = process.env.OLLAMA_BASE_URL;
     const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
