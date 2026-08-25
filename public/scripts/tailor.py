@@ -13,13 +13,25 @@ Usage:
                                                         # from the master (no model; uses the
                                                         # `default: N` ranks in the meta lines)
 
+Tailored runs are written to their own folder, named for the posting:
+
+    resumes/<job_title>_<company>/resume.md / resume.pdf / resume.job.txt
+
 Options:
     --master PATH    master resume (default: resume.master.md next to this script)
-    --out NAME       output basename (default: resume.tailored; resume for --general)
-                     -> NAME.md / NAME.pdf / NAME.job.txt
+    --outdir DIR     parent folder for tailored runs (default: resumes/ next to this script)
+    --out NAME       explicit output basename, overriding the per-job folder
+                     -> NAME.md / NAME.pdf / NAME.job.txt (default for --general: resume)
     --model MODEL    model for claude -p (default: sonnet)
-    --projects N     max project entries (default: 5; unlimited for --general)
+    --projects N     max project entries (default: 4; unlimited for --general)
+    --min-scale S    readability floor for --pdf (default 0.82 ~= 8.2pt body); content
+                     is trimmed (projects, then dupe-annotated experience bullets,
+                     then extras) until the page fits at S or better
     --pdf            also render NAME.pdf via md_to_pdf.py
+
+Experience bullets in the master may end with `<!-- dupe: proj-id -->`, marking a
+bullet that restates a project entry: it is dropped automatically whenever that
+project is selected, and is first in line for trimming under page pressure.
 
 Requirements:
     the `claude` CLI on PATH; md_to_pdf.py's deps for --pdf (pip install markdown weasyprint)
@@ -42,6 +54,9 @@ ENTRY_SECTIONS = ("Experience", "Projects", "Leadership", "Writing & Talks")
 
 META_RE = re.compile(r"<!--\s*id:\s*(?P<body>.*?)\s*-->")
 TODO_RE = re.compile(r"<!--\s*TODO:.*?-->\s*\n?")
+DUPE_RE = re.compile(r"\s*<!--\s*dupe:\s*(?P<target>\S+?)\s*-->")
+
+MIN_SCALE_DEFAULT = 0.82  # readability floor: 10pt * 0.82 = 8.2pt body text
 
 
 # ── Master parsing ──────────────────────────────────────────────────────────
@@ -97,10 +112,21 @@ def parse_master(md_path):
                     default = int(part[8:].strip())
             bullets = META_RE.sub("", entry_body)
             bullets = TODO_RE.sub("", bullets).strip()
+            # Per-line bullet items; a `<!-- dupe: proj-x -->` annotation marks a bullet
+            # that restates a project entry, so it can be dropped when that project is
+            # selected (or under page pressure).
+            bullet_items = []
+            for line in bullets.splitlines():
+                if not line.strip():
+                    continue
+                dupe_m = DUPE_RE.search(line)
+                bullet_items.append({"text": DUPE_RE.sub("", line).rstrip(),
+                                     "dupe": dupe_m.group("target") if dupe_m else None})
             entries[entry_id] = {
                 "section": title,
                 "header": header.strip(),
-                "bullets": bullets,
+                "bullets": "\n".join(b["text"] for b in bullet_items),
+                "bullet_items": bullet_items,
                 "tags": tags,
                 "pin": pin,
                 "default": default,
@@ -173,9 +199,11 @@ SELECTION_CONTRACT = (
     "You are a resume-tailoring selector. You are given a job posting and a catalog of "
     "resume entries, each with an id and verbatim bullets. Respond with ONLY a JSON object "
     "(no markdown fences, no prose):\n"
-    '{"summary": "...", "projects": [ids], "extras": [ids], '
-    '"skills_emphasis": ["term", ...]}\n'
+    '{"job_title": "...", "company": "...", "summary": "...", "projects": [ids], '
+    '"extras": [ids], "skills_emphasis": ["term", ...]}\n'
     "Rules:\n"
+    "- 'job_title' and 'company' are copied from the posting (empty string if absent); "
+    "they only name the output folder.\n"
     "- Select and ORDER project ids by relevance to this job. Never invent ids.\n"
     "- You may NOT rewrite, merge, or invent bullets — selection and ordering only.\n"
     "- 'summary' is the ONLY text you write: 2-3 sentences, at most 55 words, in punchy "
@@ -184,6 +212,8 @@ SELECTION_CONTRACT = (
     "- 'extras' holds Leadership/Writing ids worth including (may be empty).\n"
     "- 'skills_emphasis' lists exact skill terms from the catalog's skills pool that this "
     "job values most, in priority order.\n"
+    "- Prefer 3-4 projects: the resume must fit one readable page, and experience bullets "
+    "already cover breadth — pick projects that ADD depth the job cares about.\n"
     "- Do not use any tools. Respond immediately with the JSON object."
 )
 
@@ -265,6 +295,53 @@ def fallback_selection(job_text, entries, max_projects):
     }
 
 
+# ── Output naming ───────────────────────────────────────────────────────────
+
+def slugify(text, maxlen=48):
+    """Lowercase, underscore-joined, filesystem-safe slug (truncated on a word boundary)."""
+    slug = re.sub(r"[^a-z0-9]+", "_", (text or "").lower()).strip("_")
+    if len(slug) > maxlen:
+        slug = slug[:maxlen].rsplit("_", 1)[0] or slug[:maxlen]
+    return slug.strip("_")
+
+
+def guess_job_meta(job_text):
+    """Heuristic job title/company for when the model didn't report them."""
+    labelled = {"title": "", "company": ""}
+    for line in job_text.splitlines()[:40]:
+        m = re.match(r"\s*(job title|position|role|title|company|employer|organization)\s*[:\-\u2013]\s*(.+)",
+                     line, re.I)
+        if not m:
+            continue
+        key = "company" if m.group(1).lower() in ("company", "employer", "organization") else "title"
+        if not labelled[key]:
+            labelled[key] = m.group(2).strip()
+    title, company = labelled["title"], labelled["company"]
+    if not title:
+        for line in job_text.splitlines():
+            if line.strip():
+                title = re.sub(r"^#+\s*", "", line.strip())[:80]
+                break
+    # "Security Engineer at Acme" / "Security Engineer - Acme"
+    if title and not company:
+        m = re.match(r"(.+?)\s+(?:at|@|[-\u2013|])\s+(.+)", title)
+        if m:
+            title, company = m.group(1).strip(), m.group(2).strip()
+    return title, company
+
+
+def job_dir_slug(job_text, selection):
+    """Folder name for a tailored run: <job_title>_<company>."""
+    title = company = ""
+    if isinstance(selection, dict):
+        title = str(selection.get("job_title") or "").strip()
+        company = str(selection.get("company") or "").strip()
+    if not title and not company:
+        title, company = guess_job_meta(job_text)
+    slug = "_".join(part for part in (slugify(title), slugify(company, 32)) if part)
+    return slug or "untitled_job"
+
+
 # ── Validation & assembly ───────────────────────────────────────────────────
 
 def validate_selection(selection, entries, max_projects):
@@ -315,13 +392,27 @@ def reorder_skills(skills_body, emphasis):
 
 
 def assemble(frontmatter, sections, entries, selection):
-    """Build the tailored markdown in canonical section order."""
+    """Build the tailored markdown in canonical section order.
+
+    Experience bullets whose `dupe` target is a selected project are omitted
+    (the project states the same work in more detail), as are any bullets the
+    readability-floor ladder has cut (selection["cut_bullets"]).
+    """
     summary = selection["summary"] or sections.get("Summary", "")
     skills = reorder_skills(sections.get("Skills", ""), selection["skills_emphasis"])
+    selected_projects = set(selection["projects"])
+    cut_bullets = selection.get("cut_bullets") or set()
 
     def entry_block(entry_id):
         e = entries[entry_id]
-        return f"### {e['header']}\n\n{e['bullets']}"
+        lines = []
+        for idx, b in enumerate(e["bullet_items"]):
+            if e["section"] == "Experience" and b["dupe"] in selected_projects:
+                continue
+            if (entry_id, idx) in cut_bullets:
+                continue
+            lines.append(b["text"])
+        return f"### {e['header']}\n\n" + "\n".join(lines)
 
     parts = [f"## Summary\n\n{summary}"]
     if selection["experience"]:
@@ -343,19 +434,77 @@ def assemble(frontmatter, sections, entries, selection):
 
 # ── PDF rendering ───────────────────────────────────────────────────────────
 
-def render_pdf(md_path, pdf_path, selection, frontmatter, sections, entries):
-    """Render via md_to_pdf.py; if it can't fit one page, drop the lowest-ranked
-    project and retry (down to 3 projects)."""
-    while True:
+def _drop_project(selection, entries, min_left):
+    """Pop the lowest-ranked project (if above min_left), suppressing any experience
+    bullets it had been deduplicating so they don't reappear and grow the page."""
+    if len(selection["projects"]) <= min_left:
+        return None
+    dropped = selection["projects"].pop()
+    cut = selection.setdefault("cut_bullets", set())
+    for entry_id in selection["experience"]:
+        for idx, b in enumerate(entries[entry_id]["bullet_items"]):
+            if b["dupe"] == dropped:
+                cut.add((entry_id, idx))
+    return dropped
+
+
+def trim_steps(selection, entries):
+    """Yield successive trims (mutating selection) for the readability-floor ladder."""
+    while True:  # 1. projects down to 3
+        dropped = _drop_project(selection, entries, 3)
+        if not dropped:
+            break
+        yield f"dropping lowest-ranked project '{dropped}'"
+    # 2. dupe-annotated experience bullets bottom-up (their detail exists in the
+    #    project pool even when that project isn't on this resume)
+    cut = selection.setdefault("cut_bullets", set())
+    for entry_id in selection["experience"]:
+        items = entries[entry_id]["bullet_items"]
+        for idx in range(len(items) - 1, -1, -1):
+            b = items[idx]
+            if b["dupe"] and b["dupe"] not in selection["projects"] and (entry_id, idx) not in cut:
+                cut.add((entry_id, idx))
+                yield f"cutting experience bullet {idx + 1} of {entry_id} (detail lives in {b['dupe']})"
+    # 3. unpinned extras, least-essential section first
+    for section in ("Writing & Talks", "Leadership"):
+        for extra_id in [i for i in reversed(selection["extras"])
+                         if entries[i]["section"] == section and not entries[i]["pin"]]:
+            selection["extras"].remove(extra_id)
+            yield f"dropping extra '{extra_id}'"
+    while True:  # 4. projects down to 2
+        dropped = _drop_project(selection, entries, 2)
+        if not dropped:
+            break
+        yield f"dropping project '{dropped}'"
+
+
+def render_pdf(md_path, pdf_path, selection, frontmatter, sections, entries,
+               min_scale=MIN_SCALE_DEFAULT):
+    """Render via md_to_pdf.py, then keep trimming content (trim_steps ladder) until
+    the page fits at a readable scale (>= min_scale) or nothing is left to trim."""
+    def render_once():
         proc = subprocess.run([sys.executable, os.path.join(SCRIPT_DIR, "md_to_pdf.py"),
                                md_path, pdf_path], capture_output=True, text=True)
         sys.stdout.write(proc.stdout)
         if proc.returncode != 0:
             sys.exit(f"md_to_pdf.py failed:\n{proc.stderr.strip()[:800]}")
-        if "could not fit" not in proc.stdout or len(selection["projects"]) <= 3:
+        if "could not fit" in proc.stdout:
+            return 0.0  # 2 pages even at the 0.70 floor
+        scales = re.findall(r"scale=(\d+\.\d+)", proc.stdout)
+        return float(scales[-1]) if scales else 1.0
+
+    trims = trim_steps(selection, entries)
+    while True:
+        scale = render_once()
+        if scale >= min_scale:
             return
-        dropped = selection["projects"].pop()
-        print(f"  Overflow: dropping lowest-ranked project '{dropped}' and re-rendering...")
+        step = next(trims, None)
+        if step is None:
+            print(f"  WARNING: still renders below the readability floor "
+                  f"({scale:.2f} < {min_scale:.2f}) after all trims — shorten the "
+                  f"master's bullets or lower --min-scale deliberately.")
+            return
+        print(f"  Scale {scale:.2f} < {min_scale:.2f}: {step}; re-rendering...")
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(assemble(frontmatter, sections, entries, selection))
 
@@ -371,19 +520,25 @@ def main():
     src.add_argument("--general", action="store_true",
                      help="regenerate the canonical resume from the master's `default:` ranks (no model)")
     ap.add_argument("--master", default=os.path.join(SCRIPT_DIR, "resume.master.md"))
+    ap.add_argument("--outdir", default=os.path.join(SCRIPT_DIR, "resumes"),
+                    help="parent folder for tailored runs (default: resumes/ next to this script)")
     ap.add_argument("--out", default=None,
-                    help="output basename (writes NAME.md / NAME.pdf / NAME.job.txt); "
-                         "defaults to resume.tailored, or resume for --general")
+                    help="explicit output basename (writes NAME.md / NAME.pdf / NAME.job.txt); "
+                         "overrides the per-job folder. Default: resumes/<job>_<company>/resume, "
+                         "or resume for --general")
     ap.add_argument("--model", default="sonnet")
     ap.add_argument("--projects", type=int, default=None,
-                    help="max project entries (default 5; unlimited for --general)")
+                    help="max project entries (default 4; unlimited for --general)")
+    ap.add_argument("--min-scale", type=float, default=MIN_SCALE_DEFAULT,
+                    help="readability floor for --pdf: keep trimming content until the "
+                         f"page fits at this scale or better (default {MIN_SCALE_DEFAULT})")
     ap.add_argument("--pdf", action="store_true", help="also render a PDF via md_to_pdf.py")
     args = ap.parse_args()
 
-    if args.out is None:
-        args.out = os.path.join(SCRIPT_DIR, "resume" if args.general else "resume.tailored")
+    if args.out is None and args.general:
+        args.out = os.path.join(SCRIPT_DIR, "resume")
     if args.projects is None:
-        args.projects = 10_000 if args.general else 5
+        args.projects = 10_000 if args.general else 4
 
     if not os.path.isfile(args.master):
         sys.exit(f"Error: master resume not found: {args.master}")
@@ -398,17 +553,15 @@ def main():
             f.write(assemble(frontmatter, sections, entries, selection))
         print(f"Wrote {md_path} (generated from {os.path.basename(args.master)} — edit the master)")
         if args.pdf:
-            render_pdf(md_path, f"{args.out}.pdf", selection, frontmatter, sections, entries)
+            render_pdf(md_path, f"{args.out}.pdf", selection, frontmatter, sections, entries,
+                       args.min_scale)
             print(f"Wrote {args.out}.pdf")
         return
 
     job_text = fetch_job_text(args)
     if args.url or args.search:
-        job_txt_path = f"{args.out}.job.txt"
-        with open(job_txt_path, "w", encoding="utf-8") as f:
-            f.write(job_text)
         preview = "\n".join(job_text.strip().splitlines()[:12])
-        print(f"\nSaved job text to {job_txt_path} — preview:\n{'-' * 60}\n{preview}\n{'-' * 60}\n"
+        print(f"\nJob text preview:\n{'-' * 60}\n{preview}\n{'-' * 60}\n"
               f"(verify this is the right posting; re-run with --job if not)\n")
 
     frontmatter, sections, _, entries = parse_master(args.master)
@@ -423,6 +576,17 @@ def main():
         print(f"  Model selection failed ({err}); using tag-overlap fallback.", file=sys.stderr)
         selection = fallback_selection(job_text, entries, args.projects)
 
+    if args.out is None:
+        out_dir = os.path.join(args.outdir, job_dir_slug(job_text, selection))
+        os.makedirs(out_dir, exist_ok=True)
+        args.out = os.path.join(out_dir, "resume")
+        print(f"Output folder: {out_dir}")
+
+    job_txt_path = f"{args.out}.job.txt"
+    with open(job_txt_path, "w", encoding="utf-8") as f:
+        f.write(job_text)
+    print(f"Wrote {job_txt_path}")
+
     selection = validate_selection(selection, entries, args.projects)
     print(f"Selected: {len(selection['experience'])} roles, {len(selection['projects'])} projects, "
           f"{len(selection['extras'])} extras"
@@ -434,7 +598,8 @@ def main():
     print(f"Wrote {md_path}")
 
     if args.pdf:
-        render_pdf(md_path, f"{args.out}.pdf", selection, frontmatter, sections, entries)
+        render_pdf(md_path, f"{args.out}.pdf", selection, frontmatter, sections, entries,
+                   args.min_scale)
         print(f"Wrote {args.out}.pdf — review it before submitting (the Summary is model-written).")
 
 

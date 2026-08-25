@@ -47,7 +47,7 @@ export default function Shell({
 
     return (
         <div className="flex h-screen overflow-hidden bg-base-100 text-base-content font-sans selection:bg-primary/30">
-            <CommandPalette />
+            <CommandPalette isAuthed={isAuthed} />
             {/* Sidebar Container */}
             <motion.div
                 initial={{ width: defaultSidebarOpen ? 320 : 0 }}

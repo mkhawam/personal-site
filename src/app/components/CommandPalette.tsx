@@ -26,6 +26,8 @@ import { FaGithub, FaLinkedin } from "react-icons/fa";
 
 type Command = {
     id: string;
+    /** Hidden from signed-out visitors — the nav hides these routes too. */
+    authOnly?: boolean;
     label: string;
     hint: string;
     keywords: string;
@@ -51,20 +53,27 @@ const COMMANDS: Command[] = [
     { id: "playground", label: "Open the Playground", hint: "/playground", keywords: "run webcontainer node terminal repl demo", icon: TerminalSquare, run: go("/playground") },
     { id: "blog", label: "Read the Blog", hint: "/blog", keywords: "writing posts articles security", icon: BookOpen, run: go("/blog") },
     { id: "cv", label: "Open the CV (shell)", hint: "/cv", keywords: "resume cv terminal shell easter egg", icon: FileText, run: go("/cv") },
-    { id: "tasks", label: "Go to Tasks", hint: "/tasks", keywords: "tasks todo workflow today pomodoro focus", icon: CheckSquare, run: go("/tasks") },
+    { id: "tasks", label: "Go to Tasks", hint: "/tasks", keywords: "tasks todo workflow today pomodoro focus", icon: CheckSquare, run: go("/tasks"), authOnly: true },
     { id: "theme", label: "Toggle light / dark", hint: "midnight ⇄ daylight", keywords: "theme dark light mode color", icon: SunMoon, run: toggleTheme },
     { id: "github", label: "Open GitHub", hint: "github.com/mkhawam", keywords: "github code source open", icon: FaGithub, run: open("https://github.com/mkhawam") },
     { id: "linkedin", label: "Open LinkedIn", hint: "linkedin.com/in/mohamad-k", keywords: "linkedin contact", icon: FaLinkedin, run: open("https://linkedin.com/in/mohamad-k") },
     { id: "email", label: "Send an email", hint: "khawammohamad99@gmail.com", keywords: "email contact mail reach", icon: Mail, run: open("mailto:khawammohamad99@gmail.com") },
 ];
 
-export default function CommandPalette() {
+export default function CommandPalette({ isAuthed = false }: { isAuthed?: boolean }) {
     const router = useRouter();
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [active, setActive] = useState(0);
     const inputRef = useRef<HTMLInputElement | null>(null);
     const activeItemRef = useRef<HTMLButtonElement | null>(null);
+
+    // isAuthed is resolved server-side in layout.tsx, so the visible command set is
+    // already correct on first open — no signed-in rows flashing in after hydration.
+    const commands = useMemo(
+        () => COMMANDS.filter((c) => isAuthed || !c.authOnly),
+        [isAuthed],
+    );
 
     const results = useMemo(() => {
         const raw = query.trim();
@@ -83,21 +92,24 @@ export default function CommandPalette() {
 
         // "+" prefix = explicit capture, palette shows only the add command
         if (raw.startsWith("+")) {
+            if (!isAuthed) return [];
             const text = raw.slice(1).trim();
             return text ? [makeAddCommand(text)] : [];
         }
 
         const q = raw.toLowerCase();
-        if (!q) return COMMANDS;
-        const matches = COMMANDS.filter(
+        if (!q) return commands;
+        const matches = commands.filter(
             (c) =>
                 c.label.toLowerCase().includes(q) ||
                 c.keywords.includes(q) ||
                 c.hint.toLowerCase().includes(q),
         );
-        // No match → the query is probably a task; always offer capture as the last row
+        // No match → the query is probably a task; always offer capture as the last row.
+        // Capture writes to /tasks, so it is signed-in only.
+        if (!isAuthed) return matches;
         return matches.length === 0 ? [makeAddCommand(raw)] : [...matches, makeAddCommand(raw)];
-    }, [query]);
+    }, [query, commands, isAuthed]);
 
     const close = useCallback(() => {
         setOpen(false);
