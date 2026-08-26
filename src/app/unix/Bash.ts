@@ -140,7 +140,7 @@ export class Bash {
                 return Bash.neofetch(this.hostname);
             case "projects":
                 return [
-                    "Selected work — full detail at /projects (try: open projects)",
+                    "Selected work — full detail at /#work (try: open projects)",
                     "",
                     "  codePost              grading platform · Django · React · Celery",
                     "  Accessibility Scanner Flask · Next.js · Playwright · Axe",
@@ -150,7 +150,7 @@ export class Bash {
                 ].join("\n");
             case "blog":
                 return [
-                    "Posts — read them at /blog (try: open blog)",
+                    "Posts — read them at /#blog (try: open blog)",
                     "",
                     "  OpenSSH Backdoor using Compression Library",
                     "  Leaky Endpoints in Jersey CTF 2025",
@@ -163,9 +163,9 @@ export class Bash {
                     github: "https://github.com/mkhawam",
                     linkedin: "https://linkedin.com/in/mohamad-k",
                     site: "https://mohamadk.com",
-                    projects: "/projects",
+                    projects: "/#work",
                     playground: "/playground",
-                    blog: "/blog",
+                    blog: "/#blog",
                     resume: "/scripts/resume.pdf",
                 };
                 const key = (args[0] || "").toLowerCase();

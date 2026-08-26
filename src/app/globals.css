@@ -159,3 +159,15 @@ html[data-theme="daylight"] .theme-icon-dark {
     list-style-type: disc;
     padding-left: 1.5em;
 }
+
+/* One-page anchor navigation: smooth scroll (unless reduced motion) and
+   clearance for the h-14 sticky header on every anchored section. */
+@media (prefers-reduced-motion: no-preference) {
+    html {
+        scroll-behavior: smooth;
+    }
+}
+section[id],
+footer[id] {
+    scroll-margin-top: 4.5rem;
+}

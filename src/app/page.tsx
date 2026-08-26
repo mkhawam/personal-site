@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowUpRight, GitCommitHorizontal } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { getRecentActivity } from "@/lib/github";
+import { ArrowUpRight } from "lucide-react";
+import { format } from "date-fns";
+import { featuredWork, gridProjects, getRepoStats } from "./projects/projects-data";
+import { ProjectGrid } from "./projects/components/Projects";
+import { getPosts } from "./api/posts/getPosts";
 
 export const metadata: Metadata = {
   title: "Mohamad Khawam",
@@ -10,53 +12,29 @@ export const metadata: Metadata = {
     "Application Developer at Rutgers University. I build and operate the platforms Rutgers CS and data science courses run on — grading infrastructure, JupyterHub automation, and the security work that keeps them standing.",
 };
 
-type WorkLink = { label: string; href: string };
-
-const selectedWork: {
-  name: string;
-  summary: string;
-  stack: string[];
-  links?: WorkLink[];
-}[] = [
-  {
-    name: "codePost",
-    summary:
-      "Full-stack code grading platform — Django API, React UI, Celery workers — across 4 VMs, serving 500+ students per semester with autograding, per-cell Jupyter evaluation, and AI-assisted comment generation.",
-    stack: ["Django", "React", "Celery", "Docker"],
-    links: [
-      { label: "API", href: "https://github.com/rutgers-lcsr/codePost-api" },
-      { label: "UI", href: "https://github.com/rutgers-lcsr/codePost-ui" },
-    ],
-  },
-  {
-    name: "jupyter-assignments",
-    summary:
-      "JupyterLab sidebar extension with a 4-tier role system and a platform adapter pattern that puts codePost and Autolab behind one interface, so assignments are managed without leaving the editor.",
-    stack: ["TypeScript", "React", "Python", "JupyterLab"],
-  },
-  {
-    name: "JupyterHub automation",
-    summary:
-      "Ansible-managed JupyterHub deployment across course servers, handling CAS/Kerberos/Azure auth, Python versioning, modular extensions, and Zabbix monitoring.",
-    stack: ["Ansible", "Kerberos", "Zabbix", "Linux"],
-  },
-  {
-    name: "Accessibility Scanner",
-    summary:
-      "Flask API and Next.js interface driving Playwright and Axe scans through Celery workers, tracking accessibility issues over time with per-page screenshots so remediation progress is measurable across university domains.",
-    stack: ["Flask", "Next.js", "Playwright", "Axe", "Celery"],
-    links: [{ label: "GitHub", href: "https://github.com/rutgers-lcsr/Accessibility_Scanner" }],
-  },
-];
+function SectionLabel({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline gap-4">
+      <h2
+        id={id}
+        className="text-xs font-mono uppercase tracking-[0.2em] text-base-content/50"
+      >
+        {children}
+      </h2>
+      <div className="h-px flex-1 bg-base-content/10" />
+    </div>
+  );
+}
 
 export default async function Home() {
-  const activity = await getRecentActivity(4);
+  const stats = await getRepoStats();
+  const posts = getPosts();
 
   return (
-    <div className="min-h-full w-full p-8 md:p-12 bg-gradient-to-br from-base-100 via-base-200 to-base-100">
-      <div className="max-w-4xl mx-auto space-y-16 md:space-y-20">
+    <div className="min-h-dvh w-full p-8 md:p-12 bg-gradient-to-br from-base-100 via-base-200 to-base-100">
+      <div className="max-w-5xl mx-auto space-y-20 md:space-y-24">
 
-        {/* Header */}
+        {/* Hero */}
         <header className="animate-rise space-y-5">
           <p className="text-xs md:text-sm font-mono uppercase tracking-[0.2em] text-primary">
             Application Developer · Rutgers University
@@ -71,15 +49,17 @@ export default async function Home() {
           </p>
 
           <div className="flex flex-wrap gap-3 pt-2">
-            <Link
-              href="/cv"
+            <a
+              href="/scripts/resume.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
               className="btn btn-sm md:btn-md bg-primary text-primary-content hover:bg-primary/90 border-none"
             >
               View CV
-            </Link>
-            <Link href="/projects" className="btn btn-sm md:btn-md btn-ghost">
-              Projects
-            </Link>
+            </a>
+            <a href="#work" className="btn btn-sm md:btn-md btn-ghost">
+              Work
+            </a>
             <a
               href="https://github.com/mkhawam"
               target="_blank"
@@ -92,73 +72,34 @@ export default async function Home() {
           </div>
         </header>
 
-        {/* Currently — live GitHub pulse (server-fetched, hourly cache) */}
-        {activity.length > 0 && (
-          <section
-            className="animate-rise space-y-4"
-            style={{ animationDelay: "80ms" }}
-            aria-labelledby="currently"
-          >
-            <div className="flex items-baseline gap-4">
-              <h2
-                id="currently"
-                className="flex items-center gap-2 text-xs font-mono uppercase tracking-[0.2em] text-base-content/50"
-              >
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success/60" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
-                </span>
-                Currently
-              </h2>
-              <div className="h-px flex-1 bg-base-content/10" />
-            </div>
-
-            <ul className="space-y-1.5">
-              {activity.map((item) => (
-                <li key={`${item.repo}-${item.at}`}>
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group flex items-baseline gap-3 text-sm py-1"
-                  >
-                    <GitCommitHorizontal
-                      size={15}
-                      className="shrink-0 translate-y-0.5 text-base-content/40 group-hover:text-primary transition-colors"
-                      aria-hidden
-                    />
-                    <span className="font-mono text-base-content/80 group-hover:text-primary transition-colors">
-                      {item.repo}
-                    </span>
-                    <span className="text-base-content/50">{item.detail}</span>
-                    <span className="ml-auto shrink-0 text-xs text-base-content/40 tabular-nums">
-                      {formatDistanceToNow(new Date(item.at), { addSuffix: true })}
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {/* Selected Work */}
+        {/* About */}
         <section
-          className="animate-rise space-y-6"
+          id="about"
+          className="animate-rise scroll-mt-24 space-y-4"
           style={{ animationDelay: "120ms" }}
-          aria-labelledby="selected-work"
+          aria-labelledby="about-heading"
         >
-          <div className="flex items-baseline gap-4">
-            <h2
-              id="selected-work"
-              className="text-xs font-mono uppercase tracking-[0.2em] text-base-content/50"
-            >
-              Selected Work
-            </h2>
-            <div className="h-px flex-1 bg-base-content/10" />
-          </div>
+          <SectionLabel id="about-heading">About</SectionLabel>
+          <p className="text-lg leading-relaxed text-base-content/70 max-w-prose">
+            I&apos;m a software engineer and cybersecurity researcher who likes building
+            things sysadmins actually run. Most of my work lives where application code
+            meets the infrastructure under it — deployment automation, monitoring, and
+            closing the security holes I find along the way. Outside work I served as
+            Vice President of RUSecurity, where our team placed 4th in CCDC 2024.
+          </p>
+        </section>
+
+        {/* Work — featured list + full grid */}
+        <section
+          id="work"
+          className="animate-rise scroll-mt-24 space-y-6"
+          style={{ animationDelay: "240ms" }}
+          aria-labelledby="work-heading"
+        >
+          <SectionLabel id="work-heading">Selected Work</SectionLabel>
 
           <ul className="divide-y divide-base-content/5">
-            {selectedWork.map((item) => (
+            {featuredWork.map((item) => (
               <li key={item.name} className="py-6 first:pt-2">
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                   <h3 className="text-xl md:text-2xl font-bold text-base-content">
@@ -197,45 +138,56 @@ export default async function Home() {
               </li>
             ))}
           </ul>
-        </section>
 
-        {/* About */}
-        <section
-          className="animate-rise space-y-4"
-          style={{ animationDelay: "240ms" }}
-          aria-labelledby="about"
-        >
-          <div className="flex items-baseline gap-4">
-            <h2
-              id="about"
-              className="text-xs font-mono uppercase tracking-[0.2em] text-base-content/50"
-            >
-              About
-            </h2>
+          <div className="flex items-baseline gap-4 pt-6">
+            <h3 className="text-xs font-mono uppercase tracking-[0.2em] text-base-content/50">
+              More Projects
+            </h3>
             <div className="h-px flex-1 bg-base-content/10" />
           </div>
-          <p className="text-lg leading-relaxed text-base-content/70 max-w-prose">
-            I&apos;m a software engineer and cybersecurity researcher who likes building
-            things sysadmins actually run. Most of my work lives where application code
-            meets the infrastructure under it — deployment automation, monitoring, and
-            closing the security holes I find along the way. Outside work I served as
-            Vice President of RUSecurity, where our team placed 4th in CCDC 2024.
-          </p>
+          <ProjectGrid projects={gridProjects} stats={stats} />
         </section>
 
-        {/* Footer quote */}
-        <footer
-          className="animate-rise border-t border-base-content/5 pt-8 pb-4"
+        {/* Writing */}
+        <section
+          id="blog"
+          className="animate-rise scroll-mt-24 space-y-4"
           style={{ animationDelay: "360ms" }}
+          aria-labelledby="blog-heading"
         >
-          <blockquote className="text-base md:text-lg italic font-serif text-base-content/50 max-w-prose">
-            &quot;You have light and peace inside of you. If you let it out, you can change
-            the world around you.&quot;
-            <cite className="not-italic block mt-2 text-sm font-sans tracking-wide uppercase text-base-content/40">
-              — Uncle Iroh
-            </cite>
-          </blockquote>
-        </footer>
+          <SectionLabel id="blog-heading">Writing</SectionLabel>
+
+          <ul className="divide-y divide-base-content/5">
+            {posts.map((post) => (
+              <li key={post.slug}>
+                <Link
+                  href={`/blog/post/${post.slug}`}
+                  className="group flex flex-col sm:flex-row sm:items-baseline gap-x-6 gap-y-1 py-5"
+                >
+                  <time
+                    dateTime={new Date(post.date).toISOString()}
+                    className="shrink-0 sm:w-24 font-mono text-sm text-base-content/40 tabular-nums"
+                  >
+                    {format(new Date(post.date), "MMM yyyy")}
+                  </time>
+                  <span className="flex-1 min-w-0">
+                    <span className="font-bold text-base-content group-hover:text-primary transition-colors">
+                      {post.title}
+                    </span>
+                    <span className="block mt-0.5 text-sm text-base-content/60 leading-relaxed line-clamp-2">
+                      {post.description}
+                    </span>
+                  </span>
+                  <ArrowUpRight
+                    size={16}
+                    className="hidden sm:block shrink-0 translate-y-0.5 text-base-content/30 group-hover:text-primary transition-colors"
+                    aria-hidden
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
     </div>
   );

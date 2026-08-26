@@ -25,9 +25,6 @@ export async function proxy(request: NextRequest) {
     // into the app as request headers, so isolation never took effect.
 
     requestHeaders.set("x-theme", request.cookies.get("theme")?.value || "midnight");
-    // Sidebar state travels the same cookie -> header -> SSR path as the theme, so
-    // the layout can render the correct width on the server instead of after hydration.
-    requestHeaders.set("x-sidebar", request.cookies.get("sidebar")?.value || "open");
 
     const response = NextResponse.next({
         request: {

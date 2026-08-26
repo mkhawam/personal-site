@@ -17,6 +17,13 @@ const nextConfig = {
                 destination: "/blog/post/the_imposter_among_us",
                 permanent: true,
             },
+            // The one-page redesign folded these routes into home-page sections.
+            // Exact-match sources: /blog/post/* is untouched. Temporary (307)
+            // until the new layout settles, then flip to permanent.
+            { source: "/projects", destination: "/#work", permanent: false },
+            { source: "/blog", destination: "/#blog", permanent: false },
+            // The CV used to hide behind the 404 shell; recruiters get the PDF.
+            { source: "/cv", destination: "/scripts/resume.pdf", permanent: false },
         ];
     },
     async headers() {

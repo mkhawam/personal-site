@@ -1451,7 +1451,7 @@ function TasksPageInner() {
     if (!isLoaded) {
         // Skeleton matching each layout's silhouette so hydration doesn't jump
         return (
-            <div className="min-h-full w-full p-4 md:p-12 bg-base-100">
+            <div className="min-h-dvh w-full p-4 md:p-12 bg-base-100">
                 <div className="hidden md:grid md:grid-cols-2 gap-8">
                     <div className="space-y-4">
                         <div className="skeleton h-12 w-64" />
@@ -1471,7 +1471,7 @@ function TasksPageInner() {
     }
 
     return (
-        <div className="min-h-full w-full p-4 md:p-12 bg-gradient-to-br from-base-100 via-base-200 to-base-100 relative">
+        <div className="min-h-dvh w-full p-4 md:p-12 bg-gradient-to-br from-base-100 via-base-200 to-base-100 relative">
             {/* <Toaster position="top-center" theme="dark" /> Removed duplicate */}
             <input type="file" ref={fileInputRef} onChange={importData} accept=".json" className="hidden" />
 

@@ -87,10 +87,10 @@ export default async function Post({
   const minutes = readingTime(post.content);
 
   return (
-    <div className="min-h-full w-full bg-gradient-to-br from-base-100 via-base-200 to-base-100">
+    <div className="min-h-dvh w-full bg-gradient-to-br from-base-100 via-base-200 to-base-100">
       <article className="max-w-3xl mx-auto px-6 md:px-8 py-10 md:py-16">
         <Link
-          href="/blog"
+          href="/#blog"
           className="inline-flex items-center gap-2 text-sm text-base-content/50 hover:text-primary transition-colors mb-10"
         >
           <ArrowLeft size={16} aria-hidden />

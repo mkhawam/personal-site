@@ -18,7 +18,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const errorMessage = error ? (ERROR_MESSAGES[error] ?? "Something went wrong signing you in.") : null;
 
   return (
-    <div className="min-h-full w-full p-8 md:p-12 bg-gradient-to-br from-base-100 via-base-200 to-base-100 flex items-center justify-center">
+    <div className="min-h-dvh w-full p-8 md:p-12 bg-gradient-to-br from-base-100 via-base-200 to-base-100 flex items-center justify-center">
       <div className="animate-rise w-full max-w-md space-y-8">
         <div className="space-y-5">
           <p className="text-xs md:text-sm font-mono uppercase tracking-[0.2em] text-primary">Restricted Area</p>

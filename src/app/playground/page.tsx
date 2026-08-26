@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function PlaygroundPage() {
     return (
-        <div className="min-h-full w-full p-8 md:p-12 bg-gradient-to-br from-base-100 via-base-200 to-base-100">
+        <div className="min-h-dvh w-full p-8 md:p-12 bg-gradient-to-br from-base-100 via-base-200 to-base-100">
             <div className="max-w-5xl mx-auto">
                 <header className="mb-8">
                     <p className="text-xs md:text-sm font-mono uppercase tracking-[0.2em] text-primary">

@@ -1,53 +1,15 @@
 'use client';
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { Github } from "./Github";
-import {
-    workProjects,
-    personalProjects,
-    repoUrl,
-    npmUrl,
-    type Project,
-    type RepoStats,
-} from "../projects-data";
-
-const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-        opacity: 1,
-        transition: {
-            staggerChildren: 0.1
-        }
-    }
-};
-
-const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
-    show: {
-        opacity: 1,
-        y: 0,
-        transition: { duration: 0.4, ease: "easeOut" as const }
-    }
-};
-
-function SectionHeading({ children }: { children: React.ReactNode }) {
-    return (
-        <div className="flex items-baseline gap-4 mb-6">
-            <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-base-content/50">
-                {children}
-            </h2>
-            <div className="h-px flex-1 bg-base-content/10" />
-        </div>
-    );
-}
+import { repoUrl, npmUrl, type Project, type RepoStats } from "../projects-data";
 
 function ProjectCard({ project, stats }: { project: Project; stats?: RepoStats }) {
     const npm = npmUrl(project);
     return (
         <motion.article
-            variants={itemVariants}
             whileHover={{ y: -5, transition: { duration: 0.2 } }}
-            viewport={{ once: true }}
             className="group relative flex flex-col h-full overflow-hidden rounded-3xl bg-base-200/50 border border-base-content/5 hover:border-base-content/20 hover:shadow-2xl hover:shadow-base-content/5"
         >
             <div className="p-6 flex flex-col flex-1">
@@ -77,6 +39,15 @@ function ProjectCard({ project, stats }: { project: Project; stats?: RepoStats }
             </div>
 
             <div className="p-4 bg-base-300/40 border-t border-base-content/5 flex justify-end gap-1">
+                {project.demo && (
+                    <Link
+                        href={project.demo}
+                        className="btn btn-sm btn-ghost hover:bg-base-content/10 transition-all"
+                        aria-label={`Open the ${project.name} live demo`}
+                    >
+                        Live demo
+                    </Link>
+                )}
                 {npm && (
                     <a
                         href={npm}
@@ -102,43 +73,25 @@ function ProjectCard({ project, stats }: { project: Project; stats?: RepoStats }
     );
 }
 
-export function Projects({ stats }: { stats: Record<string, RepoStats> }) {
+export function ProjectGrid({
+    projects,
+    stats,
+}: {
+    projects: Project[];
+    stats: Record<string, RepoStats>;
+}) {
+    // No entrance animation: framer-motion's initial state writes inline
+    // opacity:0, which blanks the server-rendered grid until scripts run
+    // (see the animate-rise note in globals.css). Hover motion only.
     return (
-        <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-            className="space-y-14 pb-20"
-        >
-            <section aria-labelledby="work-projects">
-                <div id="work-projects">
-                    <SectionHeading>Work · Rutgers LCSR</SectionHeading>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {workProjects.map((project) => (
-                        <ProjectCard
-                            key={project.name}
-                            project={project}
-                            stats={stats[`${project.owner}/${project.repo}`]}
-                        />
-                    ))}
-                </div>
-            </section>
-
-            <section aria-labelledby="personal-projects">
-                <div id="personal-projects">
-                    <SectionHeading>Personal Projects</SectionHeading>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {personalProjects.map((project) => (
-                        <ProjectCard
-                            key={project.name}
-                            project={project}
-                            stats={stats[`${project.owner}/${project.repo}`]}
-                        />
-                    ))}
-                </div>
-            </section>
-        </motion.div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {projects.map((project) => (
+                <ProjectCard
+                    key={project.name}
+                    project={project}
+                    stats={stats[`${project.owner}/${project.repo}`]}
+                />
+            ))}
+        </div>
     );
 }

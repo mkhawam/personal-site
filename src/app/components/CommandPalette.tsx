@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
     Home,
+    User,
     Briefcase,
     TerminalSquare,
     BookOpen,
     CheckSquare,
     FileText,
     Mail,
+    AtSign,
     Plus,
     SunMoon,
     CornerDownLeft,
@@ -43,16 +45,22 @@ function toggleTheme() {
     document.cookie = `theme=${next}; path=/; max-age=31536000; samesite=lax`;
 }
 
-const go = (path: string) => ({ router }: { router: ReturnType<typeof useRouter> }) =>
-    router.push(path);
+const go = (path: string) => ({ router }: { router: ReturnType<typeof useRouter> }) => {
+    // router.push won't re-scroll when the target hash is already in the URL;
+    // location.assign always lands on the section.
+    if (path.includes("#")) window.location.assign(path);
+    else router.push(path);
+};
 const open = (url: string) => () => window.open(url, "_blank", "noopener,noreferrer");
 
 const COMMANDS: Command[] = [
     { id: "home", label: "Go home", hint: "/", keywords: "home index start", icon: Home, run: go("/") },
-    { id: "projects", label: "Go to Projects", hint: "/projects", keywords: "work repos github lcsr", icon: Briefcase, run: go("/projects") },
+    { id: "about", label: "Go to About", hint: "/#about", keywords: "about bio who", icon: User, run: go("/#about") },
+    { id: "work", label: "Go to Work", hint: "/#work", keywords: "work projects repos github lcsr", icon: Briefcase, run: go("/#work") },
+    { id: "blog", label: "Read the Blog", hint: "/#blog", keywords: "writing posts articles security blog", icon: BookOpen, run: go("/#blog") },
+    { id: "contact", label: "Go to Contact", hint: "/#contact", keywords: "contact reach footer socials", icon: AtSign, run: go("/#contact") },
     { id: "playground", label: "Open the Playground", hint: "/playground", keywords: "run webcontainer node terminal repl demo", icon: TerminalSquare, run: go("/playground") },
-    { id: "blog", label: "Read the Blog", hint: "/blog", keywords: "writing posts articles security", icon: BookOpen, run: go("/blog") },
-    { id: "cv", label: "Open the CV (shell)", hint: "/cv", keywords: "resume cv terminal shell easter egg", icon: FileText, run: go("/cv") },
+    { id: "cv", label: "Open the CV (PDF)", hint: "resume.pdf", keywords: "resume cv pdf", icon: FileText, run: open("/scripts/resume.pdf") },
     { id: "tasks", label: "Go to Tasks", hint: "/tasks", keywords: "tasks todo workflow today pomodoro focus", icon: CheckSquare, run: go("/tasks"), authOnly: true },
     { id: "theme", label: "Toggle light / dark", hint: "midnight ⇄ daylight", keywords: "theme dark light mode color", icon: SunMoon, run: toggleTheme },
     { id: "github", label: "Open GitHub", hint: "github.com/mkhawam", keywords: "github code source open", icon: FaGithub, run: open("https://github.com/mkhawam") },

@@ -3,43 +3,29 @@ import { FaGithub, FaLinkedin } from 'react-icons/fa';
 const socials = [
     {
         name: 'GitHub',
-        icon: <FaGithub size={35} />,
+        Icon: FaGithub,
         href: 'https://github.com/mkhawam',
-        color: 'btn-neutral',
     },
     {
         name: 'LinkedIn',
-        icon: <FaLinkedin size={35} />,
+        Icon: FaLinkedin,
         href: 'https://linkedin.com/in/mohamad-k',
-        color: 'btn-primary',
     },
-    // {
-    //     name: 'Twitter',
-    //     icon: <FaTwitter />,
-    //     href: 'https://twitter.com/',
-    //     color: 'btn-accent',
-    // },
-    // {
-    //     name: 'Instagram',
-    //     icon: <FaInstagram />,
-    //     href: 'https://instagram.com/yourusername',
-    //     color: 'btn-secondary',
-    // },
 ];
 
-export default function Socials() {
+export default function Socials({ size = 35 }: { size?: number }) {
     return (
         <div className="flex flex-wrap gap-3 justify-center">
-            {socials.map((social) => (
+            {socials.map(({ name, Icon, href }) => (
                 <a
-                    key={social.name}
-                    href={social.href}
+                    key={name}
+                    href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`text-base-content/70 hover:text-base-content transition-colors flex items-center`}
+                    aria-label={name}
+                    className="text-base-content/70 hover:text-base-content transition-colors flex items-center"
                 >
-                    {social.icon}
-                    {/* <span className="hidden sm:inline">{social.name}</span> */}
+                    <Icon size={size} />
                 </a>
             ))}
         </div>

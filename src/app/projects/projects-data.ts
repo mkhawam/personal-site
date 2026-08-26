@@ -6,6 +6,7 @@ export type Project = {
     tags: string[];
     category: "work" | "personal";
     npm?: string; // package name, when the repo is published
+    demo?: string; // internal route hosting a live demo
 };
 
 export type RepoStats = {
@@ -55,6 +56,17 @@ export const projects: Project[] = [
     },
 
     // ── Personal Projects ────────────────────────────────────────────────
+    {
+        name: "ts-declaration-json",
+        description:
+            "Published npm package that parses TypeScript source and returns its type declarations as JSON. Try it live in the playground — a real Node.js runtime booted in the browser with WebContainer.",
+        owner: "mkhawam",
+        repo: "ts-declaration-json",
+        tags: ["TypeScript", "npm", "Parser", "WebContainer"],
+        category: "personal",
+        npm: "ts-declaration-json",
+        demo: "/playground",
+    },
     {
         name: "Jackal",
         description:
@@ -120,19 +132,61 @@ export const projects: Project[] = [
         tags: ["Windows", "Cloud-Init", "OpenStack", "Proxmox", "Automation", "PowerShell"],
         category: "personal",
     },
+];
+
+/**
+ * The hand-written featured list at the top of the home page's Work section.
+ * Some entries (jupyter-assignments, JupyterHub automation) have no public
+ * repo, so they can't be project cards.
+ */
+export type FeaturedWork = {
+    name: string;
+    summary: string;
+    stack: string[];
+    links?: { label: string; href: string }[];
+};
+
+export const featuredWork: FeaturedWork[] = [
     {
-        name: "JobApps",
-        description:
-            "JobApps is a web application that allows users to track their job applications. The application uses a web interface to display the job applications and provide a user-friendly way to manage the data. Before Simplify was created.",
-        owner: "mkhawam",
-        repo: "JobApps",
-        tags: ["Typescript", "React", "NodeJS", "Express", "LevelDB", "Web Application"],
-        category: "personal",
+        name: "codePost",
+        summary:
+            "Full-stack code grading platform — Django API, React UI, Celery workers — across 4 VMs, serving 500+ students per semester with autograding, per-cell Jupyter evaluation, and AI-assisted comment generation.",
+        stack: ["Django", "React", "Celery", "Docker"],
+        links: [
+            { label: "API", href: "https://github.com/rutgers-lcsr/codePost-api" },
+            { label: "UI", href: "https://github.com/rutgers-lcsr/codePost-ui" },
+        ],
+    },
+    {
+        name: "jupyter-assignments",
+        summary:
+            "JupyterLab sidebar extension with a 4-tier role system and a platform adapter pattern that puts codePost and Autolab behind one interface, so assignments are managed without leaving the editor.",
+        stack: ["TypeScript", "React", "Python", "JupyterLab"],
+    },
+    {
+        name: "JupyterHub automation",
+        summary:
+            "Ansible-managed JupyterHub deployment across course servers, handling CAS/Kerberos/Azure auth, Python versioning, modular extensions, and Zabbix monitoring.",
+        stack: ["Ansible", "Kerberos", "Zabbix", "Linux"],
+    },
+    {
+        name: "Accessibility Scanner",
+        summary:
+            "Flask API and Next.js interface driving Playwright and Axe scans through Celery workers, tracking accessibility issues over time with per-page screenshots so remediation progress is measurable across university domains.",
+        stack: ["Flask", "Next.js", "Playwright", "Axe", "Celery"],
+        links: [{ label: "GitHub", href: "https://github.com/rutgers-lcsr/Accessibility_Scanner" }],
     },
 ];
 
-export const workProjects = projects.filter((p) => p.category === "work");
-export const personalProjects = projects.filter((p) => p.category === "personal");
+/** Repos the featured list already covers — kept out of the card grid so nothing shows twice. */
+const FEATURED_REPOS = new Set([
+    "rutgers-lcsr/codePost-api",
+    "rutgers-lcsr/codePost-ui",
+    "rutgers-lcsr/Accessibility_Scanner",
+]);
+
+/** Everything for the "More projects" grid, work items first (source order). */
+export const gridProjects = projects.filter((p) => !FEATURED_REPOS.has(`${p.owner}/${p.repo}`));
 
 export function repoUrl(project: Project) {
     return `https://github.com/${project.owner}/${project.repo}`;
