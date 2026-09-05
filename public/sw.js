@@ -1,6 +1,6 @@
 // v6: manifest.json gained "shortcuts" — it is pre-cached cache-first, so a
 // version bump is required or installed clients never see the new manifest.
-const VERSION = 'v6';
+const VERSION = 'v7';
 const CACHE_NAME = `workflow-${VERSION}`;
 const OFFLINE_URLS = [
   '/tasks',
