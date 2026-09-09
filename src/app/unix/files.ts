@@ -3,7 +3,7 @@
  *
  * /cv has no Next.js route on purpose — it falls through to the 404 page, which
  * is this shell. So the CV has to be findable here: `ls` then `cat resume.md`.
- * Kept in sync by hand with public/scripts/resume.md.
+ * Kept in sync by hand with tools/resume/resume.md.
  */
 
 export const RESUME_MD = `Mohamad Khawam
