@@ -17,7 +17,7 @@ socials:
 
 ## Summary
 
-Backend and platform software engineer, sole active maintainer of a Django/DRF grading platform serving 1,950+ users on a 4-VM container fleet — including its sandboxed multi-language execution engine and per-token cost-attribution layer. Depth in concurrency, query performance, container isolation, and application security, behind 1,100+ automated tests and gated CI/CD.
+Backend and platform engineer, and the sole active maintainer of a Django/DRF grading platform with 1,950+ users. I own everything from its sandboxed multi-language execution engine to the layer that tracks AI spend per token. Most of my work lives in concurrency, query performance, container isolation, and application security.
 
 ---
 
@@ -26,28 +26,28 @@ Backend and platform software engineer, sole active maintainer of a Django/DRF g
 ### Rutgers University, <em>Application Developer (Software Engineer)</em> <span class="date">June 2025 - Present</span>
 <!-- id: exp-rutgers-appdev | tags: backend, python, django, drf, rest, api-design, distributed-systems, concurrency, scalability, performance, caching, queues, celery, redis, database, indexing, query-optimization, idempotency, reliability, observability, docker, containers, linux, infrastructure, ci-cd, devops, security, authorization, rbac, metering, cost-attribution, billing, typescript, react, full-stack | pin -->
 
-- Sole active engineer on codePost, a Django/DRF grading platform serving 1,950+ users — 1,828 students, 57 graders, 17 course admins — across 19 courses and 74 assignments; 80K lines of Python, 91 schema migrations, and 30+ REST resource ViewSets running as 12 containers on a 4-VM Docker Compose fleet behind nginx and gunicorn/Uvicorn ASGI workers.
-- Built the sandboxed execution engine: container-per-run Docker isolation for seven language runtimes, each with a paired per-cell Jupyter notebook executor, capped at 300s wall time, 1 GiB memory with swap disabled, one CPU, 500 PIDs, no network, and all Linux capabilities dropped. <!-- dupe: proj-codepost-sandbox -->
-- Cut redundant grading compute with a SHA-256 content-hash execution cache that skips the container run entirely on a hit, backed by an index built for the (file, most-recent-run) query shape, plus test-suite batching that runs each category script once instead of once per test case. <!-- dupe: proj-codepost-sandbox -->
-- Removed N+1 query storms from the permission chain with a purpose-built per-request role-memoization layer and 77 eager-loading sites; added 17 composite indexes, F()-expression race-safe counters, and compare-and-set idempotency guards on concurrent AI jobs. <!-- dupe: proj-codepost-scale -->
-- Built per-token AI cost attribution: a USD rate table across two providers with cached-token discount modeling, charges quantized to one-millionth of a dollar in a Decimal(10,6) column, three-level course-over-organization-over-default rate-override precedence, and hourly, daily, and monthly rollups at course, organization, and platform scope. <!-- dupe: proj-codepost-metering -->
-- Hardened operations with a five-probe health endpoint — database round-trip latency, live Celery worker count, cache write and read-back, pending migrations, disk headroom — self-healing autograder environments that promote above an 0.8 success rate and auto-roll-back below 0.5, and 992 backend tests running in parallel behind a four-job CI gate. <!-- dupe: proj-codepost-reliability -->
-- Took sole ownership of a 5,200-commit legacy React SPA — 103K hand-written TS/TSX, 364 components, 167 routes — migrating Create React App to Vite and React Router v5 to v7 in one hop across 398 files, adding 39 lazy-loaded route boundaries, and gating deploys on a strict type check plus 173 tests. <!-- dupe: proj-codepost-ui -->
-- Contributed 337 commits to a shared 229-role Ansible fleet repository, rebuilding JupyterHub with four pluggable auth backends (Kerberos, CAS, Azure AD, local) and per-user systemd cgroup isolation: 40 GB memory ceiling, swap off, OOM-kill on pressure, 10 GB quota, and an 8-hour CPU-time killer. <!-- dupe: proj-jupyterhub-fleet -->
-- Designed and published jupyter-assignments to npm and PyPI: a JupyterLab extension with an abstract platform adapter (13 methods, three backends) and a four-tier role hierarchy enforced by a decorator at the platform layer, covered by 320 Python tests. <!-- dupe: proj-jupyter-assignments -->
-- Found and fixed a directory traversal in dataset upload paths (shipped with a regression test), an infinite-recursion loop between email delivery and logging, and a cluster of authorization gaps including student-triggered code execution, draft-grade leakage, and stale-identity caching after impersonation. <!-- dupe: proj-codepost-security -->
+- Sole active engineer on codePost, a Django/DRF grading platform serving 1,950+ students, graders, and course admins across 19 courses. The backend is 80K lines of Python running as 12 containers across 4 VMs.
+- Built the engine that runs untrusted student code: one Docker container per run across seven language runtimes and Jupyter notebooks, with no network, all capabilities dropped, and hard caps on CPU, memory, PIDs, and wall time. <!-- dupe: proj-codepost-sandbox -->
+- Cut redundant grading compute: unchanged submissions skip the container run entirely via a content-hash cache, and test suites are batched so each category script runs once instead of once per test case. <!-- dupe: proj-codepost-sandbox -->
+- Fixed N+1 queries in the permission chain with per-request role memoization and eager loading at 77 call sites, and made concurrent AI jobs idempotent. <!-- dupe: proj-codepost-scale -->
+- Built per-token cost tracking for the platform's AI features: provider rate tables with cached-token discounts, fixed-point charges quantized to a millionth of a dollar, per-course rate overrides, and hourly, daily, and monthly rollups. <!-- dupe: proj-codepost-metering -->
+- Made autograder environments self-healing, promoting images above an 0.8 success rate and rolling back below 0.5, and wrote the five-probe health endpoint that drives container autoheal and staged deploys. Grew the backend suite to 992 tests behind a four-job CI gate. <!-- dupe: proj-codepost-reliability -->
+- Sole maintainer of the platform's 103K-line legacy React SPA. Migrated it from Create React App to Vite and React Router v5 to v7, added lazy-loaded route splitting, and gated deploys on a strict type check plus 173 tests. <!-- dupe: proj-codepost-ui -->
+- Contributed 337 commits to the university's shared Ansible fleet repository, rebuilding the JupyterHub role with pluggable Kerberos, CAS, and Azure AD auth and per-user systemd cgroups that cap memory, disk, and CPU time. <!-- dupe: proj-jupyterhub-fleet -->
+- Wrote and published jupyter-assignments to npm and PyPI, a JupyterLab extension that fronts three grading backends behind one adapter interface and enforces a four-tier role hierarchy, covered by 320 tests. <!-- dupe: proj-jupyter-assignments -->
+- Fixed a directory traversal in dataset uploads, an email-and-logging infinite recursion, and authorization gaps that let students run code and see draft grades. <!-- dupe: proj-codepost-security -->
 
 ### Rutgers University, <em>Student Lab Technician</em> <span class="date">January 2023 - May 2025</span>
 <!-- id: exp-rutgers-labtech | tags: hardware, support, documentation, raspberry-pi, computer-vision, react, express, linux, troubleshooting, technical-writing, mentoring -->
 
-- Managed 10 Hackerspace workspaces, writing student-focused documentation and maintaining the WordPress site, modernizing the space.
+- Ran 10 Hackerspace workspaces, writing student-facing documentation and maintaining the WordPress site as part of modernizing the space.
 - Built a Raspberry Pi computer-vision learning station with MediaPipe, used for walk-in student workshops.
 - Built a 3D printer monitoring service (Express and React) streaming live video of the printer bay so students could check job status without walking over.
 
 ### Swish, <em>Full-Stack Developer</em> <span class="date">July 2021 - December 2021</span>
 <!-- id: exp-swish | tags: automation, node, puppeteer, electron, testing, full-stack, backend, typescript, ci, desktop -->
 
-- Automated account creation on web platforms using Puppeteer and Node.js, with Mocha-based regression tests covering the signup flows.
+- Automated account creation on web platforms with Puppeteer and Node.js, with Mocha regression tests covering the signup flows.
 - Migrated the CLI to an Electron desktop application, replacing flag-based invocation with a GUI workflow.
 
 ### C-Tech, <em>Computer Technician</em> <span class="date">July 2019 - December 2021</span>
@@ -60,21 +60,19 @@ Backend and platform software engineer, sole active maintainer of a Django/DRF g
 
 ## Skills
 
-**Languages:** Python, TypeScript, JavaScript, C, Java, Golang, SQL, PowerShell, Bash
+**Languages:** Python, TypeScript, JavaScript, C, Java, Golang, SQL, Bash, PowerShell
 
-**Frameworks:** Django, Django REST Framework, Django Channels, Celery, React, Next.js, Flask, Express, JupyterLab, Vite, Electron
+**Frameworks:** Django, Django REST Framework, Django Channels, Celery, Flask, Node.js, Express, React, Next.js, JupyterLab, Electron
 
-**Data:** MariaDB / InnoDB, MongoDB, Redis, LevelDB, Django ORM, Schema Design and Migrations, Query Optimization and Indexing
+**Data:** MariaDB / InnoDB, MongoDB, Redis, Django ORM, Schema Design and Migrations, Query Optimization and Indexing, Caching
 
-**Infrastructure:** Docker, Docker Compose, Ansible, Nginx, gunicorn / Uvicorn (ASGI), Linux, systemd, NFS, Proxmox, VMware, OpenStack, AWS, GitHub Actions, GitLab CI, Zabbix
+**Infrastructure:** Docker, Docker Compose, Ansible, Nginx, Linux, systemd, Proxmox, VMware, OpenStack, AWS, GitHub Actions, GitLab CI, CI/CD, Zabbix
 
-**Architecture:** REST and OpenAPI Design, Distributed Task Queues, Caching and Invalidation, Container Isolation, Idempotency and Race Safety, RBAC and Authorization, Rate Limiting, Usage Metering and Cost Attribution, Health Checks and Self-Healing, CI/CD and Staged Deploys, WCAG 2.1 AA
+**Security:** Application Security, OWASP Top 10, RBAC and Authorization, CAS / SAML / Kerberos SSO, JWT and API Key Management, Suricata, pfSense, Wazuh
 
-**Security:** Application Security, OWASP Top 10, Authorization and Access Control, CAS / SAML / Kerberos SSO, JWT and API Key Management, Encryption at Rest, Suricata, pfSense
+**Testing:** pytest, Vitest, Jest, Playwright, Mocha, axe-core, Molecule, WCAG 2.1 AA
 
-**Testing:** pytest, pytest-xdist, Vitest, Testing Library, Playwright, axe-core, Molecule, Mocha
-
-**Other:** Git, Ollama, OpenAI and Gemini APIs, Tree-sitter, WebContainers, OpenCV, MediaPipe
+**AI:** OpenAI and Gemini APIs, Ollama, LLM Cost Metering, Tool-Calling Agents
 
 ---
 
@@ -83,106 +81,106 @@ Backend and platform software engineer, sole active maintainer of a Django/DRF g
 ### [Jackal](https://github.com/mkhawam/Jackal) <span class="date">November 2024</span>
 <!-- id: proj-jackal | tags: security, network-security, suricata, ids, data, mongodb, node, react, full-stack, backend, data-pipeline, ingestion, queues, log-analysis, visualization, nosql, self-directed -->
 
-- Built a Node.js application for exploring Suricata IDS alerts: an event ingestion queue, a MongoDB storage and aggregation pipeline, and interactive web-based graph visualizations of network activity.
+- Built a Node.js app for exploring Suricata IDS alerts, with an event ingestion queue, a MongoDB storage and aggregation pipeline, and interactive graph visualizations of network activity.
 - Self-directed project to learn network telemetry and intrusion-detection tooling in preparation for CCDC.
 
 ### [CompLock](https://github.com/rusec/CompLock) <span class="date">November 2023 - Present</span>
 <!-- id: proj-complock | tags: security, blue-team, c2, ssh, cli, typescript, devops, distributed-systems, orchestration, credential-rotation, automation, ci-cd, testing, key-value-store | default: 1 -->
 
-- Developed SSH command and control software for networked computers in TypeScript, leveraging LevelDB and SSH2, utilized by RUSEC in CCDC competitions.
-- Reduced password rotation on 30 machines from 5 minutes to 30 seconds with automated testing via GitHub Actions and Mocha.
+- Built SSH command-and-control software for networked computers in TypeScript on LevelDB and SSH2, used by RUSEC in CCDC competitions.
+- Cut password rotation across 30 machines from 5 minutes to 30 seconds, with Mocha tests running in GitHub Actions.
 
 ### [mohamadk.com](https://mohamadk.com) <span class="date">April 2025 - Present</span>
 <!-- id: proj-portfolio | tags: next, react, typescript, full-stack, frontend, pwa, ai, webcontainers, design, backend, oauth, api-design, caching, performance, ssr, agents, tool-calling | default: 2 -->
 
-- Designed and built a Next.js 16 / React 19 portfolio and blog with a markdown publishing pipeline, PWA support, server-resolved theming, and a keyboard command palette.
-- Engineered an in-browser code playground with WebContainers that boots a Node.js runtime client-side to run my published ts-declaration-json package live, with no server execution.
-- Implemented a simulated Linux shell in TypeScript (custom filesystem, user system, and coreutils) served as the site's 404 page, plus Spotify OAuth with token refresh and an AI task-planning agent with tool calling.
+- Designed and built a Next.js 16 / React 19 portfolio and blog with a markdown publishing pipeline, PWA support, and a keyboard command palette.
+- Built an in-browser code playground on WebContainers that boots Node.js client-side to run my published ts-declaration-json package live.
+- Wrote a simulated Linux shell in TypeScript (filesystem, users, coreutils) that serves as the site's 404 page, plus an AI task-planning agent with tool calling.
 
 ### [AppTracker](https://github.com/mkhawam/AppTracker) <span class="date">2025</span>
 <!-- id: proj-apptracker | tags: typescript, llm, ai, email, automation, discord, mongodb, backend, imap, classification, machine-learning, event-driven, nosql, integration | default: 3 -->
 
-- Built a TypeScript application that tracks job applications by reading incoming emails via IMAP, classifying them with a Bayesian classifier, and generating status updates using Ollama AI models.
-- Integrated Discord bot notifications and MongoDB storage to provide real-time application status updates.
+- Built a TypeScript app that tracks job applications by watching email over IMAP, classifying messages with a Bayesian classifier, and generating status updates with Ollama.
+- Sends real-time status updates through a Discord bot and keeps application history in MongoDB.
 
 ### Sandboxed Code Execution Platform — Rutgers <span class="date">2025 - 2026</span>
 <!-- id: proj-codepost-sandbox | tags: backend, python, docker, containers, isolation, sandboxing, security, systems, linux, resource-limits, cgroups, concurrency, distributed-systems, performance, caching, streaming, websockets, sse, untrusted-code, multi-tenancy -->
 
-- Built a container-per-run execution sandbox on the Docker API for untrusted student code: seven language runtimes each with a paired notebook executor, sharing a 1,600-line base class that owns lifecycle, streaming, and teardown.
-- Enforced hard resource limits per run — 300s wall time, 1 GiB memory with swap disabled and swappiness zero, exactly one CPU via quota and period, 500 PIDs to stop fork bombs, tmpfs-only scratch, network disabled by default, all capabilities dropped, no-new-privileges — with output truncated at 1 MB and file writes at 10 MB.
-- Added a SHA-256 content-hash execution cache with an index built for the (file, most-recent-run) query shape, so an unchanged submission returns a prior result without starting a container.
-- Streamed live results over Server-Sent Events with 1s keepalives and over Django Channels WebSockets for interactive shells, throttling build-log writes to one database save every two seconds.
-- Graded Jupyter notebooks per cell against nbformat v4 typed cells and per-test target cell IDs, and batched suites by category so each category script runs once rather than once per test case.
+- Built a sandbox for untrusted student code on the Docker API, one container per run: seven language runtimes, each with a matching Jupyter executor, sharing one base class for lifecycle, streaming, and teardown.
+- Capped every run at 300s wall time, 1 GiB memory with swap off, one CPU, and 500 PIDs to stop fork bombs, with network off, all capabilities dropped, no-new-privileges, and tmpfs-only scratch space.
+- Cached execution results by SHA-256 content hash, so an unchanged submission returns its prior result without starting a container.
+- Streamed live results over Server-Sent Events, and over Django Channels WebSockets for interactive shells, throttling build-log writes to one database save every two seconds.
+- Graded Jupyter notebooks cell by cell against per-test target cell IDs, and batched test suites by category so each category script runs once rather than once per test case.
 
 ### AI Cost Attribution and Metering — Rutgers <span class="date">2025 - 2026</span>
 <!-- id: proj-codepost-metering | tags: backend, python, django, billing, metering, cost-attribution, usage-tracking, pricing, financial-precision, decimal, analytics, aggregation, reporting, data-modeling, indexing, query-optimization, multi-tenancy, async, ai, llm -->
 <!-- TODO: add total USD metered and total tokens from the AIUsageRecord table. -->
 
-- Built a per-request metering and rating layer for LLM spend: a USD rate table of input and output prices per million tokens across two providers, with provider-specific cached-token discounts applied to the cached portion of input separately from the uncached portion.
-- Stored money as fixed-point Decimal with six decimal places and quantized every computed charge to one-millionth of a dollar, avoiding float drift across large volumes of small charges.
-- Implemented three-level rate-override precedence — course over organization over platform default — so per-tenant pricing could change without a deploy.
-- Modeled usage as an append-only record with seven usage columns and four composite indexes sized for hourly, daily, and monthly rollups at course, organization, and platform scope.
-- Ran A/B prompt experiments with concurrent variant calls under asyncio.gather, attributing cost and outcome per variant across five providers including a self-hosted one.
+- Built the metering and rating layer for LLM spend: a USD rate table of input and output prices per million tokens for two providers, with each provider's cached-token discount applied to the cached share of input.
+- Stored charges as fixed-point Decimal quantized to a millionth of a dollar, so float drift can't accumulate across many small charges.
+- Made rates overridable at three levels, course over organization over platform default, so per-tenant pricing changes without a deploy.
+- Modeled usage as an append-only record indexed for hourly, daily, and monthly rollups at course, organization, and platform scope.
+- Ran A/B prompt experiments with variants called concurrently under asyncio, attributing cost and outcome per variant across five providers, one of them self-hosted.
 
 ### Backend Performance and Concurrency — Rutgers <span class="date">2025 - 2026</span>
 <!-- id: proj-codepost-scale | tags: backend, python, django, performance, scalability, concurrency, distributed-systems, queues, celery, redis, async, caching, database, sql, indexing, query-optimization, data-modeling, migrations, idempotency, race-conditions, pagination, throttling, rate-limiting, api-design -->
 <!-- TODO: add query count before/after the RoleCache fix (CaptureQueriesContext on the submission-detail endpoint). -->
 
-- Cut the permission chain's N+1 query fan-out with a purpose-built per-request memoization module that deduplicates repeated role lookups across the course to assignment to submission compute path, backed by 77 eager-loading sites.
-- Designed the schema across 91 migrations and 36 models with 94 relational fields, 17 composite indexes, and 10 uniqueness constraints, plus capped pagination on every list endpoint.
-- Made concurrent writes safe without locks using database-side F() expression counters and compare-and-set guards that make duplicate in-flight AI jobs idempotent.
-- Ran background work on Celery over Redis: 16 tasks across 10 priority levels, bounded retries at three attempts with a 60s delay, 600s hard and 550s soft time limits, exponential-backoff webhook delivery, and two beat schedules.
-- Layered request throttling at 5, 30, and 60 requests per minute by scope, and tuned the data tier with a 10 GB InnoDB buffer pool and 60s persistent connections.
+- Cut the permission chain's N+1 query fan-out with per-request memoization of role lookups as a request walks from course to assignment to submission, backed by eager loading at 77 call sites.
+- Designed the schema across 36 models and 91 migrations, with 17 composite indexes, 10 uniqueness constraints, and capped pagination on every list endpoint.
+- Made concurrent writes safe without locks: counters update database-side through F() expressions, and compare-and-set guards make duplicate in-flight AI jobs idempotent.
+- Ran background work on Celery over Redis: 16 tasks across 10 priority levels, with capped retries, hard and soft time limits, and exponential-backoff webhook delivery.
+- Rate-limited endpoints at 5, 30, and 60 requests per minute by scope, and tuned the data tier with a 10 GB InnoDB buffer pool and persistent connections.
 
 ### Reliability and Release Engineering — Rutgers <span class="date">2025 - 2026</span>
 <!-- id: proj-codepost-reliability | tags: backend, reliability, sre, observability, monitoring, health-checks, self-healing, resilience, testing, test-automation, pytest, ci-cd, deployment, release-engineering, docker, infrastructure, automation, devops, rollback -->
 
-- Wrote a five-probe health endpoint reporting database round-trip latency in milliseconds, live Celery worker count from a broker ping, a cache write and read-back, pending migration count, and disk usage against a 90% threshold, wired to six container healthchecks and autoheal sidecars.
-- Built self-healing autograder environments that promote a candidate image above an 0.8 success rate, auto-roll-back below 0.5 with a five-run minimum before either verdict, infer missing dependencies after three identical failures, and retain three prior image versions.
-- Grew the backend suite to 992 tests across 83 files and 26,000 test lines, running in parallel under pytest-xdist behind a four-job CI gate: commit-message lint, template lint, static type check, and coverage.
-- Serialized production deploys into three dependency-ordered stages — data, then API, then workers — each waiting for health before the next, then tagged a release and triggered downstream regeneration of the TypeScript client and Python SDK.
+- Wrote a five-probe health endpoint (database latency, live Celery worker count, cache read-back, pending migrations, disk headroom) wired into container healthchecks and autoheal sidecars.
+- Made autograder environments self-healing: a candidate image promotes above an 0.8 success rate and rolls back below 0.5, and after three identical failures the system infers the missing dependency, keeping three prior image versions for rollback.
+- Grew the backend suite to 992 tests run in parallel under pytest-xdist, behind a four-job CI gate: commit-message lint, template lint, static type check, and coverage.
+- Serialized production deploys into three stages (data, then API, then workers), each waiting for health before the next, with release tags that regenerate the TypeScript client and Python SDK.
 
 ### Application Security Remediation — Rutgers <span class="date">2025 - 2026</span>
 <!-- id: proj-codepost-security | tags: security, appsec, owasp, authorization, authz, access-control, rbac, authentication, jwt, api-keys, encryption, path-traversal, privilege-escalation, vulnerability, secure-coding, multi-tenancy, csp, backend, python, django -->
 
-- Fixed a directory traversal in dataset upload paths by normalizing to a slug and stripping to a basename, and shipped the fix together with a regression test that reproduces the escape.
-- Closed a cluster of authorization gaps: student-triggered code execution, cache read versus execute separation, draft-grade leakage to students, a missing role check on the supergrader path, and unsanitized one-time tokens.
-- Stopped stale-identity leakage after admin impersonation with no-store cache headers, and added a CSP frame-ancestors middleware.
-- Scoped credentials to a single course — both JWTs and API keys — and stored API keys as SHA-256 digests with an indexed 8-character prefix for lookup, shown to the user exactly once.
-- Encrypted sensitive columns at rest, and eliminated an infinite recursion loop between email delivery and logging that could exhaust the worker.
+- Fixed a directory traversal in dataset upload paths by normalizing names to a slug and stripping to a basename, and shipped a regression test that reproduces the escape alongside the fix.
+- Closed a run of authorization gaps: students able to trigger code execution, draft grades visible to students, a missing role check on the supergrader path, and unsanitized one-time tokens.
+- Stopped stale identities from leaking after admin impersonation with no-store cache headers, and added CSP frame-ancestors middleware.
+- Scoped JWTs and API keys to a single course, and stored API keys as SHA-256 digests with an indexed prefix for lookup, showing the raw key exactly once.
+- Encrypted sensitive columns at rest, and untangled an infinite recursion between email delivery and logging that could exhaust a worker.
 
 ### Legacy React Modernization — Rutgers <span class="date">2025 - 2026</span>
 <!-- id: proj-codepost-ui | tags: frontend, react, typescript, vite, migration, legacy-modernization, refactoring, performance, code-splitting, bundle-optimization, accessibility, wcag, a11y, testing, vitest, ci-cd, design-systems, ownership -->
 
-- Took sole ownership of a 5,200-commit React codebase from a 2018 startup and became its entire post-fork history: 102,738 hand-written TypeScript lines across 364 components and 167 routes.
-- Migrated Create React App to Vite across 398 files, and React Router v5 to v7 in a single hop with no intermediate v6 step, leaving zero withRouter, RouteComponentProps, or useHistory call sites.
-- Split the bundle with nine manual vendor chunks and 39 lazy-loaded route boundaries, with gzip and brotli size analysis wired into an analyze build.
-- Ran WCAG 2.1 AA audits with axe across 26 surfaces in five role domains and remediated 56 files over seven focused commits, backed by a 58-token centralized color system and scripts that detect hardcoded colors.
-- Built a 173-test Vitest suite with a fetch-mocking harness so no test touches the network, gating Docker deploys on self-hosted runners behind a hard no-emit type check.
+- Inherited a 5,200-commit React codebase from a 2018 startup as its only maintainer: 103K hand-written TypeScript lines across 364 components and 167 routes.
+- Migrated it from Create React App to Vite, and took React Router from v5 straight to v7 with no v6 stop, leaving zero legacy withRouter or useHistory call sites.
+- Split the bundle into nine vendor chunks and 39 lazy-loaded route boundaries, with a dedicated bundle-analysis build.
+- Ran axe WCAG 2.1 AA audits across 26 surfaces and fixed the findings on top of a centralized color-token system, with lint scripts that catch hardcoded colors.
+- Built a 173-test Vitest suite with a fetch-mocking harness so no test touches the network, and gated Docker deploys on a strict type check.
 
 ### JupyterHub Fleet Automation — Rutgers <span class="date">2025 - 2026</span>
 <!-- id: proj-jupyterhub-fleet | tags: infrastructure, ansible, automation, devops, linux, systemd, cgroups, resource-limits, multi-tenancy, isolation, authentication, kerberos, sso, saml, monitoring, zabbix, observability, configuration-management, idempotency, nfs, platform-engineering -->
 
-- Contributed 337 commits to a shared 3,000-commit university infrastructure repository spanning 229 Ansible roles, 185 host variable sets, and 49 group variable sets.
-- Rebuilt the JupyterHub role with four pluggable authentication modes — Kerberos in production, CAS, Azure AD, and a local development mode — dispatched by host variable behind assert guards, on a custom LocalProcessSpawner subclass.
-- Isolated each user in their own systemd slice: 40 GB memory ceiling and high-watermark, swap disabled, equal CPU weight, kill-on-memory-pressure, a 10 GB disk quota, and an 8-hour CPU-time job killer that emails the offending user before terminating.
-- Automated Kerberos ticket renewal and NFS home provisioning, and auto-detected Jupyter hosts into Zabbix with three custom monitoring parameters.
-- Drove a repository-wide lint sweep across 472 files and 207 of 225 roles, enforced ansible-lint through a pre-commit hook, and added Molecule idempotency tests to eight roles.
+- Contributed 337 commits to the university's shared infrastructure repository of 229 Ansible roles.
+- Rebuilt the JupyterHub role around a custom spawner with four pluggable authentication modes (Kerberos in production, CAS, Azure AD, and local development), selected per host.
+- Isolated each user in their own systemd slice: a 40 GB memory ceiling, swap off, kill on memory pressure, a 10 GB disk quota, and an 8-hour CPU-time killer that emails the user before terminating.
+- Automated Kerberos ticket renewal and NFS home provisioning, and had Jupyter hosts auto-register in Zabbix with three custom monitoring parameters.
+- Drove a repository-wide ansible-lint sweep across 207 roles, enforced it through a pre-commit hook, and added Molecule idempotency tests to eight roles.
 
 ### [jupyter-assignments](https://www.npmjs.com/package/jupyter_assignments) <span class="date">2025 - 2026</span>
 <!-- id: proj-jupyter-assignments | tags: python, typescript, jupyter, extension, npm, pypi, open-source, api-design, abstraction, adapter-pattern, rbac, authorization, access-control, testing, ci-cd, packaging, education-tech, full-stack -->
 
-- Designed and published a JupyterLab extension to npm and PyPI (v0.3.3) with a hatch-jupyter-builder and jupyter-releaser pipeline, sole author across 10,573 Python and 6,746 TypeScript lines.
-- Abstracted three grading backends — codePost, Autolab, and a local filesystem mode — behind a 1,346-line platform base class defining 13 abstract methods, resolved at runtime by an environment-driven factory.
-- Enforced a four-tier role hierarchy at the platform layer with a minimum-role decorator applied uniformly across all three backends, mirrored in a frontend permissions module driving four role-specific sidebar views.
-- Covered it with 320 Python test functions across 18 modules plus Jest and Playwright suites, gated by seven GitHub workflows and a GitLab build-and-deploy pipeline, under ruff, black, mypy, and TypeScript strict mode.
-- Added a force-fetch backup path that snapshots student work to a timestamped read-only copy before any overwrite, with dedicated safety tests.
+- Sole author of a JupyterLab extension published to npm and PyPI: 17K lines of Python and TypeScript with an automated release pipeline.
+- Put three grading backends (codePost, Autolab, and a local filesystem mode) behind one platform adapter with 13 abstract methods, selected at runtime by an environment-driven factory.
+- Enforced a four-tier role hierarchy with a minimum-role decorator shared by all three backends, mirrored by a frontend permissions module that drives role-specific sidebar views.
+- Covered it with 320 Python tests plus Jest and Playwright suites, under mypy and strict TypeScript in CI.
+- Added a force-fetch backup path that snapshots student work to a timestamped read-only copy before any overwrite, with its own safety tests.
 
 ### Activebook 3-Way Notebook Merge — Rutgers <span class="date">2025</span>
 <!-- id: proj-notebook-merge | tags: python, algorithms, merge, diff, conflict-resolution, jupyter, data-integrity, tooling, automation, ansible -->
 
-- Built a three-way merge for Jupyter notebooks that matches cells by content similarity above a 0.6 ratio, so instructor updates to a shared activebook apply without clobbering student edits in the same file.
-- Detected instructor chapter renames by comparing the ordered source of instructor-tagged cells across remote-only and local-only notebooks, preventing duplicate chapters, and snapshotted every notebook before merging to make each run undoable.
+- Built a three-way merge for Jupyter notebooks that matches cells by content similarity above a 0.6 ratio, so instructor updates to a shared activebook land without clobbering student edits in the same file.
+- Detected instructor chapter renames by comparing instructor-tagged cells across notebooks to prevent duplicate chapters, and snapshotted every notebook before merging so any run can be undone.
 
 ### [NetLock](https://github.com/rusec/NetLock) <span class="date">July 2024 - 2025</span>
 <!-- id: proj-netlock | tags: security, blue-team, c2, siem, node, express, mongodb, backend, event-ingestion, agents, telemetry, observability, monitoring, https, distributed-systems -->
@@ -210,12 +208,12 @@ Backend and platform software engineer, sole active maintainer of a Django/DRF g
 ### [pfSense API](https://github.com/mkhawam/pfsense-api) <span class="date">November 2024</span>
 <!-- id: proj-pfsense-api | tags: security, firewall, automation, api, networking, api-design, rest, crud, infrastructure-as-code -->
 
-- Built an API for pfSense that automates instance configuration, exposing create, read, update, and delete operations for firewall rules, extending jaredhendrickson13's package.
+- Extended jaredhendrickson13's pfSense API package with create, read, update, and delete operations for firewall rules, automating instance configuration.
 
 ### [Windows Cloud-Init Script](https://github.com/mkhawam/cloud-init) <span class="date">March 2025</span>
 <!-- id: proj-cloud-init | tags: windows, powershell, cloud, openstack, proxmox, automation, infrastructure, provisioning, iaas, virtualization, configuration-management -->
 
-- Wrote an OpenStack cloud-init script for Windows that automates configuration of Windows instances on OpenStack and Proxmox with PowerShell.
+- Wrote a cloud-init script in PowerShell that automates configuration of Windows instances on OpenStack and Proxmox.
 
 ### [Drone Project](https://github.com/Cyrus-Majd/Drone-Indepenent-Study-PI) <span class="date">January 2023 - May 2023</span>
 <!-- id: proj-drone | tags: computer-vision, opencv, python, embedded, research -->

@@ -47,3 +47,5 @@ data/users
 public/scripts/resume.tailored*
 public/scripts/resumes/
 public/scripts/
+
+.claude

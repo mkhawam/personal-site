@@ -7,7 +7,7 @@ VERBATIM from the master; the only model-authored text is the Summary.
 
 Usage:
     python tailor.py --job posting.txt                  # text file, '-' for stdin, or literal text
-    python tailor.py --url https://example.com/job      # fetch the posting with claude (WebFetch)
+    python tailor.py --url https://example.com/job      # render the posting in headless Chrome
     python tailor.py --search "Acme security engineer"  # find the posting with claude (WebSearch)
     python tailor.py --general --pdf                    # regenerate the canonical resume.md/pdf
                                                         # from the master (no model; uses the
@@ -33,16 +33,31 @@ Experience bullets in the master may end with `<!-- dupe: proj-id -->`, marking 
 bullet that restates a project entry: it is dropped automatically whenever that
 project is selected, and is first in line for trimming under page pressure.
 
+--url (and the page --search finds) is rendered in headless Chrome, so JS-only job
+boards (Ashby, Greenhouse, Lever, Workday) work; the page's schema.org JobPosting
+data is used when present. Falls back to claude's WebFetch if the browser can't do it.
+
+    --no-browser         skip the browser, use claude WebFetch as before
+    --browser-bin PATH   Chrome/Chromium binary (default: first one found on PATH)
+    --browser-timeout N  seconds to let the page render (default: 45)
+    --browser-profile D  Chrome profile dir to reuse — log in once with
+                         `google-chrome --user-data-dir=D` to reach gated postings
+
 Requirements:
-    the `claude` CLI on PATH; md_to_pdf.py's deps for --pdf (pip install markdown weasyprint)
+    the `claude` CLI on PATH; a Chrome-family browser for --url/--search rendering;
+    md_to_pdf.py's deps for --pdf (pip install markdown weasyprint)
 """
 
 import argparse
+import html as html_mod
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -143,6 +158,197 @@ def header_label(header):
     return re.sub(r"\s+", " ", label).strip()
 
 
+# ── Headless browser fetching ───────────────────────────────────────────────
+# Most modern job boards (Ashby, Greenhouse, Lever, Workday) are JS-rendered
+# SPAs: a plain HTTP fetch sees an empty shell. Rendering the page in headless
+# Chrome gets the real content, and most boards embed a schema.org JobPosting
+# blob that gives us the title/company/description exactly.
+
+CHROME_CANDIDATES = ("google-chrome", "google-chrome-stable", "chromium",
+                     "chromium-browser", "brave-browser", "microsoft-edge")
+
+
+def find_browser(explicit=None):
+    """Path to a Chrome-family binary, or None."""
+    for name in ([explicit] if explicit else []) + list(CHROME_CANDIDATES):
+        path = name if os.path.isabs(name) else shutil.which(name)
+        if path and os.path.exists(path):
+            return path
+    return None
+
+
+def browser_dump_dom(url, browser_bin, timeout, profile_dir=None):
+    """Render `url` in headless Chrome and return the post-JavaScript DOM."""
+    tmp_profile = None
+    if not profile_dir:
+        tmp_profile = profile_dir = tempfile.mkdtemp(prefix="tailor-chrome-")
+    try:
+        base = [browser_bin, "--disable-gpu", "--no-first-run", "--no-default-browser-check",
+                "--hide-scrollbars", "--mute-audio", "--disable-extensions",
+                "--disable-background-networking", "--disable-sync",
+                f"--user-data-dir={profile_dir}",
+                f"--virtual-time-budget={max(1, timeout - 5) * 1000}",
+                "--dump-dom", url]
+        for headless in ("--headless=new", "--headless"):
+            proc = subprocess.run([base[0], headless] + base[1:], capture_output=True,
+                                  text=True, timeout=timeout + 15)
+            if proc.returncode == 0 and len(proc.stdout) > 500:
+                return proc.stdout
+            last_err = (proc.stderr or "").strip().splitlines()
+        raise RuntimeError(f"chrome returned {len(proc.stdout)} bytes"
+                           f"{': ' + last_err[-1][:200] if last_err else ''}")
+    finally:
+        if tmp_profile:
+            shutil.rmtree(tmp_profile, ignore_errors=True)
+
+
+def html_to_text(fragment):
+    """Visible text from an HTML fragment (block tags become newlines)."""
+    text = re.sub(r"(?is)<(script|style|noscript|svg|head)\b.*?</\1>", " ", fragment)
+    text = re.sub(r"(?i)<(br|/p|/div|/li|/h[1-6]|/tr)\s*/?>", "\n", text)
+    text = re.sub(r"(?i)<li\b[^>]*>", "\n- ", text)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = html_mod.unescape(text)
+    text = re.sub(r"[ \t ]+", " ", text)
+    text = re.sub(r" *\n *", "\n", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+def _first_jobposting(node, depth=0):
+    """Find a schema.org JobPosting anywhere in a parsed JSON-LD blob."""
+    if depth > 6:
+        return None
+    if isinstance(node, list):
+        for item in node:
+            found = _first_jobposting(item, depth + 1)
+            if found:
+                return found
+    elif isinstance(node, dict):
+        types = node.get("@type")
+        types = types if isinstance(types, list) else [types]
+        if "JobPosting" in types:
+            return node
+        for value in node.values():
+            if isinstance(value, (dict, list)):
+                found = _first_jobposting(value, depth + 1)
+                if found:
+                    return found
+    return None
+
+
+def _flatten(value):
+    """Best-effort string from a schema.org value (str, dict, or nested Place)."""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, list):
+        return ", ".join(p for p in (_flatten(v) for v in value) if p)
+    if isinstance(value, dict):
+        if "name" in value and isinstance(value["name"], str):
+            return value["name"].strip()
+        parts = [value.get(k) for k in ("addressLocality", "addressRegion", "addressCountry")]
+        joined = ", ".join(p for p in parts if isinstance(p, str) and p)
+        if joined:
+            return joined
+        for key in ("address", "value"):
+            if key in value:
+                return _flatten(value[key])
+    return ""
+
+
+TITLE_NOISE_RE = re.compile(
+    r"(?i)^\s*(job application for|application for|apply (?:for|to)|careers?|jobs?|job posting)\s*[:\-–]?\s+")
+
+# Boards that put the employer in the first path segment.
+BOARD_HOSTS = ("greenhouse.io", "lever.co", "ashbyhq.com", "workable.com",
+               "breezy.hr", "recruitee.com", "teamtailor.com", "smartrecruiters.com")
+
+
+def company_from_url(url):
+    """Employer slug from a known job-board URL ('.../anthropic/jobs/123' -> 'anthropic')."""
+    parts = urlsplit(url or "")
+    if not any(parts.netloc.endswith(host) for host in BOARD_HOSTS):
+        return ""
+    segments = [seg for seg in parts.path.split("/") if seg]
+    if segments and segments[0] not in ("jobs", "embed", "j", "o", "companies"):
+        return segments[0].replace("-", " ")
+    return ""
+
+
+def extract_job_from_html(page_html):
+    """(text, {'title','company'}) from a rendered page — JSON-LD first, then visible text."""
+    for m in re.finditer(r'(?is)<script[^>]+application/ld\+json[^>]*>(.*?)</script>', page_html):
+        try:
+            data = json.loads(html_mod.unescape(m.group(1)).strip())
+        except json.JSONDecodeError:
+            continue
+        posting = _first_jobposting(data)
+        if not posting:
+            continue
+        title = _flatten(posting.get("title"))
+        company = _flatten(posting.get("hiringOrganization"))
+        header = [f"Job Title: {title}" if title else "",
+                  f"Company: {company}" if company else "",
+                  f"Location: {_flatten(posting.get('jobLocation'))}"
+                  if posting.get("jobLocation") else "",
+                  f"Employment Type: {_flatten(posting.get('employmentType'))}"
+                  if posting.get("employmentType") else ""]
+        body = html_to_text(_flatten(posting.get("description")) or "")
+        text = "\n".join(line for line in header if line) + "\n\n" + body
+        if len(text.strip()) > 400:
+            return text.strip(), {"title": title, "company": company}
+
+    # No usable JSON-LD: fall back to the rendered page's visible text.
+    body_m = re.search(r"(?is)<body\b[^>]*>(.*)</body>", page_html)
+    text = html_to_text(body_m.group(1) if body_m else page_html)
+    hints = {"title": "", "company": ""}
+
+    title_m = re.search(r"(?is)<title[^>]*>(.*?)</title>", page_html)
+    if title_m:
+        # Boards title pages "<Role> @ <Company>" / "<Role> - <Company>".
+        page_title = html_mod.unescape(re.sub(r"\s+", " ", title_m.group(1))).strip()
+        split = re.match(r"(?i)(.+?)\s+(?:@|\||–|—|-|·|at)\s+(.+)", page_title)
+        hints = ({"title": split.group(1).strip(), "company": split.group(2).strip()}
+                 if split else {"title": page_title, "company": ""})
+        hints["title"] = TITLE_NOISE_RE.sub("", hints["title"]).strip()
+
+    # Greenhouse et al. put the exact role in the <h1>; the <title> is boilerplate-wrapped.
+    h1_m = re.search(r"(?is)<h1\b[^>]*>(.*?)</h1>", page_html)
+    if h1_m:
+        h1 = html_to_text(h1_m.group(1)).replace("\n", " ").strip()
+        if 3 <= len(h1) <= 90 and not re.match(
+                r"(?i)^(back to|careers?|jobs?|open (roles|positions)|apply|welcome)\b", h1):
+            hints["title"] = h1
+    return text, hints
+
+
+def browser_fetch_job(url, args):
+    """Render a posting with headless Chrome. Returns (text, hints) or None on failure."""
+    browser_bin = find_browser(args.browser_bin)
+    if not browser_bin:
+        print("  No Chrome/Chromium binary found; falling back to claude WebFetch.",
+              file=sys.stderr)
+        return None
+    print(f"Rendering in {os.path.basename(browser_bin)} (headless): {url}")
+    try:
+        page_html = browser_dump_dom(url, browser_bin, args.browser_timeout,
+                                     args.browser_profile)
+    except (subprocess.TimeoutExpired, RuntimeError, OSError) as err:
+        print(f"  Browser fetch failed ({err}); falling back to claude WebFetch.",
+              file=sys.stderr)
+        return None
+    text, hints = extract_job_from_html(page_html)
+    if not hints.get("company"):
+        hints["company"] = company_from_url(url)
+    if len(text) < 400:
+        print(f"  Rendered page yielded only {len(text)} chars"
+              f"{' (login wall?)' if 'sign in' in text.lower() else ''};"
+              f" falling back to claude WebFetch.", file=sys.stderr)
+        return None
+    label = " / ".join(p for p in (hints.get("title"), hints.get("company")) if p)
+    print(f"  Got {len(text)} chars{f' — {label}' if label else ''}")
+    return text, hints
+
+
 # ── claude -p plumbing ──────────────────────────────────────────────────────
 
 def run_claude(prompt, model, allowed_tools=None, system=None):
@@ -162,25 +368,40 @@ def run_claude(prompt, model, allowed_tools=None, system=None):
     return envelope.get("result", "")
 
 
-def fetch_job_text(args):
-    """Resolve the job description text from --job / --url / --search."""
-    if args.job:
-        if args.job == "-":
-            return sys.stdin.read()
-        if os.path.isfile(args.job):
-            with open(args.job, "r", encoding="utf-8") as f:
-                return f.read()
-        return args.job  # literal text
+URL_CONTRACT = (
+    "You are a search tool. Find the job posting and return ONLY its canonical URL "
+    "on one line \u2014 no markdown, no commentary. Prefer the employer's own job board "
+    "(ashbyhq / greenhouse / lever / workday / the company site) over aggregators. "
+    "If you cannot find it, return exactly: ERROR: <one-line reason>"
+)
 
+
+def resolve_search_url(query, model):
+    """Ask claude to turn a search query into a posting URL (None if it can't)."""
+    print(f"Searching for job posting: {query}")
+    text = run_claude(f"Find the job posting for: {query}", model,
+                      allowed_tools=["WebSearch", "WebFetch"], system=URL_CONTRACT).strip()
+    url = re.search(r"https?://\S+", text)
+    if text.startswith("ERROR:") or not url:
+        print(f"  Search did not return a URL ({text[:160] or 'empty response'}).",
+              file=sys.stderr)
+        return None
+    print(f"  Found: {url.group(0)}")
+    return url.group(0)
+
+
+def claude_fetch_job(args, url=None):
+    """Original path: have claude retrieve the posting text (WebFetch/WebSearch)."""
     contract = (
         "You are a retrieval tool. Return ONLY the job posting content as plain text: "
         "job title, company, location, responsibilities, requirements, qualifications, "
         "and tech stack. No commentary, no markdown fences, no advice. "
         "If you cannot access the posting, return exactly: ERROR: <one-line reason>"
     )
-    if args.url:
-        print(f"Fetching job posting: {args.url}")
-        prompt = f"Fetch this job posting and return its content as plain text: {args.url}"
+    target = url or args.url
+    if target:
+        print(f"Fetching job posting with claude: {target}")
+        prompt = f"Fetch this job posting and return its content as plain text: {target}"
         tools = ["WebFetch"]
     else:
         print(f"Searching for job posting: {args.search}")
@@ -188,11 +409,57 @@ def fetch_job_text(args):
                   f"its content as plain text: {args.search}")
         tools = ["WebSearch", "WebFetch"]
 
-    text = run_claude(prompt, args.model, allowed_tools=tools, system=contract).strip()
+    try:
+        text = run_claude(prompt, args.model, allowed_tools=tools, system=contract).strip()
+    except (RuntimeError, OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as err:
+        text = f"ERROR: {err}"
     if not text or text.startswith("ERROR:"):
         sys.exit(f"Could not retrieve the job posting: {text or 'empty response'}\n"
-                 f"Tip: paste it manually with --job posting.txt (login-walled sites often block fetches).")
-    return text
+                 f"Tips: pass --browser-profile DIR with a Chrome profile that is logged in, "
+                 f"or paste the posting manually with --job posting.txt")
+    return text, {}
+
+
+# Attribution junk that boards append; gh_jid & co. are load-bearing, so drop by name.
+TRACKING_PARAMS = {"source", "src", "ref", "referrer", "gh_src", "trackingtag",
+                   "lever-origin", "lever-source", "li_fat_id", "trk", "trackingid"}
+
+
+def strip_tracking(url):
+    """Drop utm_*/attribution params — some boards 404 or gate on them."""
+    if not url:
+        return url
+    parts = urlsplit(url)
+    if not parts.query:
+        return url
+    keep = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
+            if not (k.lower().startswith("utm_") or k.lower() in TRACKING_PARAMS)]
+    return urlunsplit(parts._replace(query=urlencode(keep)))
+
+
+def fetch_job_text(args):
+    """Resolve (job text, {title, company} hints) from --job / --url / --search."""
+    if args.job:
+        if args.job == "-":
+            return sys.stdin.read(), {}
+        if os.path.isfile(args.job):
+            with open(args.job, "r", encoding="utf-8") as f:
+                return f.read(), {}
+        return args.job, {}  # literal text
+
+    url = strip_tracking(args.url)
+    if args.search:
+        if args.no_browser:
+            return claude_fetch_job(args)
+        url = strip_tracking(resolve_search_url(args.search, args.model))
+        if not url:
+            return claude_fetch_job(args)
+
+    if not args.no_browser:
+        result = browser_fetch_job(url, args)
+        if result:
+            return result
+    return claude_fetch_job(args, url)
 
 
 SELECTION_CONTRACT = (
@@ -330,10 +597,14 @@ def guess_job_meta(job_text):
     return title, company
 
 
-def job_dir_slug(job_text, selection):
-    """Folder name for a tailored run: <job_title>_<company>."""
-    title = company = ""
-    if isinstance(selection, dict):
+def job_dir_slug(job_text, selection, hints=None):
+    """Folder name for a tailored run: <job_title>_<company>.
+
+    Structured data scraped from the posting beats the model's report of it.
+    """
+    title = (hints or {}).get("title", "") or ""
+    company = (hints or {}).get("company", "") or ""
+    if not title and not company and isinstance(selection, dict):
         title = str(selection.get("job_title") or "").strip()
         company = str(selection.get("company") or "").strip()
     if not title and not company:
@@ -483,8 +754,10 @@ def render_pdf(md_path, pdf_path, selection, frontmatter, sections, entries,
     """Render via md_to_pdf.py, then keep trimming content (trim_steps ladder) until
     the page fits at a readable scale (>= min_scale) or nothing is left to trim."""
     def render_once():
+        # DEBUG=1 makes md_to_pdf.py print its scale= lines, which the floor below reads.
         proc = subprocess.run([sys.executable, os.path.join(SCRIPT_DIR, "md_to_pdf.py"),
-                               md_path, pdf_path], capture_output=True, text=True)
+                               md_path, pdf_path], capture_output=True, text=True,
+                              env={**os.environ, "DEBUG": "1"})
         sys.stdout.write(proc.stdout)
         if proc.returncode != 0:
             sys.exit(f"md_to_pdf.py failed:\n{proc.stderr.strip()[:800]}")
@@ -533,6 +806,15 @@ def main():
                     help="readability floor for --pdf: keep trimming content until the "
                          f"page fits at this scale or better (default {MIN_SCALE_DEFAULT})")
     ap.add_argument("--pdf", action="store_true", help="also render a PDF via md_to_pdf.py")
+    ap.add_argument("--no-browser", action="store_true",
+                    help="don't render --url/--search pages in headless Chrome; use claude WebFetch")
+    ap.add_argument("--browser-bin", default=os.environ.get("TAILOR_BROWSER"),
+                    help="Chrome/Chromium binary to render with (default: first found on PATH)")
+    ap.add_argument("--browser-timeout", type=int, default=45,
+                    help="seconds to let the page render (default: 45)")
+    ap.add_argument("--browser-profile", default=None,
+                    help="Chrome profile dir to reuse for logged-in postings "
+                         "(default: a throwaway profile)")
     args = ap.parse_args()
 
     if args.out is None and args.general:
@@ -558,7 +840,7 @@ def main():
             print(f"Wrote {args.out}.pdf")
         return
 
-    job_text = fetch_job_text(args)
+    job_text, job_hints = fetch_job_text(args)
     if args.url or args.search:
         preview = "\n".join(job_text.strip().splitlines()[:12])
         print(f"\nJob text preview:\n{'-' * 60}\n{preview}\n{'-' * 60}\n"
@@ -577,7 +859,7 @@ def main():
         selection = fallback_selection(job_text, entries, args.projects)
 
     if args.out is None:
-        out_dir = os.path.join(args.outdir, job_dir_slug(job_text, selection))
+        out_dir = os.path.join(args.outdir, job_dir_slug(job_text, selection, job_hints))
         os.makedirs(out_dir, exist_ok=True)
         args.out = os.path.join(out_dir, "resume")
         print(f"Output folder: {out_dir}")

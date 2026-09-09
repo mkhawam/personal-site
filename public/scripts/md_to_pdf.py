@@ -19,6 +19,10 @@ import os
 import re
 import yaml
 import markdown
+import os
+
+DEBUG = os.environ.get("DEBUG", "0") == "1"
+
 
 from weasyprint import HTML
 
@@ -391,7 +395,8 @@ def fit_one_page(md_path: str, output_path: str) -> None:
         html, meta = md_to_html(md_path, scale)
         doc = render(html)
         pages = len(doc.pages)
-        print(f"  scale={scale:.2f}  →  {pages} page(s)")
+        if DEBUG:
+            print(f"  scale={scale:.2f}  →  {pages} page(s)")
         if pages <= 1:
             pdf_meta = _build_pdf_metadata(meta)
             doc.write_pdf(output_path, **pdf_meta)
