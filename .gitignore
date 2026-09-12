@@ -43,10 +43,7 @@ next-env.d.ts
 certificates
 
 data/users
-# resume tooling (tools/resume/tailor.py): per-job runs and scratch files are not site content
-tools/resume/resumes/
-tools/resume/resume.tailored*
-tools/resume/posting.txt
 __pycache__/
+.pytest_cache/
 
 .claude
