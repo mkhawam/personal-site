@@ -98,7 +98,8 @@ Data: MariaDB / InnoDB, MongoDB, Redis, Django ORM, Schema Design and
 Migrations, Query Optimization and Indexing, Caching
 
 Infrastructure: Docker, Docker Compose, Ansible, Nginx, Linux, systemd,
-Proxmox, VMware, OpenStack, GitHub Actions, GitLab CI, CI/CD, Zabbix
+Proxmox, VMware, OpenStack, GitHub Actions, GitLab CI, CI/CD, Zabbix,
+Prometheus, Grafana
 
 Security: Application Security, OWASP Top 10, RBAC / ABAC Authorization,
 Sandboxing and Container Isolation, CAS / Kerberos / Azure AD SSO, JWT and API
@@ -115,8 +116,9 @@ CompLock                                            November 2023 - March 2024
   https://github.com/rusec/CompLock
   * Built SSH command-and-control software for networked computers in
     TypeScript on LevelDB and SSH2, used by RUSEC for one CCDC season.
-  * Cut password rotation across 30 machines from 5 minutes to 30 seconds,
-    with Mocha tests running in GitHub Actions.
+  * Rotated passwords across the team's 30 machines in one parallel SSH pass
+    instead of one machine at a time, with Mocha tests running in GitHub
+    Actions.
 
 mohamadk.com                                              April 2025 - Present
   https://mohamadk.com
