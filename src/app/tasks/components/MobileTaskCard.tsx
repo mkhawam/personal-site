@@ -93,7 +93,7 @@ export default function MobileTaskCard({ task, isFocused, listName, onToggle, on
                 <div className="flex-1 min-w-0">
                     <span
                         className={clsx(
-                            "text-lg block truncate",
+                            "text-lg line-clamp-2 break-words",
                             task.completed ? "text-base-content/50 line-through" : "text-base-content",
                         )}
                     >
@@ -155,8 +155,10 @@ export default function MobileTaskCard({ task, isFocused, listName, onToggle, on
                         </div>
                     )}
 
-                    {/* Quick Add Subtask */}
-                    {addingSubtask ?
+                    {/* Quick Add Subtask — only once subtasks exist (the sheet's "Subtask" button starts the first one) */}
+                    {!addingSubtask && !(task.subtasks && task.subtasks.length > 0) ?
+                        null
+                    : addingSubtask ?
                         <form
                             onSubmit={(e) => {
                                 e.preventDefault();

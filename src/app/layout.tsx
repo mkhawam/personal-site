@@ -6,7 +6,7 @@ import SiteFooter from "./components/SiteFooter";
 import CommandPalette from "./components/CommandPalette";
 import { headers } from "next/headers";
 
-import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
+import ServiceWorkerCleanup from "./components/ServiceWorkerCleanup";
 import { Toaster } from "sonner";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth";
@@ -65,6 +65,7 @@ export async function generateViewport(): Promise<Viewport> {
     initialScale: 1,
     maximumScale: 1,
     userScalable: false,
+    viewportFit: "cover", // lets env(safe-area-inset-*) resolve for the tasks app's bottom nav
     themeColor: THEME_COLORS[theme] ?? THEME_COLORS.midnight,
   };
 }
@@ -77,6 +78,10 @@ export default async function RootLayout({
 
   const heads = await headers();
   const theme = heads.get("x-theme") || "midnight";
+  // /tasks is a full-screen app: its mobile layout is position:fixed and drew
+  // underneath the sticky nav, and its desktop layout is viewport-height, so
+  // the footer only ever added a scroll to nothing.
+  const isTasksApp = (heads.get("x-pathname") || "").startsWith("/tasks");
 
   // Resolved on the server so the nav renders its final shape in the first paint,
   // with no authenticated-only items flashing in after a client-side check.
@@ -86,7 +91,7 @@ export default async function RootLayout({
   return (
     <html lang="en" data-theme={theme}>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -94,12 +99,12 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-dvh flex flex-col font-sans selection:bg-primary/30`}
       >
-        <ServiceWorkerRegister />
+        <ServiceWorkerCleanup />
         <Toaster />
         <CommandPalette isAuthed={isAuthed} />
-        <SiteHeader isAuthed={isAuthed} />
+        <SiteHeader isAuthed={isAuthed} hideOnMobile={isTasksApp} />
         <main className="flex-1">{children}</main>
-        <SiteFooter />
+        {!isTasksApp && <SiteFooter />}
       </body>
     </html>
   );

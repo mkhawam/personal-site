@@ -9,11 +9,13 @@ type Props = {
     content: string;
     onChange: (content: string) => void;
     variant: "desktop" | "mobile";
+    autoFocus?: boolean;
+    placeholder?: string;
 };
 
 // Edit/preview toggle for the Notes tab — the placeholder has claimed
 // "Markdown supported" for a while; preview mode finally makes it true.
-export default function NoteEditor({ content, onChange, variant }: Props) {
+export default function NoteEditor({ content, onChange, variant, autoFocus = false, placeholder }: Props) {
     const [preview, setPreview] = useState(false);
 
     return (
@@ -47,8 +49,9 @@ export default function NoteEditor({ content, onChange, variant }: Props) {
                 </div>
             :   <textarea
                     value={content}
+                    autoFocus={autoFocus}
                     onChange={(e) => onChange(e.target.value)}
-                    placeholder={variant === "desktop" ? "Write your notes here... (Markdown supported)" : "Type your notes... (Markdown supported)"}
+                    placeholder={placeholder ?? (variant === "desktop" ? "Write your notes here... (Markdown supported)" : "Type your notes... (Markdown supported)")}
                     className={clsx(
                         "flex-1 w-full bg-transparent text-base-content/80 focus:outline-none resize-none",
                         variant === "desktop" ? "p-4 font-mono text-sm leading-relaxed" : "p-2 text-lg leading-relaxed",

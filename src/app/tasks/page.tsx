@@ -43,7 +43,8 @@ import {
     Headphones,
     Volume2,
     VolumeX,
-    Move,
+    MoreHorizontal,
+    Pencil,
     Search,
     Sun,
     ArrowUpDown,
@@ -145,7 +146,7 @@ function TasksPageInner() {
     const [tagMenuAnchorEl, setTagMenuAnchorEl] = useState<HTMLElement | null>(null);
 
     // Lightweight anchored editors for desktop task rows (due date / move / estimate)
-    const [popover, setPopover] = useState<{ type: "due" | "move" | "estimate"; taskId: string; anchorEl: HTMLElement } | null>(null);
+    const [popover, setPopover] = useState<{ type: "due" | "move" | "estimate" | "more"; taskId: string; anchorEl: HTMLElement } | null>(null);
 
     // Modal State
     const [modalOpen, setModalOpen] = useState(false);
@@ -325,7 +326,7 @@ function TasksPageInner() {
                 }
 
                 // Log History
-                const today = new Date().toISOString().split("T")[0];
+                const today = localToday();
                 setFocusHistory((prev) => {
                     const existing = prev.find((h) => h.date === today);
                     if (existing) {
@@ -525,10 +526,16 @@ function TasksPageInner() {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Ignore if typing in input/textarea
+            // Ignore if typing in input/textarea, and let a focused button/link keep
+            // Space/Enter for itself (Space used to also toggle the timer).
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
                 return;
             }
+            const el = e.target as HTMLElement | null;
+            if (e.key === " " && el && (el.tagName === "BUTTON" || el.tagName === "A" || el.tagName === "SELECT" || el.isContentEditable)) {
+                return;
+            }
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
 
             switch (e.key.toLowerCase()) {
                 case " ":
@@ -650,7 +657,7 @@ function TasksPageInner() {
             }
 
             // Log Task Completion
-            const today = new Date().toISOString().split("T")[0];
+            const today = localToday();
             setFocusHistory((prev) => {
                 const existing = prev.find((h) => h.date === today);
                 if (existing) {
@@ -725,19 +732,29 @@ function TasksPageInner() {
 
     const deleteList = (id: string) => {
         if (id === "default") return;
+        const list = lists.find((l) => l.id === id);
+        if (!list) return;
 
-        // confirm?
-        if (!confirm("Are you sure? All tasks in this list will be deleted.")) return;
-
-        setLists((prev) => prev.filter((l) => l.id !== id));
-        // Tombstone the list's tasks (a hard filter would let sync resurrect them)
+        // Soft delete with Undo (the app's convention) instead of a blocking confirm().
+        // Tombstone the list's tasks — a hard filter would let sync resurrect them.
         const now = new Date().toISOString();
-        setTasks((prev) => prev.map((t) => (t.listId === id ? { ...t, deletedAt: now, updatedAt: now } : t)));
+        const affected = new Set(tasks.filter((t) => t.listId === id && !t.deletedAt).map((t) => t.id));
+        setLists((prev) => prev.filter((l) => l.id !== id));
+        setTasks((prev) => prev.map((t) => (affected.has(t.id) ? { ...t, deletedAt: now, updatedAt: now } : t)));
+        if (activeListId === id) setActiveListId("default");
 
-        if (activeListId === id) {
-            setActiveListId("default");
-        }
-        toast.success("List Deleted");
+        toast(`Deleted "${list.name}"`, {
+            description: affected.size ? `${affected.size} task${affected.size === 1 ? "" : "s"} moved to Recently Deleted` : undefined,
+            action: {
+                label: "Undo",
+                onClick: () => {
+                    const restoredAt = new Date().toISOString();
+                    setLists((prev) => (prev.some((l) => l.id === id) ? prev : [...prev, list]));
+                    setTasks((prev) => prev.map((t) => (affected.has(t.id) ? { ...t, deletedAt: undefined, updatedAt: restoredAt } : t)));
+                    setActiveListId(id);
+                },
+            },
+        });
     };
 
     const archiveTask = (id: string) => {
@@ -956,6 +973,14 @@ function TasksPageInner() {
 
     const sheetTask = (sheetTaskId && tasks.find((t) => t.id === sheetTaskId && !t.deletedAt)) || null;
     const popoverTask = (popover && tasks.find((t) => t.id === popover.taskId && !t.deletedAt)) || null;
+    const tagMenuTask = (openTagMenuTaskId && tasks.find((t) => t.id === openTagMenuTaskId && !t.deletedAt)) || null;
+
+    // Due-date chip tone. Dates are local yyyy-MM-dd strings, so plain string
+    // comparison is a correct date comparison.
+    const dueChipClass = (dueDate: string) =>
+        dueDate < todayStr ? "bg-error/20 text-error"
+        : dueDate === todayStr ? "bg-warning/20 text-warning"
+        : "bg-base-content/5 text-base-content/70";
 
     const getTotalTime = () => {
         if (mode === "work") return pomoSettings.work * 60;
@@ -1081,10 +1106,10 @@ function TasksPageInner() {
         checkDate.setHours(0, 0, 0, 0);
 
         // Check if today or yesterday has activity (allow starting streak check from yesterday)
-        const todayStr = checkDate.toISOString().split("T")[0];
+        const todayStr = format(checkDate, "yyyy-MM-dd");
         const yesterday = new Date(checkDate);
         yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split("T")[0];
+        const yesterdayStr = format(yesterday, "yyyy-MM-dd");
 
         const hasToday = sorted.some((h) => h.date === todayStr);
         const hasYesterday = sorted.some((h) => h.date === yesterdayStr);
@@ -1098,7 +1123,7 @@ function TasksPageInner() {
 
         // Count consecutive days backward
         while (true) {
-            const dateStr = checkDate.toISOString().split("T")[0];
+            const dateStr = format(checkDate, "yyyy-MM-dd");
             if (sorted.some((h) => h.date === dateStr)) {
                 streak++;
                 checkDate.setDate(checkDate.getDate() - 1);
@@ -1471,19 +1496,20 @@ function TasksPageInner() {
     }
 
     return (
-        <div className="min-h-dvh w-full p-4 md:p-12 bg-gradient-to-br from-base-100 via-base-200 to-base-100 relative">
-            {/* <Toaster position="top-center" theme="dark" /> Removed duplicate */}
+        <div className="min-h-dvh w-full p-4 md:p-8 lg:h-[calc(100dvh-3.5rem-1px)] lg:min-h-0 lg:overflow-hidden bg-gradient-to-br from-base-100 via-base-200 to-base-100 relative">
             <input type="file" ref={fileInputRef} onChange={importData} accept=".json" className="hidden" />
 
-            {/* Desktop Layout */}
-            <div className="hidden md:block space-y-8">
+            {/* Desktop Layout — from lg up this is a viewport-height flex column (3.5rem =
+                the sticky site header) so the task panel fills what's left instead of
+                overflowing the page and scrolling twice. Below lg the page scrolls normally. */}
+            <div className="hidden md:flex md:flex-col md:gap-6 lg:h-full">
                 {/* Header */}
                 {!isZenMode && (
-                    <motion.div layout className="mb-8 md:mb-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0">
+                    <motion.div layout className="shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0">
                         <div className="flex items-center gap-6">
                             <div className="relative">
                                 <button onClick={() => setIsListDropdownOpen(!isListDropdownOpen)} className="flex items-center gap-2 group">
-                                    <h1 className="text-3xl md:text-5xl font-extrabold text-base-content tracking-tight">
+                                    <h1 className="text-3xl md:text-4xl font-extrabold text-base-content tracking-tight">
                                         {activeListId === TODAY_LIST_ID ? "Today" : lists.find((l) => l.id === activeListId)?.name || "My Tasks"}
                                     </h1>
                                     <ChevronDown
@@ -1491,7 +1517,7 @@ function TasksPageInner() {
                                         className={clsx("text-base-content/50 group-hover:text-base-content/80 transition-all", isListDropdownOpen && "rotate-180")}
                                     />
                                 </button>
-                                <p className="text-base-content/50 mt-2 font-medium">Capture ideas. Stay focused.</p>
+                                <p className="text-base-content/50 mt-1 text-sm font-medium">Capture ideas. Stay focused.</p>
 
                                 {/* List Dropdown */}
                                 <AnimatePresence>
@@ -1981,9 +2007,6 @@ function TasksPageInner() {
                     </motion.div>
                 )}
 
-                {/* Hidden Audio Element for Radio */}
-                <audio ref={musicRef} className="hidden" crossOrigin="anonymous" />
-
                 {/* Zen Mode Exit Button */}
                 {isZenMode && (
                     <div className="fixed top-6 right-6 z-50">
@@ -1999,8 +2022,8 @@ function TasksPageInner() {
 
                 {/* Quick Links Bar */}
                 {!isZenMode && (
-                    <div className="mb-6 flex items-center gap-4">
-                        <div className="flex-1 flex items-center gap-2 overflow-x-auto py-2">
+                    <div className="shrink-0 flex items-center gap-4">
+                        <div className="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-hide py-1">
                             {savedLinks.slice(0, 8).map((link) => (
                                 <a
                                     key={link.id}
@@ -2198,7 +2221,7 @@ function TasksPageInner() {
                     )}
                 </AnimatePresence>
 
-                <div className={clsx("grid gap-8", isZenMode ? "grid-cols-1 max-w-5xl mx-auto" : "lg:grid-cols-3")}>
+                <div className={clsx("grid gap-8 lg:flex-1 lg:min-h-0", isZenMode ? "grid-cols-1 w-full max-w-5xl mx-auto" : "lg:grid-cols-3")}>
                     {/* Left Col: Timer & Stats (Unchanged) */}
                     <AnimatePresence>
                         {!isTimerMinimized && !isZenMode && (
@@ -2206,7 +2229,7 @@ function TasksPageInner() {
                                 initial={{ opacity: 0, width: 0 }}
                                 animate={{ opacity: 1, width: "auto" }}
                                 exit={{ opacity: 0, width: 0 }}
-                                className="lg:col-span-1 space-y-6 overflow-hidden"
+                                className="lg:col-span-1 space-y-6 overflow-hidden lg:min-h-0 lg:overflow-y-auto custom-scrollbar"
                             >
                                 <motion.div
                                     layout
@@ -2305,7 +2328,7 @@ function TasksPageInner() {
                     <motion.div
                         layout
                         className={clsx(
-                            "transition-all duration-500",
+                            "transition-all duration-500 lg:min-h-0 lg:h-full",
                             isZenMode ? "col-span-1"
                             : isTimerMinimized ? "lg:col-span-3"
                             : "lg:col-span-2",
@@ -2315,38 +2338,17 @@ function TasksPageInner() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, ease: "easeOut" as const }}
-                            className="rounded-3xl bg-base-200/50 border border-base-content/5 p-4 md:p-8 h-[calc(100vh-6rem)] shadow-xl flex flex-col overflow-hidden"
+                            className="rounded-3xl bg-base-200/50 border border-base-content/5 p-4 md:p-6 h-[calc(100vh-6rem)] lg:h-full shadow-xl flex flex-col overflow-hidden"
                         >
-                            {/* Header / Search / Input Section - FIXED */}
+                            {/* Header / Input Section - FIXED */}
                             <div className="flex-shrink-0">
-                                {/* Search Input */}
-                                <div className="relative mb-4">
-                                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
-                                    <input
-                                        ref={searchInputRef}
-                                        type="text"
-                                        placeholder="Search tasks..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full bg-base-content/5 text-base-content/80 pl-10 pr-4 py-2.5 rounded-xl border border-base-content/10 focus:outline-none focus:border-base-content/40 text-sm"
-                                    />
-                                    {searchQuery && (
-                                        <button
-                                            onClick={() => setSearchQuery("")}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/50 hover:text-base-content/80"
-                                        >
-                                            <X size={16} />
-                                        </button>
-                                    )}
-                                </div>
-
-                                <form onSubmit={handleAddTask} className="relative mb-6 group">
+                                <form onSubmit={handleAddTask} className="relative mb-5 group">
                                     <input
                                         ref={addTaskInputRef}
                                         type="text"
                                         placeholder="What's your focus today?"
                                         title="Quick add: #tag !priority @due — e.g. 'Ship blog post #work !high @fri'"
-                                        className="w-full bg-transparent text-xl md:text-2xl font-medium text-base-content placeholder:text-base-content/50 border-b-2 border-base-content/5 py-4 focus:outline-none focus:border-primary transition-colors pl-2"
+                                        className="w-full bg-transparent text-xl md:text-2xl font-medium text-base-content placeholder:text-base-content/50 border-b-2 border-base-content/5 py-3 focus:outline-none focus:border-primary transition-colors pl-2"
                                         value={newTaskText}
                                         onChange={(e) => setNewTaskText(e.target.value)}
                                     />
@@ -2356,13 +2358,41 @@ function TasksPageInner() {
                                     >
                                         <Plus size={24} />
                                     </button>
+                                    {/* Quick-add syntax hint — shown only while typing so it adds no height at rest */}
+                                    <div className="absolute left-2 -bottom-5 text-[11px] text-base-content/40 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none">
+                                        #tag &nbsp;·&nbsp; !high / !low &nbsp;·&nbsp; @today, @fri, @2026-10-01
+                                    </div>
                                 </form>
 
-                                <div className="flex items-center justify-between mb-4 px-2">
-                                    <h2 className="text-xl font-bold text-base-content">Active Tasks</h2>
+                                <div className="flex items-center gap-3 mb-3 px-1">
+                                    <h2 className="text-lg font-bold text-base-content shrink-0">
+                                        Active Tasks
+                                        <span className="ml-2 text-sm font-medium text-base-content/40 tabular-nums">{displayTasks.length}</span>
+                                    </h2>
+                                    {/* Compact search — lives in the header row instead of a second full-width field */}
+                                    <div className="relative flex-1 max-w-56 ml-auto">
+                                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-base-content/40" />
+                                        <input
+                                            ref={searchInputRef}
+                                            type="text"
+                                            placeholder="Search…"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="w-full bg-base-content/5 text-base-content/80 pl-8 pr-7 py-1.5 rounded-lg border border-transparent focus:outline-none focus:border-base-content/30 focus:bg-base-content/10 text-xs transition-colors"
+                                        />
+                                        {searchQuery && (
+                                            <button
+                                                onClick={() => setSearchQuery("")}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-base-content/50 hover:text-base-content/80"
+                                                aria-label="Clear search"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        )}
+                                    </div>
                                     {/* Sort control — hidden in Today (always due-date ordered there) */}
                                     {activeListId !== TODAY_LIST_ID && (
-                                        <div className="flex items-center gap-1 bg-base-content/5 rounded-lg p-1" title="Sort tasks">
+                                        <div className="flex items-center gap-1 bg-base-content/5 rounded-lg p-1 shrink-0" title="Sort tasks">
                                             <ArrowUpDown size={14} className="text-base-content/40 ml-1.5 mr-0.5" />
                                             {(
                                                 [
@@ -2391,7 +2421,7 @@ function TasksPageInner() {
 
                             {/* Scrollable Task List */}
                             <div className="flex-1 overflow-y-auto overflow-x-visible px-3 py-2 custom-scrollbar min-h-0">
-                                <Reorder.Group axis="y" values={displayTasks} onReorder={reorderDisabled ? () => {} : handleReorder} className="space-y-3 pb-8">
+                                <Reorder.Group axis="y" values={displayTasks} onReorder={reorderDisabled ? () => {} : handleReorder} className="space-y-3 pb-2">
                                     <AnimatePresence initial={false}>
                                         {displayTasks.map((task) => {
                                             const prog = getSubtaskProgress(task);
@@ -2496,14 +2526,14 @@ function TasksPageInner() {
                                                             </div>
                                                         }
 
-                                                        <div className="flex gap-1 items-center">
+                                                        <div className="flex gap-1 items-center shrink-0">
                                                             <button
                                                                 onClick={() => cyclePriority(task.id)}
-                                                                className={clsx("p-2 rounded-lg transition-colors", getPriorityColor(task.priority))}
-                                                                title={`Priority: ${task.priority || "medium"}`}
+                                                                className={clsx("p-2 rounded-lg transition-colors hover:bg-base-content/10", getPriorityColor(task.priority))}
+                                                                title={`Priority: ${task.priority || "medium"} — click to cycle`}
                                                             >
                                                                 <Flag
-                                                                    size={18}
+                                                                    size={16}
                                                                     fill={
                                                                         task.priority === "high" || task.priority === "medium" ?
                                                                             "currentColor"
@@ -2512,92 +2542,42 @@ function TasksPageInner() {
                                                                 />
                                                             </button>
 
-                                                            {/* Recurrence Toggle */}
-                                                            <button
-                                                                onClick={() => cycleRecurrence(task.id)}
-                                                                className={clsx(
-                                                                    "p-2 rounded-lg transition-colors",
-                                                                    task.recurrence === "daily" && "text-info bg-info/20",
-                                                                    task.recurrence === "weekly" && "text-secondary bg-secondary/20",
-                                                                    task.recurrence === "monthly" && "text-success bg-success/20",
-                                                                    !task.recurrence && "text-base-content/50 hover:text-base-content hover:bg-base-content/10",
-                                                                )}
-                                                                title={task.recurrence ? `Repeats ${task.recurrence}` : "Set recurrence"}
-                                                            >
-                                                                <Repeat size={18} />
-                                                            </button>
+                                                            {/* Recurrence — only surfaces once set; setting it lives in the ⋯ menu */}
+                                                            {task.recurrence && (
+                                                                <button
+                                                                    onClick={() => cycleRecurrence(task.id)}
+                                                                    className={clsx(
+                                                                        "p-2 rounded-lg transition-colors",
+                                                                        task.recurrence === "daily" && "text-info bg-info/15",
+                                                                        task.recurrence === "weekly" && "text-secondary bg-secondary/15",
+                                                                        task.recurrence === "monthly" && "text-success bg-success/15",
+                                                                    )}
+                                                                    title={`Repeats ${task.recurrence} — click to cycle`}
+                                                                >
+                                                                    <Repeat size={16} />
+                                                                </button>
+                                                            )}
 
-                                                            <div className="w-px h-4 bg-base-content/10 mx-1" />
+                                                            {/* Pomodoro chip — only once an estimate or a logged session exists */}
+                                                            {task.estimatedPomos || task.actualPomos ?
+                                                                <button
+                                                                    onClick={(e) => setPopover({ type: "estimate", taskId: task.id, anchorEl: e.currentTarget })}
+                                                                    className="flex items-center gap-1 px-2 py-1 bg-base-content/5 hover:bg-base-content/10 rounded-lg text-xs font-mono transition-colors"
+                                                                    title="Set pomodoro estimate"
+                                                                >
+                                                                    <span className="text-error">🍅</span>
+                                                                    <span className="text-base-content/70">
+                                                                        {task.actualPomos || 0}/{task.estimatedPomos || "?"}
+                                                                    </span>
+                                                                </button>
+                                                            :   null}
 
-                                                            <button
-                                                                onClick={() => openModal(task.id, "ATTACHMENT")}
-                                                                className={clsx(
-                                                                    "p-2 rounded-lg transition-colors",
-                                                                    task.attachments && task.attachments.length > 0 ?
-                                                                        "text-base-content bg-base-content/10"
-                                                                    :   "text-base-content/50 hover:text-base-content hover:bg-base-content/10",
-                                                                )}
-                                                                title="Attach Link"
-                                                            >
-                                                                <Paperclip size={18} />
-                                                            </button>
-
-                                                            <button
-                                                                onClick={() => openModal(task.id, "NOTE")}
-                                                                className={clsx(
-                                                                    "p-2 rounded-lg transition-colors",
-                                                                    task.notes ? "text-base-content bg-base-content/10" : (
-                                                                        "text-base-content/50 hover:text-base-content hover:bg-base-content/10"
-                                                                    ),
-                                                                )}
-                                                                title="Notes"
-                                                            >
-                                                                <FileText size={18} />
-                                                            </button>
-
-                                                            {/* Focus Button */}
-                                                            <button
-                                                                onClick={() => setCurrentTaskId(currentTaskId === task.id ? null : task.id)}
-                                                                className={clsx(
-                                                                    "p-2 rounded-lg transition-colors",
-                                                                    currentTaskId === task.id ?
-                                                                        "text-warning bg-warning/20"
-                                                                    :   "text-base-content/50 hover:text-warning hover:bg-base-content/10",
-                                                                )}
-                                                                title={currentTaskId === task.id ? "Unfocus" : "Focus on task"}
-                                                            >
-                                                                <Target size={18} />
-                                                            </button>
-
-                                                            {/* Pomodoro Badge - Clickable to set estimate */}
-                                                            <button
-                                                                onClick={(e) => setPopover({ type: "estimate", taskId: task.id, anchorEl: e.currentTarget })}
-                                                                className="flex items-center gap-1 px-2 py-1 bg-base-content/5 hover:bg-base-content/10 rounded-lg text-xs font-mono transition-colors"
-                                                                title="Set pomodoro estimate"
-                                                            >
-                                                                <span className="text-error">🍅</span>
-                                                                <span className="text-base-content/70">
-                                                                    {task.actualPomos || 0}/{task.estimatedPomos || "?"}
-                                                                </span>
-                                                            </button>
-
-                                                            {/* Due Date Button */}
+                                                            {/* Due Date chip */}
                                                             <button
                                                                 onClick={(e) => setPopover({ type: "due", taskId: task.id, anchorEl: e.currentTarget })}
                                                                 className={clsx(
                                                                     "flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors",
-                                                                    task.dueDate ?
-                                                                        (() => {
-                                                                            // Parse date in local timezone by appending time
-                                                                            const dueDate = new Date(task.dueDate + "T00:00:00");
-                                                                            const today = new Date();
-                                                                            today.setHours(0, 0, 0, 0);
-                                                                            if (dueDate < today) return "bg-error/20 text-error";
-                                                                            if (dueDate.getTime() === today.getTime())
-                                                                                return "bg-warning/20 text-warning";
-                                                                            return "bg-base-content/5 text-base-content/70";
-                                                                        })()
-                                                                    :   "bg-base-content/5 text-base-content/50 hover:text-base-content/80",
+                                                                    task.dueDate ? dueChipClass(task.dueDate) : "text-base-content/40 hover:text-base-content/80 hover:bg-base-content/10",
                                                                 )}
                                                                 title={
                                                                     task.dueDate ?
@@ -2616,53 +2596,42 @@ function TasksPageInner() {
                                                                 )}
                                                             </button>
 
-                                                            {/* Move to List - Only show if multiple lists */}
-                                                            {lists.length > 1 && (
-                                                                <button
-                                                                    onClick={(e) => setPopover({ type: "move", taskId: task.id, anchorEl: e.currentTarget })}
-                                                                    className="p-2 text-base-content/50 hover:text-base-content hover:bg-base-content/10 rounded-lg"
-                                                                    title="Move to another list"
-                                                                >
-                                                                    <Move size={18} />
-                                                                </button>
-                                                            )}
+                                                            {/* Focus Button */}
+                                                            <button
+                                                                onClick={() => setCurrentTaskId(currentTaskId === task.id ? null : task.id)}
+                                                                className={clsx(
+                                                                    "p-2 rounded-lg transition-colors",
+                                                                    currentTaskId === task.id ?
+                                                                        "text-warning bg-warning/20"
+                                                                    :   "text-base-content/50 hover:text-warning hover:bg-base-content/10",
+                                                                )}
+                                                                title={currentTaskId === task.id ? "Unfocus" : "Focus on task"}
+                                                            >
+                                                                <Target size={16} />
+                                                            </button>
 
-                                                            {/* Tags Button */}
-                                                            <div className="relative">
-                                                                <button
-                                                                    type="button"
-                                                                    className={clsx(
-                                                                        "p-2 rounded-lg transition-colors",
-                                                                        task.tags && task.tags.length > 0 ?
-                                                                            "text-base-content bg-base-content/10"
-                                                                        :   "text-base-content/50 hover:text-base-content hover:bg-base-content/10",
-                                                                    )}
-                                                                    title="Tags"
-                                                                    aria-haspopup="menu"
-                                                                    aria-expanded={openTagMenuTaskId === task.id}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setTagMenuAnchorEl(e.currentTarget);
-                                                                        setOpenTagMenuTaskId((prev) => (prev === task.id ? null : task.id));
-                                                                    }}
-                                                                >
-                                                                    <Tag size={18} />
-                                                                </button>
-                                                                <TaskTagsMenu
-                                                                    open={openTagMenuTaskId === task.id}
-                                                                    anchorEl={openTagMenuTaskId === task.id ? tagMenuAnchorEl : null}
-                                                                    tags={TASK_TAGS}
-                                                                    selectedTagIds={task.tags ?? []}
-                                                                    onToggleTag={(tagId) => toggleTag(task.id, tagId)}
-                                                                    onClose={() => setOpenTagMenuTaskId(null)}
-                                                                />
-                                                            </div>
+                                                            {/* Everything else (rename, subtask, notes, link, tags, repeat, estimate, move, archive) */}
+                                                            <button
+                                                                onClick={(e) => setPopover({ type: "more", taskId: task.id, anchorEl: e.currentTarget })}
+                                                                className={clsx(
+                                                                    "p-2 rounded-lg transition-colors",
+                                                                    popover?.taskId === task.id && popover.type === "more" ?
+                                                                        "text-base-content bg-base-content/10"
+                                                                    :   "text-base-content/50 hover:text-base-content hover:bg-base-content/10",
+                                                                )}
+                                                                title="More actions"
+                                                                aria-haspopup="menu"
+                                                                aria-expanded={popover?.taskId === task.id && popover.type === "more"}
+                                                            >
+                                                                <MoreHorizontal size={16} />
+                                                            </button>
 
                                                             <button
                                                                 onClick={() => deleteTask(task.id)}
                                                                 className="p-2 text-error/40 hover:text-error hover:bg-error/10 rounded-lg"
+                                                                title="Delete"
                                                             >
-                                                                <Trash2 size={18} />
+                                                                <Trash2 size={16} />
                                                             </button>
                                                         </div>
                                                     </div>
@@ -2674,7 +2643,8 @@ function TasksPageInner() {
                                                         </div>
                                                     )}
 
-                                                    {/* Subtasks */}
+                                                    {/* Subtasks — only once a task has some; a bare task gets "Add subtask" from the ⋯ menu */}
+                                                    {task.subtasks && task.subtasks.length > 0 && (
                                                     <div className="pl-12 space-y-2 mt-2 relative z-10">
                                                         <AnimatePresence>
                                                             {(task.subtasks || []).map((sub) => (
@@ -2740,6 +2710,7 @@ function TasksPageInner() {
                                                             />
                                                         </div>
                                                     </div>
+                                                    )}
 
                                                     {/* Attachments */}
                                                     {task.attachments && task.attachments.length > 0 && (
@@ -2777,7 +2748,7 @@ function TasksPageInner() {
                                                     )}
 
                                                     {task.subtasks && task.subtasks.length > 0 && (
-                                                        <div className="absolute top-2 right-2 text-[10px] font-mono text-base-content/50 opacity-50 relative z-10">
+                                                        <div className="absolute bottom-2 right-3 text-[10px] font-mono text-base-content/40 z-10">
                                                             {Math.round(prog * 100)}%
                                                         </div>
                                                     )}
@@ -2786,11 +2757,18 @@ function TasksPageInner() {
                                         })}
                                     </AnimatePresence>
                                 </Reorder.Group>
-                            </div>
 
-                            {/* Completed Tasks */}
+                                {displayTasks.length === 0 && (
+                                    <div className="py-14 text-center text-sm text-base-content/40">
+                                        {searchQuery.trim() ? "No tasks match your search"
+                                        : activeListId === TODAY_LIST_ID ? "Nothing due today 🎉"
+                                        : "No active tasks — add one above"}
+                                    </div>
+                                )}
+
+                            {/* Completed Tasks — inside the scroll region so a long list can't squeeze the active tasks out */}
                             {completedTasks.length > 0 && (
-                                <div className="transition-opacity">
+                                <div className="transition-opacity pt-2">
                                     <button
                                         onClick={() => setShowCompleted(!showCompleted)}
                                         className="flex items-center gap-2 mb-4 px-2 w-full group"
@@ -2851,62 +2829,17 @@ function TasksPageInner() {
                                     </AnimatePresence>
                                 </div>
                             )}
+                            </div>
                         </motion.div>
                     </motion.div>
                 </div>
 
-                {/* Floating Video Player */}
-                <AnimatePresence>
-                    {showYouTubePlayer && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-                            className="fixed bottom-8 right-8 z-50 bg-base-200 rounded-2xl shadow-2xl border border-base-content/10 overflow-hidden"
-                        >
-                            <div className="flex items-center justify-between px-4 py-2 bg-base-300/50">
-                                <span className="text-sm font-bold text-base-content/80">{streamType === "youtube" ? "🎵 YouTube" : "🎮 Twitch"}</span>
-                                <button onClick={() => setShowYouTubePlayer(false)} className="text-base-content/50 hover:text-base-content">
-                                    <X size={18} />
-                                </button>
-                            </div>
-                            {streamType === "youtube" ?
-                                <iframe
-                                    width="320"
-                                    height="180"
-                                    src={`https://www.youtube.com/embed/${customStreamUrl || "jfKfPfyJRdk"}?autoplay=1`}
-                                    title="YouTube Player"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                    className="border-0"
-                                />
-                            :   <div className="flex flex-col">
-                                    <iframe
-                                        src={`https://player.twitch.tv/?channel=${customStreamUrl || "lofiradio"}&parent=localhost&parent=mkhawam.com&parent=www.mkhawam.com`}
-                                        width="320"
-                                        height="180"
-                                        allowFullScreen
-                                        className="border-0"
-                                    />
-                                    <a
-                                        href={`https://www.twitch.tv/${customStreamUrl || "lofiradio"}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-xs text-center text-secondary hover:text-secondary/80 py-2 bg-base-300/50"
-                                    >
-                                        Open in new tab if embed fails →
-                                    </a>
-                                </div>
-                            }
-                        </motion.div>
-                    )}
-                </AnimatePresence>
             </div>
 
             {/* Mobile Layout */}
             <div className="md:hidden fixed inset-0 z-40 bg-base-100 flex flex-col h-[100dvh] supports-[height:100svh]:h-[100svh] overflow-hidden">
-                {/* Mobile Header */}
-                <div className="p-4 flex items-center justify-between shrink-0">
+                {/* Mobile Header — the site nav is hidden on this route at mobile widths (see layout.tsx) */}
+                <div className="px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] flex items-center justify-between shrink-0">
                     <h1 className="text-2xl font-bold text-base-content">
                         {mobileTab === "tasks" &&
                             (activeListId === TODAY_LIST_ID ? "Today" : lists.find((l) => l.id === activeListId)?.name || "My Tasks")}
@@ -2950,51 +2883,53 @@ function TasksPageInner() {
                             {/* Fixed Top Controls (List Selector + Input) */}
                             <div className="px-4 pb-2 bg-base-100 z-20 shrink-0 border-b border-base-content/5 pt-2">
                                 <div className="space-y-4">
-                                    {/* Mobile List Selector */}
-                                    <div className="flex gap-2 bg-base-content/5 p-1 rounded-xl overflow-x-auto scrollbar-hide">
-                                        <button
-                                            onClick={() => setActiveListId(TODAY_LIST_ID)}
-                                            className={clsx(
-                                                "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-1.5",
-                                                activeListId === TODAY_LIST_ID ?
-                                                    "bg-primary text-primary-content"
-                                                :   "text-base-content/50 hover:bg-base-content/5 hover:text-base-content/80",
-                                            )}
-                                        >
-                                            <Sun size={14} />
-                                            Today
-                                            {todayCount > 0 && (
-                                                <span
-                                                    className={clsx(
-                                                        "text-[11px] font-bold px-1.5 py-0.5 rounded-full",
-                                                        activeListId === TODAY_LIST_ID ? "bg-primary-content/20" : "bg-base-content/10",
-                                                    )}
-                                                >
-                                                    {todayCount}
-                                                </span>
-                                            )}
-                                        </button>
-                                        {lists.map((list) => (
+                                    {/* Mobile List Selector — sort/search sit outside the scrolling strip so they never scroll away */}
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1 min-w-0 flex gap-1 bg-base-content/5 p-1 rounded-xl overflow-x-auto scrollbar-hide">
                                             <button
-                                                key={list.id}
-                                                onClick={() => setActiveListId(list.id)}
+                                                onClick={() => setActiveListId(TODAY_LIST_ID)}
                                                 className={clsx(
-                                                    "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
-                                                    activeListId === list.id ?
+                                                    "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-1.5",
+                                                    activeListId === TODAY_LIST_ID ?
                                                         "bg-primary text-primary-content"
                                                     :   "text-base-content/50 hover:bg-base-content/5 hover:text-base-content/80",
                                                 )}
                                             >
-                                                {list.name}
+                                                <Sun size={14} />
+                                                Today
+                                                {todayCount > 0 && (
+                                                    <span
+                                                        className={clsx(
+                                                            "text-[11px] font-bold px-1.5 py-0.5 rounded-full",
+                                                            activeListId === TODAY_LIST_ID ? "bg-primary-content/20" : "bg-base-content/10",
+                                                        )}
+                                                    >
+                                                        {todayCount}
+                                                    </span>
+                                                )}
                                             </button>
-                                        ))}
-                                        <button
-                                            onClick={() => openModal(null, "NEW_LIST")}
-                                            className="px-3 py-2 rounded-lg text-base-content/50 hover:bg-base-content/5 hover:text-base-content/80"
-                                        >
-                                            <Plus size={16} />
-                                        </button>
-                                        <div className="flex-1" />
+                                            {lists.map((list) => (
+                                                <button
+                                                    key={list.id}
+                                                    onClick={() => setActiveListId(list.id)}
+                                                    className={clsx(
+                                                        "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
+                                                        activeListId === list.id ?
+                                                            "bg-primary text-primary-content"
+                                                        :   "text-base-content/50 hover:bg-base-content/5 hover:text-base-content/80",
+                                                    )}
+                                                >
+                                                    {list.name}
+                                                </button>
+                                            ))}
+                                            <button
+                                                onClick={() => openModal(null, "NEW_LIST")}
+                                                className="px-3 py-2 rounded-lg text-base-content/50 hover:bg-base-content/5 hover:text-base-content/80"
+                                                aria-label="Create new list"
+                                            >
+                                                <Plus size={16} />
+                                            </button>
+                                        </div>
                                         {activeListId !== TODAY_LIST_ID && (
                                             <button
                                                 onClick={() => {
@@ -3006,7 +2941,7 @@ function TasksPageInner() {
                                                     toast.info(`Sort: ${next === "manual" ? "Manual" : next === "priority" ? "Priority" : "Due date"}`);
                                                 }}
                                                 className={clsx(
-                                                    "px-3 py-2 rounded-lg transition-colors",
+                                                    "w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-base-content/5 transition-colors",
                                                     sortMode !== "manual" ? "text-primary" : "text-base-content/50",
                                                 )}
                                                 aria-label="Cycle sort mode"
@@ -3020,7 +2955,7 @@ function TasksPageInner() {
                                                 setMobileSearchOpen(!mobileSearchOpen);
                                             }}
                                             className={clsx(
-                                                "px-3 py-2 rounded-lg transition-colors",
+                                                "w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-base-content/5 transition-colors",
                                                 searchQuery.trim() ? "text-primary"
                                                 : mobileSearchOpen ? "text-base-content"
                                                 : "text-base-content/50",
@@ -3073,7 +3008,7 @@ function TasksPageInner() {
                             </div>
 
                             {/* Scrollable Task List */}
-                            <div className="flex-1 overflow-y-auto p-4 pt-4 scrollbar-hide overscroll-none pb-24">
+                            <div className="flex-1 overflow-y-auto px-4 pt-3 pb-6 scrollbar-hide overscroll-none">
                                 <div className="space-y-3">
                                     <AnimatePresence>
                                         {displayTasks.map((task) => (
@@ -3248,7 +3183,7 @@ function TasksPageInner() {
                     )}
 
                     {mobileTab === "notes" && (
-                        <div className="h-full flex flex-col">
+                        <div className="h-full flex flex-col px-4 pb-2">
                             {/* Mobile Note Page Selector */}
                             <div className="flex gap-2 bg-base-content/5 p-1 rounded-xl mb-2 overflow-x-auto scrollbar-hide shrink-0">
                                 {notePages.map((page) => (
@@ -3286,7 +3221,7 @@ function TasksPageInner() {
                     )}
 
                     {mobileTab === "menu" && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-3 p-4">
                             <button
                                 onClick={() => openModal(null, "SETTINGS")}
                                 className="p-4 bg-base-content/5 rounded-2xl border border-base-content/5 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
@@ -3356,7 +3291,7 @@ function TasksPageInner() {
                 </div>
 
                 {/* Bottom Nav */}
-                <div className="w-full bg-base-100/95 backdrop-blur-xl border-t border-base-content/10 grid grid-cols-4 shrink-0 h-16 pb-safe">
+                <div className="w-full bg-base-100/95 backdrop-blur-xl border-t border-base-content/10 grid grid-cols-4 shrink-0 min-h-16 pb-safe">
                     <button
                         onClick={() => setMobileTab("tasks")}
                         className={clsx(
@@ -3408,7 +3343,7 @@ function TasksPageInner() {
                 open={!!popover && !!popoverTask}
                 anchorEl={popover?.anchorEl ?? null}
                 onClose={() => setPopover(null)}
-                width={popover?.type === "due" ? 260 : 220}
+                width={popover?.type === "due" ? 260 : popover?.type === "more" ? 216 : 220}
                 maxHeight={320}
             >
                 {popover?.type === "due" && popoverTask && (
@@ -3494,7 +3429,55 @@ function TasksPageInner() {
                         </button>
                     </div>
                 )}
+                {popover?.type === "more" && popoverTask && (
+                    <div className="space-y-0.5" role="menu" aria-label="Task actions">
+                        {[
+                            { icon: <Pencil size={14} />, label: "Rename", run: () => setEditingTaskId(popoverTask.id) },
+                            { icon: <CornerDownRight size={14} />, label: "Add subtask", run: () => openModal(popoverTask.id, "SUBTASK") },
+                            { icon: <FileText size={14} />, label: popoverTask.notes ? "Edit notes" : "Add notes", run: () => openModal(popoverTask.id, "NOTE") },
+                            { icon: <Paperclip size={14} />, label: "Attach link", run: () => openModal(popoverTask.id, "ATTACHMENT") },
+                            {
+                                icon: <Tag size={14} />,
+                                label: "Tags",
+                                run: () => {
+                                    // Hand the same anchor to the tag picker so it opens where the menu was
+                                    setTagMenuAnchorEl(popover.anchorEl);
+                                    setOpenTagMenuTaskId(popoverTask.id);
+                                },
+                            },
+                            { icon: <Repeat size={14} />, label: `Repeat: ${popoverTask.recurrence ?? "none"}`, keep: true, run: () => cycleRecurrence(popoverTask.id) },
+                            { icon: <Flame size={14} />, label: "Pomodoro estimate", keep: true, run: () => setPopover({ ...popover, type: "estimate" }) },
+                            ...(lists.length > 1 ?
+                                [{ icon: <FolderInput size={14} />, label: "Move to list", keep: true, run: () => setPopover({ ...popover, type: "move" }) }]
+                            :   []),
+                            { icon: <Archive size={14} />, label: "Archive", run: () => archiveTask(popoverTask.id) },
+                        ].map((item) => (
+                            <button
+                                key={item.label}
+                                role="menuitem"
+                                onClick={() => {
+                                    item.run();
+                                    if (!("keep" in item && item.keep)) setPopover(null);
+                                }}
+                                className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-base-content/70 hover:bg-base-content/5 hover:text-base-content flex items-center gap-2.5"
+                            >
+                                <span className="text-base-content/50">{item.icon}</span>
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </AnchorPopover>
+
+            {/* Tag picker — opened from a row's ⋯ menu, one instance for the whole list */}
+            <TaskTagsMenu
+                open={!!tagMenuTask}
+                anchorEl={tagMenuTask ? tagMenuAnchorEl : null}
+                tags={TASK_TAGS}
+                selectedTagIds={tagMenuTask?.tags ?? []}
+                onToggleTag={(tagId) => tagMenuTask && toggleTag(tagMenuTask.id, tagId)}
+                onClose={() => setOpenTagMenuTaskId(null)}
+            />
 
             {/* Mobile Task Action Sheet */}
             <TaskActionSheet
@@ -3561,13 +3544,16 @@ function TasksPageInner() {
                             onClick={(e) => e.stopPropagation()}
                             className={clsx(
                                 "relative w-full bg-base-200 border border-base-content/10 rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col",
-                                modalType === "NOTE" || modalType === "BRAINSTORM" ? "max-w-5xl h-[80vh]" : "max-w-lg",
+                                modalType === "BRAINSTORM" ? "max-w-5xl h-[80vh]"
+                                : modalType === "NOTE" ? "max-w-2xl h-[70vh]"
+                                : modalType === "STATS" ? "max-w-2xl"
+                                : "max-w-lg",
                             )}
                         >
                             <div
                                 className={clsx(
                                     "p-6 overflow-y-auto",
-                                    modalType === "NOTE" || modalType === "BRAINSTORM" ? "flex-1 flex flex-col" : "",
+                                    modalType === "NOTE" || modalType === "BRAINSTORM" ? "flex-1 flex flex-col min-h-0" : "",
                                 )}
                             >
                                 <div className="flex justify-between items-center mb-6">
@@ -3723,16 +3709,18 @@ function TasksPageInner() {
                                 )}
 
                                 {modalType === "NOTE" && (
-                                    <form onSubmit={handleModalSubmit} className="flex flex-col gap-4 flex-1 h-full">
-                                        <textarea
-                                            ref={modalInputRef as any}
-                                            value={modalInput}
-                                            onChange={(e) => setModalInput(e.target.value)}
-                                            placeholder="Add details, links, or thoughts... (Markdown supported)"
-                                            className="w-full bg-base-300/40 text-base text-base-content/80 border border-base-content/10 rounded-xl p-4 focus:outline-none focus:border-base-content/40 transition-colors resize-none leading-relaxed h-full flex-1"
-                                            autoFocus
-                                        />
-                                        <div className="flex justify-end gap-3 mt-6">
+                                    <form onSubmit={handleModalSubmit} className="flex flex-col gap-4 flex-1 min-h-0">
+                                        {/* Same markdown editor (with preview) as the Notes panel */}
+                                        <div className="flex-1 min-h-0 flex flex-col bg-base-300/40 border border-base-content/10 rounded-xl overflow-hidden focus-within:border-base-content/40 transition-colors">
+                                            <NoteEditor
+                                                variant="desktop"
+                                                content={modalInput}
+                                                onChange={setModalInput}
+                                                autoFocus
+                                                placeholder="Add details, links, or thoughts... (Markdown supported)"
+                                            />
+                                        </div>
+                                        <div className="flex justify-end gap-3">
                                             <button
                                                 type="button"
                                                 onClick={() => setModalOpen(false)}
@@ -4013,7 +4001,7 @@ function TasksPageInner() {
                                                         onClick={() => {
                                                             setAiLoading(true);
                                                             setAiResult("");
-                                                            const today = new Date().toISOString().split("T")[0];
+                                                            const today = localToday();
                                                             const todayStats = focusHistory.find((h) => h.date === today);
                                                             const minutes = todayStats?.minutes || 0;
 
@@ -4063,14 +4051,14 @@ function TasksPageInner() {
                                             <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5">
                                                 <div className="text-xs text-base-content/50 uppercase font-bold truncate">Focus Today</div>
                                                 <div className="text-2xl md:text-3xl font-extrabold text-base-content">
-                                                    {focusHistory.find((h) => h.date === new Date().toISOString().split("T")[0])?.minutes || 0}
+                                                    {focusHistory.find((h) => h.date === todayStr)?.minutes || 0}
                                                     <span className="text-sm text-base-content/50 font-normal ml-1">min</span>
                                                 </div>
                                             </div>
                                             <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5">
                                                 <div className="text-xs text-base-content/50 uppercase font-bold truncate">Tasks Finished</div>
                                                 <div className="text-2xl md:text-3xl font-extrabold text-base-content">
-                                                    {focusHistory.find((h) => h.date === new Date().toISOString().split("T")[0])?.tasksCompleted || 0}
+                                                    {focusHistory.find((h) => h.date === todayStr)?.tasksCompleted || 0}
                                                 </div>
                                             </div>
                                             <div className="p-4 bg-base-content/5 rounded-xl border border-base-content/5">
@@ -4087,7 +4075,7 @@ function TasksPageInner() {
                                                 {Array.from({ length: 7 }).map((_, i) => {
                                                     const d = new Date();
                                                     d.setDate(d.getDate() - (6 - i));
-                                                    const dateStr = d.toISOString().split("T")[0];
+                                                    const dateStr = format(d, "yyyy-MM-dd");
                                                     const entry = focusHistory.find((h) => h.date === dateStr);
                                                     const minutes = entry ? entry.minutes : 0;
                                                     const maxMin = Math.max(...focusHistory.map((h) => h.minutes), 60); // Scale based on max or at least 60m
@@ -4128,7 +4116,7 @@ function TasksPageInner() {
                                                 {Array.from({ length: 84 }).map((_, i) => {
                                                     const d = new Date();
                                                     d.setDate(d.getDate() - (83 - i));
-                                                    const dateStr = d.toISOString().split("T")[0];
+                                                    const dateStr = format(d, "yyyy-MM-dd");
                                                     const entry = focusHistory.find((h) => h.date === dateStr);
                                                     const minutes = entry ? entry.minutes : 0;
                                                     const tasks = entry?.tasksCompleted || 0;
@@ -4233,14 +4221,14 @@ function TasksPageInner() {
                                 <iframe
                                     width="100%"
                                     height="100%"
-                                    src={`https://www.youtube.com/embed/${customStreamUrl}?autoplay=1`}
+                                    src={`https://www.youtube.com/embed/${customStreamUrl || "jfKfPfyJRdk"}?autoplay=1`}
                                     title="LoFi Player"
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                     allowFullScreen
                                     className="border-none"
                                 />
                             :   <iframe
-                                    src={`https://player.twitch.tv/?channel=${customStreamUrl}&parent=${typeof window !== "undefined" ? window.location.hostname : "localhost"}`}
+                                    src={`https://player.twitch.tv/?channel=${customStreamUrl || "lofiradio"}&parent=${typeof window !== "undefined" ? window.location.hostname : "localhost"}`}
                                     height="100%"
                                     width="100%"
                                     allowFullScreen

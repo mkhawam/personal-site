@@ -171,3 +171,26 @@ section[id],
 footer[id] {
     scroll-margin-top: 4.5rem;
 }
+
+/* Utilities the tasks app relies on. None of these ship with Tailwind, so
+   before this block they were silent no-ops. */
+.pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.scrollbar-hide {
+    scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--color-base-content) 20%, transparent) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--color-base-content) 20%, transparent);
+    border-radius: 9999px;
+}

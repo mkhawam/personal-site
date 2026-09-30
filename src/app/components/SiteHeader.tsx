@@ -18,9 +18,11 @@ const NAV_LINKS = [
 const LINK_CLASS =
     "shrink-0 px-2 py-1 text-sm text-base-content/70 hover:text-primary transition-colors";
 
-export default function SiteHeader({ isAuthed = false }: { isAuthed?: boolean }) {
+export default function SiteHeader({ isAuthed = false, hideOnMobile = false }: { isAuthed?: boolean; hideOnMobile?: boolean }) {
     return (
-        <header className="sticky top-0 z-50 border-b border-base-content/5 bg-base-100/80 backdrop-blur">
+        <header
+            className={`sticky top-0 z-50 border-b border-base-content/5 bg-base-100/80 backdrop-blur ${hideOnMobile ? "hidden md:block" : ""}`}
+        >
             <nav
                 aria-label="Site"
                 className="max-w-5xl mx-auto flex items-center gap-1 h-14 px-4 md:px-6 overflow-x-auto"
