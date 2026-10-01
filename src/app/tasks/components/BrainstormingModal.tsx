@@ -164,9 +164,13 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                 >
                                     <ReactMarkdown
                                         components={{
-                                            code: ({ node, inline, className, children, ...props }: any) => {
-                                                const match = /language-(\w+)/.exec(className || "");
-                                                return !inline ?
+                                            code: (codeProps) => {
+                                                // react-markdown v10 no longer passes `inline`; fenced blocks carry a
+                                                // language class or newlines, inline code does neither.
+                                                const { node, className, children, ...props } = codeProps as React.ComponentPropsWithoutRef<"code"> & { node?: unknown };
+                                                void node;
+                                                const isBlock = /language-/.test(className ?? "") || String(children).includes("\n");
+                                                return isBlock ?
                                                         <div className="relative group/code my-2 max-w-full">
                                                             <code
                                                                 className={clsx(
@@ -359,7 +363,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                         return (
                             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-base-content/50">
                                 <Sparkles size={32} className="mb-4 opacity-20" />
-                                <p className="text-sm">Describe your goal, and I'll build a plan here.</p>
+                                <p className="text-sm">Describe your goal, and I&apos;ll build a plan here.</p>
                             </div>
                         );
                     }
@@ -374,7 +378,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                 <button
                                     onClick={() => {
                                         const toAdd = latestMsgWithTasks.tasks?.filter((t) => t.selected) || [];
-                                        toAdd.forEach((t: any) => onAddTask(t.text, (t.subtasks || []) as string[]));
+                                        toAdd.forEach((t) => onAddTask(t.text, t.subtasks || []));
                                         toast.success(`Populated ${toAdd.length} tasks`);
                                         onClose(); // Optional: close modal? Or keep open. The original didn't close explicitly, just let user close?
                                         // Original code: setModalOpen(false) in the handler. Yes it closed.
@@ -386,7 +390,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                                {(latestMsgWithTasks.tasks || []).map((task: any) => (
+                                {(latestMsgWithTasks.tasks || []).map((task) => (
                                     <div
                                         key={task.id}
                                         onClick={() => {
@@ -431,7 +435,7 @@ export default function BrainstormingModal({ onAddTask, onClose }: Brainstorming
                                         {/* Render Subtasks Preview in Sidebar */}
                                         {task.subtasks && task.subtasks.length > 0 && (
                                             <div className="pl-8 w-full space-y-1">
-                                                {(task.subtasks || []).map((sub: any, i: number) => (
+                                                {(task.subtasks || []).map((sub, i) => (
                                                     <div key={i} className="flex items-center gap-2 text-xs text-base-content/50">
                                                         <div className="w-1 h-1 rounded-full bg-base-300" />
                                                         <span>{sub}</span>
