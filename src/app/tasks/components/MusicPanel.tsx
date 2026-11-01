@@ -76,11 +76,11 @@ export default function MusicPanel() {
         <div className="relative">
             <button
                 onClick={() => setOpen(!open)}
-                className={clsx("btn btn-circle btn-ghost hover:bg-base-content/10", playing ? "text-success" : "text-base-content/50 hover:text-base-content")}
+                className={clsx("btn btn-square btn-ghost btn-sm hover:bg-base-content/8", playing ? "text-success" : "text-base-content/50 hover:text-base-content")}
                 title={playing ? "Music playing" : "Focus music"}
                 aria-expanded={open}
             >
-                <Headphones size={24} />
+                <Headphones size={18} />
             </button>
 
             <audio ref={audioRef} src={RADIO_STATIONS[station]?.url || RADIO_STATIONS[0].url} loop />

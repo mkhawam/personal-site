@@ -12,7 +12,28 @@ const MODES: { id: TimerMode; label: string }[] = [
     { id: "longBreak", label: "Long Break" },
 ];
 
+const MODE_LABEL: Record<TimerMode, string> = { work: "Focus", break: "Short break", longBreak: "Long break" };
+
 const STROKE = 283; // 2πr for r=45
+
+// Focus runs on the accent; breaks switch the ring green so the mode reads at a glance.
+const ringStroke = (mode: TimerMode) => (mode === "work" ? "stroke-primary" : "stroke-success");
+
+const CORNER_BTN = "p-1.5 rounded-md text-base-content/50 hover:text-base-content hover:bg-base-content/8 transition-colors";
+
+/** One pip per work session in the long-break cycle; filled = done this cycle. */
+function SessionPips({ done, total }: { done: number; total: number }) {
+    return (
+        <div className="flex items-center gap-1.5 mt-3" title={`Session ${done + 1} of ${total} before a long break`} aria-label={`Session ${done + 1} of ${total}`}>
+            {Array.from({ length: total }, (_, i) => (
+                <span
+                    key={i}
+                    className={clsx("w-1.5 h-1.5 rounded-full", i < done ? "bg-primary" : i === done ? "bg-base-content/45" : "bg-base-content/15")}
+                />
+            ))}
+        </div>
+    );
+}
 
 type Props = {
     timer: Pomodoro;
@@ -25,45 +46,43 @@ export default function TimerCard({ timer, focusedTaskText, onOpenSettings }: Pr
     return (
         <motion.div
             layout
-            className="relative overflow-hidden rounded-3xl bg-base-content/5 backdrop-blur-xl border border-base-content/5 p-8 shadow-2xl flex flex-col items-center"
+            className="relative overflow-hidden rounded-2xl bg-base-200 border border-base-content/8 px-6 pt-5 pb-7 shadow-sm flex flex-col items-center"
         >
-            <div className="absolute top-4 right-4 flex gap-2">
-                <button onClick={onOpenSettings} className="text-base-content/50 hover:text-base-content/80 transition-colors" title="Timer Settings">
-                    <Settings size={20} />
-                </button>
-                <button
-                    onClick={() => timer.setIsMinimized(true)}
-                    className="text-base-content/50 hover:text-base-content/80 transition-colors"
-                    title="Minimize Timer"
-                >
-                    <Minimize2 size={20} />
-                </button>
-            </div>
-
-            <div className="flex justify-center gap-2 mb-8 relative z-10 p-1 bg-base-300/40 rounded-full">
+            <div className="w-full flex items-center justify-between mb-6">
+                <div className="flex gap-1 p-1 bg-base-content/5 rounded-full">
                 {MODES.map((m) => (
                     <button
                         key={m.id}
                         onClick={() => timer.switchMode(m.id)}
                         className={clsx(
-                            "px-4 py-2 rounded-full text-xs font-semibold transition-all duration-300",
-                            timer.mode === m.id ? "bg-primary text-primary-content shadow-lg" : "text-base-content/50 hover:text-base-content/80",
+                            "px-3 py-1.5 rounded-full text-xs font-semibold transition-colors",
+                            timer.mode === m.id ? "bg-base-100 text-base-content shadow-sm" : "text-base-content/55 hover:text-base-content/80",
                         )}
+                        aria-pressed={timer.mode === m.id}
                     >
                         {m.label}
                     </button>
                 ))}
+                </div>
+                <div className="flex gap-0.5">
+                    <button onClick={onOpenSettings} className={CORNER_BTN} title="Timer settings" aria-label="Timer settings">
+                        <Settings size={16} />
+                    </button>
+                    <button onClick={() => timer.setIsMinimized(true)} className={CORNER_BTN} title="Minimize timer" aria-label="Minimize timer">
+                        <Minimize2 size={16} />
+                    </button>
+                </div>
             </div>
 
-            <div className="relative w-64 h-64 mb-8 flex items-center justify-center">
+            <div className="relative w-60 h-60 mb-6 flex items-center justify-center">
                 <svg className="absolute w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="45" className="stroke-base-300 fill-none" strokeWidth="8" />
+                    <circle cx="50" cy="50" r="45" className="stroke-base-content/8 fill-none" strokeWidth="5" />
                     <motion.circle
                         cx="50"
                         cy="50"
                         r="45"
-                        className="stroke-primary fill-none"
-                        strokeWidth="8"
+                        className={clsx("fill-none", ringStroke(timer.mode))}
+                        strokeWidth="5"
                         strokeLinecap="round"
                         strokeDasharray={STROKE}
                         initial={{ strokeDashoffset: 0 }}
@@ -72,24 +91,24 @@ export default function TimerCard({ timer, focusedTaskText, onOpenSettings }: Pr
                     />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <div className="text-6xl font-bold tracking-tighter text-base-content tabular-nums">{formatTime(timer.timeLeft)}</div>
-                    <div className="text-sm font-mono text-base-content/50 mt-2">
-                        Session {(timer.sessionsCompleted % timer.settings.interval) + 1}/{timer.settings.interval}
-                    </div>
+                    <div className="text-xs font-semibold uppercase tracking-widest text-base-content/50 mb-1">{MODE_LABEL[timer.mode]}</div>
+                    <div className="text-6xl font-semibold tracking-tight text-base-content tabular-nums">{formatTime(timer.timeLeft)}</div>
+                    <SessionPips done={timer.sessionsCompleted % timer.settings.interval} total={timer.settings.interval} />
                 </div>
             </div>
 
-            {focusedTaskText && (
-                <div className="mb-6 px-4 py-3 bg-warning/10 border border-warning/20 rounded-xl text-center max-w-full">
-                    <div className="text-xs text-warning/70 uppercase font-bold mb-1">Focusing On</div>
-                    <div className="text-sm text-base-content/80 font-medium truncate">{focusedTaskText}</div>
+            <div className="w-full mb-6 px-4 py-2.5 rounded-xl text-center bg-base-content/4 border border-base-content/6">
+                <div className="text-[11px] uppercase tracking-wider font-semibold text-base-content/45 mb-0.5">{focusedTaskText ? "Focusing on" : "No task in focus"}</div>
+                <div className={clsx("text-sm font-medium truncate", focusedTaskText ? "text-base-content" : "text-base-content/50")}>
+                    {focusedTaskText ?? "Use the target on a task to log sessions to it"}
                 </div>
-            )}
+            </div>
 
-            <div className="flex justify-center gap-4 relative z-10 w-full">
+            <div className="flex items-center justify-center gap-3 w-full">
+                <span className="w-10" aria-hidden />
                 <button
                     onClick={timer.toggle}
-                    className="btn btn-circle btn-lg bg-primary hover:bg-primary/90 text-primary-content border-none hover:scale-105 transition-all shadow-xl shadow-base-content/10"
+                    className="btn btn-circle btn-lg bg-primary hover:bg-primary/90 text-primary-content border-none transition-colors"
                     aria-label={timer.isRunning ? "Pause timer" : "Start timer"}
                 >
                     {timer.isRunning ?
@@ -98,10 +117,11 @@ export default function TimerCard({ timer, focusedTaskText, onOpenSettings }: Pr
                 </button>
                 <button
                     onClick={timer.reset}
-                    className="btn btn-circle btn-lg btn-ghost hover:bg-base-content/10 text-base-content/50 hover:text-base-content"
+                    className="btn btn-circle btn-ghost hover:bg-base-content/8 text-base-content/50 hover:text-base-content"
                     aria-label="Reset timer"
+                    title="Reset timer"
                 >
-                    <RotateCcw size={24} />
+                    <RotateCcw size={18} />
                 </button>
             </div>
         </motion.div>
@@ -153,7 +173,7 @@ export function MobileFocusTab({ timer }: { timer: Pomodoro }) {
                         cx="50"
                         cy="50"
                         r="45"
-                        className="stroke-primary fill-none"
+                        className={clsx("fill-none", ringStroke(timer.mode))}
                         strokeWidth="4"
                         strokeDasharray={STROKE}
                         strokeDashoffset={STROKE * (1 - timer.progress)}

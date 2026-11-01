@@ -20,7 +20,7 @@ type Props = {
     onZen: () => void;
 };
 
-const ICON_BTN = "btn btn-circle btn-ghost hover:bg-base-content/10 text-base-content/50 hover:text-base-content";
+const ICON_BTN = "btn btn-square btn-ghost btn-sm hover:bg-base-content/8 text-base-content/55 hover:text-base-content";
 
 /** Right-hand cluster of the desktop header. */
 export default function HeaderActions({ currentStreak, notificationsEnabled, onRequestNotifications, sync, user, onSyncClick, archivedCount, onOpen, onZen }: Props) {
@@ -41,28 +41,27 @@ export default function HeaderActions({ currentStreak, notificationsEnabled, onR
         : "Sync Disabled — click to login";
 
     return (
-        <div className="flex gap-2 items-center">
+        <div className="flex items-center gap-1">
             {currentStreak > 0 && (
                 <div
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-warning/20 border border-warning/30 rounded-full text-warning font-bold text-sm"
-                    title={`${currentStreak} day streak! Keep it up!`}
+                    className="flex items-center gap-1 h-8 px-2.5 mr-1 bg-warning/12 rounded-full text-warning font-semibold text-sm tabular-nums"
+                    title={`${currentStreak}-day focus streak`}
                 >
-                    <Flame size={16} className="fill-warning" />
-                    <span>{currentStreak}</span>
+                    <Flame size={14} className="fill-warning" />
+                    {currentStreak}d
                 </div>
             )}
             {!notificationsEnabled && (
-                <button onClick={onRequestNotifications} className={ICON_BTN} title="Enable Notifications">
-                    <Bell size={24} />
+                <button onClick={onRequestNotifications} className={ICON_BTN} title="Enable timer notifications" aria-label="Enable timer notifications">
+                    <Bell size={18} />
                 </button>
             )}
-
-            <button onClick={onSyncClick} className={clsx("btn btn-circle btn-ghost hover:bg-base-content/10 relative", syncTone)} title={syncTitle}>
-                <Cloud size={24} />
+            <button onClick={onSyncClick} className={clsx("btn btn-square btn-ghost btn-sm hover:bg-base-content/8 relative", syncTone)} title={syncTitle} aria-label={syncTitle}>
+                <Cloud size={18} />
                 {sync.unlocked && (
                     <span
                         className={clsx(
-                            "absolute bottom-2 right-2 w-2 h-2 rounded-full border border-base-100",
+                            "absolute bottom-1 right-1 w-2 h-2 rounded-full ring-2 ring-base-100",
                             sync.status === "error" ? "bg-error"
                             : sync.status === "dirty" ? "bg-info"
                             : user ? "bg-success"
@@ -71,38 +70,42 @@ export default function HeaderActions({ currentStreak, notificationsEnabled, onR
                     />
                 )}
             </button>
-
             <MusicPanel />
 
-            {user && (
-                <div className="flex items-center gap-3 mr-4 pl-4 border-l border-base-content/10">
-                    {user.avatar ?
-                        // eslint-disable-next-line @next/next/no-img-element -- Discord CDN avatar, no loader configured
-                        <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full border border-base-content/10" />
-                    :   <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-white">
-                            {user.username.charAt(0).toUpperCase()}
-                        </div>
-                    }
-                    <span className="text-sm font-medium text-base-content/70 hidden md:block">{user.username}</span>
-                </div>
-            )}
+            <span className="w-px h-5 bg-base-content/10 mx-1.5" aria-hidden />
 
-            <button onClick={() => onOpen("STATS")} className={ICON_BTN} title="Statistics">
-                <BarChart size={24} />
+            <button onClick={() => onOpen("STATS")} className={ICON_BTN} title="Statistics" aria-label="Statistics">
+                <BarChart size={18} />
             </button>
-            <button onClick={onZen} className={ICON_BTN} title="Enter Zen Mode">
-                <Eye size={24} />
-            </button>
-            <button onClick={() => onOpen("BRAINSTORM")} className={ICON_BTN} title="Brainstorm Mode">
-                <BrainCircuit size={28} />
+            <button onClick={() => onOpen("BRAINSTORM")} className={ICON_BTN} title="Brainstorm" aria-label="Brainstorm">
+                <BrainCircuit size={18} />
             </button>
             {archivedCount > 0 && (
-                <button onClick={() => onOpen("ARCHIVE")} className={clsx(ICON_BTN, "relative")} title={`Archived Tasks (${archivedCount})`}>
-                    <Archive size={24} />
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-base-300 rounded-full text-[10px] flex items-center justify-center text-base-content/70 border border-base-content/10">
+                <button onClick={() => onOpen("ARCHIVE")} className={clsx(ICON_BTN, "relative")} title={`Archived tasks (${archivedCount})`} aria-label={`Archived tasks (${archivedCount})`}>
+                    <Archive size={18} />
+                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-base-300 rounded-full text-[10px] leading-4 text-center tabular-nums text-base-content/70">
                         {archivedCount}
                     </span>
                 </button>
+            )}
+            <button onClick={onZen} className={ICON_BTN} title="Zen mode: hide everything but the list" aria-label="Enter zen mode">
+                <Eye size={18} />
+            </button>
+
+            {user && (
+                <>
+                    <span className="w-px h-5 bg-base-content/10 mx-1.5" aria-hidden />
+                    <div className="flex items-center gap-2" title={`Signed in as ${user.username}`}>
+                        {user.avatar ?
+                            // eslint-disable-next-line @next/next/no-img-element -- Discord CDN avatar, no loader configured
+                            <img src={user.avatar} alt={user.username} className="w-7 h-7 rounded-full" />
+                        :   <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-secondary-content">
+                                {user.username.charAt(0).toUpperCase()}
+                            </div>
+                        }
+                        <span className="text-sm font-medium text-base-content/70 hidden xl:block">{user.username}</span>
+                    </div>
+                </>
             )}
         </div>
     );

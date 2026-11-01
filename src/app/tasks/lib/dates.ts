@@ -1,4 +1,4 @@
-import { addDays, addMonths, addWeeks, format } from "date-fns";
+import { addDays, addMonths, addWeeks, differenceInCalendarDays, format } from "date-fns";
 
 // The app's canonical date convention is a LOCAL yyyy-MM-dd string (quickAdd,
 // TaskActionSheet, dueDate chips). Never use toISOString() for these — it is
@@ -26,4 +26,23 @@ export function nextOccurrence(dueDate: string, recurrence: keyof typeof ADVANCE
         if (nextStr > todayStr) return nextStr;
     }
     return format(next, "yyyy-MM-dd");
+}
+
+export type DueTone = "overdue" | "today" | "soon" | "later";
+
+/**
+ * Human label for a due chip, relative to today: "3d overdue", "Yesterday",
+ * "Today", "Tomorrow", a weekday within the coming week, else "Nov 14"
+ * (with the year only when it differs).
+ */
+export function dueLabel(dueDate: string, todayStr: string): { text: string; tone: DueTone } {
+    const due = new Date(dueDate + "T00:00:00");
+    const today = new Date(todayStr + "T00:00:00");
+    const days = differenceInCalendarDays(due, today);
+    if (days < -1) return { text: `${-days}d overdue`, tone: "overdue" };
+    if (days === -1) return { text: "Yesterday", tone: "overdue" };
+    if (days === 0) return { text: "Today", tone: "today" };
+    if (days === 1) return { text: "Tomorrow", tone: "soon" };
+    if (days < 7) return { text: format(due, "EEE"), tone: "soon" };
+    return { text: format(due, due.getFullYear() === today.getFullYear() ? "MMM d" : "MMM d, yyyy"), tone: "later" };
 }

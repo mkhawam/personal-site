@@ -156,10 +156,10 @@ export default function MobileTasksTab(p: Props) {
                         ))}
                     </AnimatePresence>
                     {p.displayTasks.length === 0 && (
-                        <div className="text-center py-20 text-base-content/50">
-                            {p.searchQuery.trim() ? "No tasks match your search"
-                            : isToday ? "Nothing due today 🎉"
-                            : "No active tasks"}
+                        <div className="text-center py-20 px-6 text-sm text-base-content/50">
+                            {p.searchQuery.trim() ? `No tasks match “${p.searchQuery.trim()}”`
+                            : isToday ? "Nothing due today. Tasks with a due date of today or earlier show up here."
+                            : "No active tasks. Add one above."}
                         </div>
                     )}
 
@@ -190,7 +190,7 @@ export default function MobileTasksTab(p: Props) {
                                                     </span>
                                                 </button>
                                                 <div className="flex-1 min-w-0">
-                                                    <span className="text-lg block truncate text-base-content/50 line-through">{task.text}</span>
+                                                    <span className="text-base leading-6 font-medium block truncate text-base-content/45 line-through decoration-base-content/30">{task.text}</span>
                                                 </div>
                                                 <button
                                                     onClick={() => p.actions.deleteTask(task.id)}

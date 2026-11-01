@@ -8,6 +8,8 @@ import { TODAY_LIST_ID } from "../constants";
 import type { TaskList } from "../types";
 
 type Props = {
+    /** Status line under the title; children are joined with separators */
+    subtitle: React.ReactNode;
     lists: TaskList[];
     activeListId: string;
     todayCount: number;
@@ -17,7 +19,7 @@ type Props = {
 };
 
 /** Desktop page title that doubles as the list dropdown. */
-export default function ListSwitcher({ lists, activeListId, todayCount, onSelect, onDeleteList, onCreateList }: Props) {
+export default function ListSwitcher({ subtitle, lists, activeListId, todayCount, onSelect, onDeleteList, onCreateList }: Props) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
     const title = activeListId === TODAY_LIST_ID ? "Today" : lists.find((l) => l.id === activeListId)?.name || "My Tasks";
@@ -53,10 +55,12 @@ export default function ListSwitcher({ lists, activeListId, todayCount, onSelect
     return (
         <div className="relative" ref={rootRef}>
             <button onClick={() => setOpen(!open)} className="flex items-center gap-2 group" aria-haspopup="listbox" aria-expanded={open}>
-                <h1 className="text-3xl md:text-4xl font-extrabold text-base-content tracking-tight">{title}</h1>
-                <ChevronDown size={24} className={clsx("text-base-content/50 group-hover:text-base-content/80 transition-all", open && "rotate-180")} />
+                <h1 className="text-3xl font-bold text-base-content tracking-tight">{title}</h1>
+                <ChevronDown size={20} className={clsx("mt-1 text-base-content/50 group-hover:text-base-content/80 transition-all", open && "rotate-180")} />
             </button>
-            <p className="text-base-content/50 mt-1 text-sm font-medium">Capture ideas. Stay focused.</p>
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-base-content/55 [&>*+*]:before:content-['·'] [&>*+*]:before:mr-2 [&>*+*]:before:text-base-content/30">
+                {subtitle}
+            </p>
 
             <AnimatePresence>
                 {open && (

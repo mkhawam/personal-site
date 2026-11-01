@@ -7,6 +7,7 @@ import clsx from "clsx";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
+import { format } from "date-fns";
 
 import { TODAY_LIST_ID, type FocusHistoryEntry, type ModalType, type NotePage, type PomoSettings, type SavedLink, type SortMode, type TimerMode } from "./constants";
 import { usePomodoro } from "./hooks/usePomodoro";
@@ -261,6 +262,11 @@ function TasksPageInner() {
     const reorderDisabled = sortMode !== "manual" || activeListId === TODAY_LIST_ID;
 
     const currentStreak = useMemo(() => calculateStreak(focusHistory), [focusHistory]);
+    const overdueCount = useMemo(
+        () => tasks.filter((t) => !t.deletedAt && !t.archived && !t.completed && !!t.dueDate && t.dueDate < todayStr).length,
+        [tasks, todayStr],
+    );
+    const focusMinutesToday = focusHistory.find((h) => h.date === todayStr)?.minutes ?? 0;
     const focusedTask = currentTaskId ? tasks.find((t) => t.id === currentTaskId) : undefined;
     const sheetTask = (sheetTaskId && tasks.find((t) => t.id === sheetTaskId && !t.deletedAt)) || null;
     const modalTask = modal?.taskId ? tasks.find((t) => t.id === modal.taskId) : undefined;
@@ -460,7 +466,7 @@ function TasksPageInner() {
         : "text-base-content/50";
 
     return (
-        <div className="min-h-dvh w-full p-4 md:p-8 lg:h-[calc(100dvh-3.5rem-1px)] lg:min-h-0 lg:overflow-hidden bg-gradient-to-br from-base-100 via-base-200 to-base-100 relative">
+        <div className="min-h-dvh w-full p-4 md:p-8 lg:h-[calc(100dvh-3.5rem-1px)] lg:min-h-0 lg:overflow-hidden bg-base-100 relative">
             {/* Desktop Layout — from lg up this is a viewport-height flex column (3.5rem =
                 the sticky site header) so the task panel fills what's left instead of
                 overflowing the page and scrolling twice. Below lg the page scrolls normally. */}
@@ -469,6 +475,14 @@ function TasksPageInner() {
                     <motion.div layout className="shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0">
                         <div className="flex items-center gap-6">
                             <ListSwitcher
+                                subtitle={
+                                    <>
+                                        <span>{format(new Date(todayStr + "T00:00:00"), "EEEE, MMMM d")}</span>
+                                        <span>{todayCount - overdueCount > 0 ? `${todayCount - overdueCount} due today` : "Nothing else due today"}</span>
+                                        {overdueCount > 0 && <span className="text-error">{overdueCount} overdue</span>}
+                                        {focusMinutesToday > 0 && <span className="tabular-nums">{focusMinutesToday} min focused</span>}
+                                    </>
+                                }
                                 lists={lists}
                                 activeListId={activeListId}
                                 todayCount={todayCount}
@@ -544,36 +558,13 @@ function TasksPageInner() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, ease: "easeOut" as const }}
-                            className="rounded-3xl bg-base-200/50 border border-base-content/5 p-4 md:p-6 h-[calc(100vh-6rem)] lg:h-full shadow-xl flex flex-col overflow-hidden"
+                            className="rounded-2xl bg-base-200 border border-base-content/8 h-[calc(100vh-6rem)] lg:h-full shadow-sm flex flex-col overflow-hidden"
                         >
-                            <div className="flex-shrink-0">
-                                <form onSubmit={handleAddTask} className="relative mb-5 group">
-                                    <input
-                                        ref={addTaskInputRef}
-                                        type="text"
-                                        placeholder="What's your focus today?"
-                                        title="Quick add: #tag !priority @due — e.g. 'Ship blog post #work !high @fri'"
-                                        className="w-full bg-transparent text-xl md:text-2xl font-medium text-base-content placeholder:text-base-content/50 border-b-2 border-base-content/5 py-3 focus:outline-none focus:border-primary transition-colors pl-2"
-                                        value={newTaskText}
-                                        onChange={(e) => setNewTaskText(e.target.value)}
-                                    />
-                                    <button
-                                        type="submit"
-                                        className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity btn btn-circle btn-sm btn-ghost text-base-content"
-                                        aria-label="Add task"
-                                    >
-                                        <Plus size={24} />
-                                    </button>
-                                    {/* Quick-add syntax hint — shown only while typing so it adds no height at rest */}
-                                    <div className="absolute left-2 -bottom-5 text-[11px] text-base-content/40 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none">
-                                        #tag &nbsp;·&nbsp; !high / !low &nbsp;·&nbsp; @today, @fri, @{todayStr}
-                                    </div>
-                                </form>
-
-                                <div className="flex items-center gap-3 mb-3 px-1">
-                                    <h2 className="text-lg font-bold text-base-content shrink-0">
-                                        Active Tasks
-                                        <span className="ml-2 text-sm font-medium text-base-content/40 tabular-nums">{displayTasks.length}</span>
+                            <div className="flex-shrink-0 px-5 pt-5 pb-3 space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-sm font-semibold text-base-content shrink-0">
+                                        Active
+                                        <span className="ml-1.5 font-medium text-base-content/45 tabular-nums">{displayTasks.length}</span>
                                     </h2>
                                     <div className="relative flex-1 max-w-56 ml-auto">
                                         <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-base-content/40" />
@@ -583,7 +574,7 @@ function TasksPageInner() {
                                             placeholder="Search…"
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full bg-base-content/5 text-base-content/80 pl-8 pr-7 py-1.5 rounded-lg border border-transparent focus:outline-none focus:border-base-content/30 focus:bg-base-content/10 text-xs transition-colors"
+                                            className="w-full bg-base-content/5 text-base-content/80 placeholder:text-base-content/45 pl-8 pr-7 py-1.5 rounded-lg border border-transparent focus:outline-none focus:border-primary/50 focus:bg-base-100 text-xs transition-colors"
                                             aria-label="Search tasks"
                                         />
                                         {searchQuery && (
@@ -616,10 +607,39 @@ function TasksPageInner() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Add row sits in the same columns as the task rows below it */}
+                                <form
+                                    onSubmit={handleAddTask}
+                                    className="group/add -mx-2 flex items-center gap-2.5 px-2 py-2 rounded-xl border border-dashed border-base-content/15 hover:border-base-content/25 focus-within:border-solid focus-within:border-primary/60 focus-within:bg-base-100/60 transition-colors"
+                                >
+                                    <span className="w-4 shrink-0" aria-hidden />
+                                    <button
+                                        type="submit"
+                                        className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-base-content/50 group-focus-within/add:bg-primary group-focus-within/add:text-primary-content transition-colors"
+                                        aria-label="Add task"
+                                    >
+                                        <Plus size={14} strokeWidth={2.5} />
+                                    </button>
+                                    <input
+                                        ref={addTaskInputRef}
+                                        type="text"
+                                        placeholder="Add a task"
+                                        title="Quick add: #tag !priority @due — e.g. 'Ship blog post #work !high @fri'"
+                                        className="flex-1 min-w-0 bg-transparent text-base leading-6 font-medium text-base-content placeholder:text-base-content/45 placeholder:font-normal focus:outline-none"
+                                        value={newTaskText}
+                                        onChange={(e) => setNewTaskText(e.target.value)}
+                                    />
+                                    {/* At rest: the shortcut. While typing: the quick-add syntax. Same slot, so no layout shift */}
+                                    <kbd className="kbd kbd-sm text-base-content/50 group-focus-within/add:hidden">N</kbd>
+                                    <span className="hidden group-focus-within/add:inline text-[11px] text-base-content/45 whitespace-nowrap pr-1">
+                                        #tag · !high · @fri · Enter
+                                    </span>
+                                </form>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto overflow-x-visible px-3 py-2 custom-scrollbar min-h-0">
-                                <Reorder.Group axis="y" values={displayTasks} onReorder={reorderDisabled ? () => {} : actions.reorder} className="space-y-3 pb-2">
+                            <div className="flex-1 overflow-y-auto overflow-x-visible px-3 pb-3 custom-scrollbar min-h-0">
+                                <Reorder.Group axis="y" values={displayTasks} onReorder={reorderDisabled ? () => {} : actions.reorder} className="space-y-0.5">
                                     <AnimatePresence initial={false}>
                                         {displayTasks.map((task) => (
                                             <DesktopTaskRow
@@ -638,22 +658,22 @@ function TasksPageInner() {
                                 </Reorder.Group>
 
                                 {displayTasks.length === 0 && (
-                                    <div className="py-14 text-center text-sm text-base-content/40">
-                                        {searchQuery.trim() ? "No tasks match your search"
-                                        : activeListId === TODAY_LIST_ID ? "Nothing due today 🎉"
-                                        : "No active tasks — add one above"}
+                                    <div className="py-14 text-center text-sm text-base-content/50">
+                                        {searchQuery.trim() ? `No tasks match “${searchQuery.trim()}”`
+                                        : activeListId === TODAY_LIST_ID ? "Nothing due today. Tasks with a due date of today or earlier show up here."
+                                        : "No active tasks. Press N to add one."}
                                     </div>
                                 )}
 
                                 {/* Completed — inside the scroll region so a long list can't squeeze the active tasks out */}
                                 {completedTasks.length > 0 && (
-                                    <div className="transition-opacity pt-2">
-                                        <button onClick={() => setShowCompleted(!showCompleted)} className="flex items-center gap-2 mb-4 px-2 w-full group" aria-expanded={showCompleted}>
-                                            <ChevronDown size={16} className={clsx("text-base-content/50 transition-transform", !showCompleted && "-rotate-90")} />
-                                            <h2 className="text-sm font-bold text-base-content/50 uppercase tracking-wider group-hover:text-base-content/80 transition-colors">
-                                                Completed ({completedTasks.length})
+                                    <div className="pt-4">
+                                        <button onClick={() => setShowCompleted(!showCompleted)} className="flex items-center gap-2 mb-1 px-2 py-1 w-full group" aria-expanded={showCompleted}>
+                                            <ChevronDown size={14} className={clsx("text-base-content/50 transition-transform", !showCompleted && "-rotate-90")} />
+                                            <h2 className="text-xs font-semibold text-base-content/55 uppercase tracking-wider group-hover:text-base-content/80 transition-colors">
+                                                Completed <span className="tabular-nums">{completedTasks.length}</span>
                                             </h2>
-                                            <div className="h-px flex-1 bg-base-content/5 ml-2" />
+                                            <div className="h-px flex-1 bg-base-content/8 ml-2" />
                                         </button>
 
                                         <AnimatePresence>
@@ -662,37 +682,38 @@ function TasksPageInner() {
                                                     initial={{ height: 0, opacity: 0 }}
                                                     animate={{ height: "auto", opacity: 1 }}
                                                     exit={{ height: 0, opacity: 0 }}
-                                                    className="space-y-3 overflow-hidden"
+                                                    className="space-y-0.5 overflow-hidden"
                                                 >
                                                     {completedTasks.map((task) => (
                                                         <motion.div
                                                             key={task.id}
                                                             initial={{ opacity: 0 }}
                                                             animate={{ opacity: 1 }}
-                                                            className="relative flex items-center gap-4 p-4 rounded-xl border border-transparent bg-base-300/40"
+                                                            className="group/done flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-base-content/4 transition-colors"
                                                         >
-                                                            <div className="w-[18px]" />
+                                                            <span className="w-4 shrink-0" aria-hidden />
                                                             <button
                                                                 onClick={() => actions.toggleTask(task.id)}
-                                                                className="w-6 h-6 rounded-full border-2 bg-base-content/50 border-base-content/40 flex items-center justify-center transition-colors flex-shrink-0"
+                                                                className="w-5 h-5 rounded-full bg-success/80 hover:bg-transparent border-2 border-success/80 flex items-center justify-center transition-colors flex-shrink-0 group/undo"
                                                                 aria-label="Mark incomplete"
+                                                                title="Mark incomplete"
                                                             >
-                                                                <Check size={14} className="text-base-100" />
+                                                                <Check size={12} strokeWidth={3} className="text-success-content group-hover/undo:text-success" />
                                                             </button>
-                                                            <span className="flex-1 text-lg font-medium select-none truncate line-through text-base-content/50">{task.text}</span>
+                                                            <span className="flex-1 text-base font-medium select-none truncate line-through decoration-base-content/30 text-base-content/45">{task.text}</span>
                                                             <button
                                                                 onClick={() => actions.archiveTask(task.id)}
-                                                                className="p-2 text-base-content/50 hover:text-base-content/80 transition-colors"
+                                                                className="p-1.5 rounded-md text-base-content/50 hover:text-base-content hover:bg-base-content/8 transition-colors pointer-fine:opacity-0 pointer-fine:group-hover/done:opacity-100 focus:opacity-100"
                                                                 title="Archive"
                                                             >
-                                                                <Archive size={18} />
+                                                                <Archive size={15} />
                                                             </button>
                                                             <button
                                                                 onClick={() => actions.deleteTask(task.id)}
-                                                                className="p-2 text-base-content/30 hover:text-error transition-colors"
+                                                                className="p-1.5 rounded-md text-base-content/50 hover:text-error hover:bg-error/10 transition-colors pointer-fine:opacity-0 pointer-fine:group-hover/done:opacity-100 focus:opacity-100"
                                                                 title="Delete"
                                                             >
-                                                                <Trash2 size={18} />
+                                                                <Trash2 size={15} />
                                                             </button>
                                                         </motion.div>
                                                     ))}
@@ -710,7 +731,15 @@ function TasksPageInner() {
             {/* Mobile Layout — the site nav is hidden on this route at mobile widths (see layout.tsx) */}
             <div className="md:hidden fixed inset-0 z-40 bg-base-100 flex flex-col h-[100dvh] supports-[height:100svh]:h-[100svh] overflow-hidden">
                 <div className="px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] flex items-center justify-between shrink-0">
-                    <h1 className="text-2xl font-bold text-base-content">{mobileTitle}</h1>
+                    <div className="min-w-0">
+                        <h1 className="text-2xl font-bold tracking-tight text-base-content truncate">{mobileTitle}</h1>
+                        {mobileTab === "tasks" && (
+                            <p className="text-xs text-base-content/55">
+                                {format(new Date(todayStr + "T00:00:00"), "EEE, MMM d")}
+                                {overdueCount > 0 && <span className="text-error"> · {overdueCount} overdue</span>}
+                            </p>
+                        )}
+                    </div>
                     <div className="flex items-center gap-2">
                         <button onClick={() => requireLogin() && openModal("SYNC")} className={clsx("btn btn-ghost btn-circle btn-sm", syncTone)} aria-label="Sync status">
                             <Cloud size={20} />

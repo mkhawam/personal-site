@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import clsx from "clsx";
-import { ArrowUpCircle, Calendar, Check, Flag, Flame, MoreHorizontal, Plus, Repeat, Trash2 } from "lucide-react";
+import { ArrowUpCircle, Calendar, Check, Flag, ListChecks, MoreHorizontal, Plus, Repeat, Timer, Trash2 } from "lucide-react";
+import { dueLabel, localToday, type DueTone } from "../lib/dates";
 import { TASK_TAGS, type Task } from "../types";
 
 type Props = {
@@ -17,14 +18,20 @@ type Props = {
     onAddSubtask: (text: string) => void;
 };
 
-function dueDateChipClass(dueDate: string) {
-    const due = new Date(dueDate + "T00:00:00");
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (due < today) return "bg-error/20 text-error";
-    if (due.getTime() === today.getTime()) return "bg-warning/20 text-warning";
-    return "bg-base-content/5 text-base-content/60";
-}
+const DUE_TONE: Record<DueTone, string> = {
+    overdue: "bg-error/12 text-error",
+    today: "bg-warning/15 text-warning",
+    soon: "bg-base-content/6 text-base-content/80",
+    later: "bg-base-content/6 text-base-content/60",
+};
+
+// Same priority-on-the-ring convention as the desktop row
+const ringClass = (p?: string) =>
+    p === "high" ? "border-error"
+    : p === "low" ? "border-base-content/20"
+    : "border-base-content/40";
+
+const CHIP = "inline-flex items-center gap-1 h-5 px-1.5 rounded-md text-[11px] font-medium leading-none";
 
 export default function MobileTaskCard({ task, isFocused, listName, onToggle, onDelete, onOpenSheet, onToggleSubtask, onAddSubtask }: Props) {
     const [addingSubtask, setAddingSubtask] = useState(false);
@@ -40,10 +47,9 @@ export default function MobileTaskCard({ task, isFocused, listName, onToggle, on
         }
     };
 
-    const priorityChip =
-        task.priority === "high" ? "text-error"
-        : task.priority === "low" ? "text-base-content/40"
-        : null; // medium is the default — no chip noise
+    const due = task.dueDate ? dueLabel(task.dueDate, localToday()) : null;
+    const tags = (task.tags ?? []).map((id) => TASK_TAGS.find((t) => t.id === id)).filter((t) => !!t);
+    const doneSubtasks = task.subtasks?.filter((s) => s.completed).length ?? 0;
 
     return (
         <div className="relative">
@@ -65,8 +71,8 @@ export default function MobileTaskCard({ task, isFocused, listName, onToggle, on
                 whileDrag={{ scale: 1.02 }}
                 onClick={onOpenSheet}
                 className={clsx(
-                    "relative p-4 bg-base-200 border rounded-2xl flex items-start gap-3 active:bg-base-300 transition-all z-10",
-                    isFocused ? "border-warning/50 ring-2 ring-inset ring-warning/20" : "border-base-content/5",
+                    "relative px-4 py-3.5 bg-base-200 border rounded-2xl flex items-start gap-3 active:bg-base-300 transition-colors z-10",
+                    isFocused ? "border-warning/50 ring-1 ring-inset ring-warning/30" : "border-base-content/8",
                 )}
                 style={{ touchAction: "pan-y" }} // Important for scrolling while dragging
             >
@@ -83,7 +89,7 @@ export default function MobileTaskCard({ task, isFocused, listName, onToggle, on
                     <span
                         className={clsx(
                             "w-6 h-6 rounded-full border-2 flex items-center justify-center",
-                            task.completed ? "bg-success border-success" : "border-base-content/40",
+                            task.completed ? "bg-success border-success" : ringClass(task.priority),
                         )}
                     >
                         {task.completed && <Check size={14} className="text-success-content" />}
@@ -93,7 +99,7 @@ export default function MobileTaskCard({ task, isFocused, listName, onToggle, on
                 <div className="flex-1 min-w-0">
                     <span
                         className={clsx(
-                            "text-lg line-clamp-2 break-words",
+                            "text-base leading-6 font-medium line-clamp-2 break-words",
                             task.completed ? "text-base-content/50 line-through" : "text-base-content",
                         )}
                     >
@@ -101,31 +107,39 @@ export default function MobileTaskCard({ task, isFocused, listName, onToggle, on
                     </span>
 
                     {/* Metadata chips — everything the sheet can set is visible here */}
-                    {(listName || task.dueDate || priorityChip || task.recurrence || task.tags?.length || task.estimatedPomos) ?
-                        <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                            {listName && (
-                                <span className="px-1.5 py-0.5 rounded-md text-[11px] font-medium bg-base-content/5 text-base-content/50 border border-base-content/10">
-                                    {listName}
-                                </span>
-                            )}
-                            {priorityChip && <Flag size={12} className={priorityChip} fill={task.priority === "high" ? "currentColor" : "none"} />}
-                            {task.recurrence && <Repeat size={12} className="text-info" />}
-                            {task.dueDate && (
-                                <span className={clsx("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium", dueDateChipClass(task.dueDate))}>
+                    {(listName || due || task.priority === "high" || task.recurrence || tags.length || task.estimatedPomos || task.subtasks?.length) ?
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                            {task.priority === "high" && <Flag size={12} className="text-error" fill="currentColor" aria-label="High priority" />}
+                            {due && (
+                                <span className={clsx(CHIP, DUE_TONE[due.tone])}>
                                     <Calendar size={10} />
-                                    {new Date(task.dueDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                    {due.text}
                                 </span>
                             )}
-                            {(task.tags || []).map((tagId) => {
-                                const tag = TASK_TAGS.find((t) => t.id === tagId);
-                                return tag ? <span key={tag.id} className={clsx("w-2 h-2 rounded-full", tag.color)} title={tag.label} /> : null;
-                            })}
+                            {task.recurrence && (
+                                <span className={clsx(CHIP, "bg-info/10 text-info")}>
+                                    <Repeat size={10} />
+                                    {task.recurrence}
+                                </span>
+                            )}
                             {task.estimatedPomos ?
-                                <span className="flex items-center gap-1 text-[11px] text-base-content/50">
-                                    <Flame size={10} className="text-warning" />
+                                <span className={clsx(CHIP, "first:pl-0 text-base-content/60 tabular-nums")}>
+                                    <Timer size={10} />
                                     {task.actualPomos || 0}/{task.estimatedPomos}
                                 </span>
                             :   null}
+                            {task.subtasks?.length ?
+                                <span className={clsx(CHIP, "first:pl-0 tabular-nums", doneSubtasks === task.subtasks.length ? "text-success" : "text-base-content/60")}>
+                                    <ListChecks size={10} />
+                                    {doneSubtasks}/{task.subtasks.length}
+                                </span>
+                            :   null}
+                            {listName && <span className={clsx(CHIP, "text-base-content/50 border border-base-content/10")}>{listName}</span>}
+                            {tags.map((tag) => (
+                                <span key={tag.id} className={clsx(CHIP, "border", tag.chip)}>
+                                    {tag.label}
+                                </span>
+                            ))}
                         </div>
                     :   null}
 
@@ -143,11 +157,11 @@ export default function MobileTaskCard({ task, isFocused, listName, onToggle, on
                                 >
                                     <span
                                         className={clsx(
-                                            "w-4 h-4 rounded-full border flex items-center justify-center transition-colors flex-shrink-0",
-                                            st.completed ? "bg-base-content/40 border-base-content/40" : "border-base-content/40",
+                                            "w-4 h-4 rounded border flex items-center justify-center transition-colors flex-shrink-0",
+                                            st.completed ? "bg-success border-success" : "border-base-content/35",
                                         )}
                                     >
-                                        {st.completed && <Check size={10} className="text-base-100" />}
+                                        {st.completed && <Check size={10} strokeWidth={3} className="text-success-content" />}
                                     </span>
                                     <span className={clsx("transition-opacity truncate", st.completed && "line-through opacity-50")}>{st.text}</span>
                                 </button>
